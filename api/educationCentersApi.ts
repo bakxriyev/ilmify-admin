@@ -100,8 +100,34 @@ export const educationCentersApi = {
   getMyPublicToken: () =>
     api.get<{ token: string }>('/education-centers/my-public-token').then(r => r.data),
   uploadLogo: async (id: number, file: File) => {
+    // Rasmni compress qilish (katta fayllarni server qabul qilmasligi mumkin)
+    let uploadFile = file;
+    if (file.type.startsWith('image/')) {
+      try {
+        const canvas = document.createElement('canvas');
+        const img = new Image();
+        const blob = await new Promise<Blob | null>((resolve) => {
+          img.onload = () => {
+            const MAX = 800;
+            let { width, height } = img;
+            if (width > MAX || height > MAX) {
+              if (width > height) { height = (height / width) * MAX; width = MAX; }
+              else { width = (width / height) * MAX; height = MAX; }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d')!;
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(resolve, 'image/webp', 0.7);
+          };
+          img.onerror = () => resolve(null);
+          img.src = URL.createObjectURL(file);
+        });
+        if (blob) uploadFile = new File([blob], 'logo.webp', { type: 'image/webp' });
+      } catch { /* compress failed, use original */ }
+    }
     const formData = new FormData();
-    formData.append('logo', file);
+    formData.append('logo', uploadFile);
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : '';
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
     const res = await fetch(`${baseUrl}/education-centers/${id}/logo`, {
