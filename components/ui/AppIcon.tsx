@@ -28,7 +28,7 @@ export default function AppIcon({
   ...props
 }: IconProps) {
   const IconComponent =
-    (LucideIcons as Record<string, React.FC<any>>)[name] || HelpCircle;
+    (LucideIcons as unknown as Record<string, React.FC<any>>)[name] || HelpCircle;
 
   return (
     <IconComponent
