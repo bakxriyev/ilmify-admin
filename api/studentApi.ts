@@ -10,6 +10,8 @@ export interface Student {
   email: string | null;
   phone_number: string;
   photo: string | null;
+  is_active?: boolean;
+  isActive?: boolean;
   group_id: number | null;
   group?: {
     id: number;
@@ -39,6 +41,8 @@ export interface UpdateStudentRequest {
   phone_number?: string;
   password?: string;
   photo?: File | string;
+  is_active?: boolean;
+  isActive?: boolean;
 }
 
 export interface GetAllStudentsParams {
