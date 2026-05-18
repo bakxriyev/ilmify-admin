@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // API ning asosiy URL'i
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
 
 // Axios instance yaratish
 const api = axios.create({
