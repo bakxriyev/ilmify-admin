@@ -99,9 +99,20 @@ export const educationCentersApi = {
     api.delete(`/education-centers/branches/${branchId}`).then(r => r.data),
   getMyPublicToken: () =>
     api.get<{ token: string }>('/education-centers/my-public-token').then(r => r.data),
-  uploadLogo: (id: number, file: File) => {
+  uploadLogo: async (id: number, file: File) => {
     const formData = new FormData();
     formData.append('logo', file);
-    return api.post<EducationCenter>(`/education-centers/${id}/logo`, formData).then(r => r.data);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : '';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
+    const res = await fetch(`${baseUrl}/education-centers/${id}/logo`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Xatolik yuz berdi' }));
+      throw new Error(err.message || 'Fayl yuklanmadi');
+    }
+    return res.json() as Promise<EducationCenter>;
   },
 };
