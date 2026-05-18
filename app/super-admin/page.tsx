@@ -40,6 +40,7 @@ export default function SuperAdminDashboard() {
   });
   const [editForm, setEditForm] = useState({ name: '', location: '', phone: '', tariff_id: '', call_center_enabled: false, features: '', logoPreview: '' });
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [createLogoFile, setCreateLogoFile] = useState<File | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
 
   useEffect(() => {
@@ -79,7 +80,7 @@ export default function SuperAdminDashboard() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await educationCentersApi.create({
+      const created = await educationCentersApi.create({
         name: form.name, location: form.location || undefined, phone: form.phone || undefined,
         tariff_id: form.tariff_id ? Number(form.tariff_id) : undefined,
         admin: {
@@ -87,8 +88,17 @@ export default function SuperAdminDashboard() {
           email: form.admin_email, phone_number: form.admin_phone, password: form.admin_password,
         },
       });
+      if (createLogoFile && created?.id) {
+        try {
+          await educationCentersApi.uploadLogo(created.id, createLogoFile);
+          toast.success("Logo yuklandi");
+        } catch {
+          toast.error("Markaz yaratildi, lekin logo yuklanmadi");
+        }
+      }
       toast.success("Markaz yaratildi");
       setShowCreate(false);
+      setCreateLogoFile(null);
       setForm({ name: '', location: '', phone: '', tariff_id: '', admin_first_name: '', admin_last_name: '', admin_email: '', admin_phone: '', admin_password: '' });
       loadData();
     } catch (err: any) {
@@ -349,6 +359,16 @@ export default function SuperAdminDashboard() {
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Manzil</Label><Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} /></div>
               <div><Label>Telefon</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
+            </div>
+            <div>
+              <Label>Logo</Label>
+              <Input type="file" accept="image/*" onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) setCreateLogoFile(file);
+              }} />
+              {createLogoFile && (
+                <p className="text-xs text-gray-500 mt-1">{createLogoFile.name} tanlandi</p>
+              )}
             </div>
             <div>
               <Label>Tarif <span className="text-red-500">*</span></Label>

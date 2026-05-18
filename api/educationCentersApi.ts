@@ -102,8 +102,6 @@ export const educationCentersApi = {
   uploadLogo: (id: number, file: File) => {
     const formData = new FormData();
     formData.append('logo', file);
-    return api.post<EducationCenter>(`/education-centers/${id}/logo`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }).then(r => r.data);
+    return api.post<EducationCenter>(`/education-centers/${id}/logo`, formData).then(r => r.data);
   },
 };

@@ -213,18 +213,25 @@ export default function Sidebar({
     }
   }, []);
 
-  // Center info ni yuklash (admin localStorage dan)
+  // Center info ni yuklash (admin localStorage dan; agar yo'q bo'lsa API orqali)
   useEffect(() => {
-    try {
-      const adminRaw = localStorage.getItem('admin');
-      if (adminRaw) {
-        const adminData = JSON.parse(adminRaw);
-        const center = adminData.center;
-        if (center) {
-          setCenterInfo({ name: center.name, logo: center.logo });
+    const loadCenter = async () => {
+      try {
+        const adminRaw = localStorage.getItem('admin');
+        if (adminRaw) {
+          const adminData = JSON.parse(adminRaw);
+          if (adminData.center) {
+            setCenterInfo({ name: adminData.center.name, logo: adminData.center.logo });
+            return;
+          }
+          if (adminData.center_id) {
+            const c = await educationCentersApi.getById(adminData.center_id);
+            if (c) setCenterInfo({ name: c.name, logo: c.logo });
+          }
         }
-      }
-    } catch {}
+      } catch {}
+    };
+    loadCenter();
   }, []);
 
   useEffect(() => {
