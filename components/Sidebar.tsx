@@ -40,7 +40,6 @@ interface NavigationItem {
 const iconMap = {
   HomeIcon: Home,
   AcademicCapIcon: GraduationCap,
-  UserGroupIcon: Users,
   UsersIcon: UserCircle,
   PencilSquareIcon: FileText,
   ClipboardDocumentListIcon: FileText,
@@ -86,12 +85,6 @@ const navigationItems: NavigationItem[] = [
     label: 'Studentlar',
     path: '/students',
     icon: 'AcademicCapIcon',
-    badge: 0,
-  },
-  {
-    label: "O'qituvchilar",
-    path: '/teachers',
-    icon: 'UserGroupIcon',
     badge: 0,
   },
   {
