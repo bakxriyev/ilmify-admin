@@ -118,13 +118,13 @@ export default function SummaryChoicePreviewModal({
     setActiveBlank(nextBlank);
   };
 
-  const allFilled = extraData.sentences.every((_, idx) => userAnswers[idx]?.trim());
+  const allFilled = extraData.sentences.every((_: unknown, idx: number) => userAnswers[idx]?.trim());
 
   const handleCheck = () => {
     if (!allFilled || checked) return;
 
     const newResults = extraData.sentences.map(
-      (_, idx) => userAnswers[idx] === correctAnswers[idx]
+      (_: unknown, idx: number) => userAnswers[idx] === correctAnswers[idx]
     );
     setResults(newResults);
     setChecked(true);

@@ -12,6 +12,8 @@ import {
   BarChart3, Calendar, Clock, Phone, Mail as MailIcon, Globe, MapPin,
   Award, Target, TrendingUp, Activity, Zap, Heart, Star, Moon, Sun,
   Newspaper, Camera as CameraIcon, Building2, Wallet, Link as LinkIcon,
+  PhoneIcon,
+  SparklesIcon,
 } from 'lucide-react';
 import { studentsApi } from '../api/studentApi';
 import toast from 'react-hot-toast';
@@ -49,14 +51,12 @@ const iconMap = {
   ChatBubbleLeftRightIcon: MessageSquare,
   ChartPieIcon: ChartPie,
   Cog6ToothIcon: Cog,
-  SparklesIcon: Sparkles,
   SchoolIcon: School,
   BookMarkedIcon: BookMarked,
   BadgeCheckIcon: BadgeCheck,
   BarChart3Icon: BarChart3,
   CalendarIcon: Calendar,
   ClockIcon: Clock,
-  PhoneIcon: Phone,
   MailIcon: MailIcon,
   GlobeIcon: Globe,
   MapPinIcon: MapPin,

@@ -106,7 +106,7 @@ export default function AddStudentsModal({
 
       // ✅ to‘g‘ri nom: studentIds
       await groupStudentsApi.bulkAddStudents(groupId, {
-        studentIds: studentIds,
+        student_ids: studentIds,
         joined_date: today,
       });
 
