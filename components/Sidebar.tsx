@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-  ChevronLeft, ChevronRight, Home, Users, UserCircle, BookOpen,
-  ChartBar, Layers, FileText, MessageSquare, Cog, ChartPie, Bell,
+  ChevronLeft, ChevronRight, Home, Users, UserCircle,
+  FileText, MessageSquare, Cog, ChartPie, Bell,
   Mail, ChevronDown, Camera, LogOut, Settings, User, X, Loader2,
   Sparkles, GraduationCap, School, BookMarked, Library, BadgeCheck,
   BarChart3, Calendar, Clock, Phone, Mail as MailIcon, Globe, MapPin,
@@ -42,9 +42,6 @@ const iconMap = {
   AcademicCapIcon: GraduationCap,
   UserGroupIcon: Users,
   UsersIcon: UserCircle,
-  BookOpenIcon: BookOpen,
-  ChartBarIcon: ChartBar,
-  RectangleStackIcon: Layers,
   PencilSquareIcon: FileText,
   ClipboardDocumentListIcon: FileText,
   LanguageIcon: Library,
@@ -130,15 +127,6 @@ const navigationItems: NavigationItem[] = [
       { label: 'Call Center', path: '/leads/call-center', icon: 'PhoneIcon' },
       { label: 'Probniy darslar', path: '/leads/trial', icon: 'SparklesIcon' },
       { label: 'Manbalar', path: '/leads/sources', icon: 'LinkIcon' },
-    ],
-  },
-  {
-    label: 'Darslar',
-    icon: 'BookOpenIcon',
-    badge: 0,
-    children: [
-      { label: 'Darajalar', path: '/lesson/levels', icon: 'ChartBarIcon' },
-      { label: 'Bo\'limlar', path: '/lesson/units', icon: 'RectangleStackIcon' },
     ],
   },
   {
