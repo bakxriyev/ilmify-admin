@@ -29,25 +29,34 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    if (typeof window !== 'undefined') {
-      try {
-        const adminData = JSON.parse(localStorage.getItem('admin') || '{}');
-        if (adminData?.full_name || adminData?.role) {
-          setAdmin(adminData);
-          if (adminData.center) setCenter(adminData.center);
-        } else {
-          const teacherData = JSON.parse(localStorage.getItem('teacher') || '{}');
-          if (teacherData?.first_name) {
-            setAdmin({
-              full_name: `${teacherData.first_name} ${teacherData.last_name || ''}`,
-              role: 'teacher',
-              phone_number: teacherData.phone_number,
-            });
+    const loadData = async () => {
+      if (typeof window !== 'undefined') {
+        try {
+          const adminData = JSON.parse(localStorage.getItem('admin') || '{}');
+          if (adminData?.full_name || adminData?.role) {
+            setAdmin(adminData);
+            if (adminData.center) {
+              setCenter(adminData.center);
+            } else if (adminData.center_id) {
+              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz'}/education-centers/${adminData.center_id}`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+              });
+              if (res.ok) setCenter(await res.json());
+            }
+          } else {
+            const teacherData = JSON.parse(localStorage.getItem('teacher') || '{}');
+            if (teacherData?.first_name) {
+              setAdmin({
+                full_name: `${teacherData.first_name} ${teacherData.last_name || ''}`,
+                role: 'teacher',
+                phone_number: teacherData.phone_number,
+              });
+            }
           }
-        }
-      } catch {}
-    }
+        } catch {}
+      }
+    };
+    loadData();
   }, []);
 
   useEffect(() => {
