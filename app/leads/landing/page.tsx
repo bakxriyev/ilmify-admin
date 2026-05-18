@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,19 @@ import { leadsApi } from '@/api/leadsApi';
 import { leadSourcesApi } from '@/api/leadSourcesApi';
 import { CheckCircle, Loader2, AlertCircle, GraduationCap } from 'lucide-react';
 
-export default function LeadLandingPage() {
+export default function LeadLandingPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center p-4">
+        <Loader2 className="h-8 w-8 text-white animate-spin" />
+      </div>
+    }>
+      <LeadLandingPage />
+    </Suspense>
+  );
+}
+
+function LeadLandingPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const sourceCode = searchParams.get('source');
