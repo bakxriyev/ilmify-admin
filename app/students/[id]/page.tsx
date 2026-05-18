@@ -69,46 +69,34 @@ export default function StudentDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (student?.group?.id) {
+    if (groupInfo?.id) {
       loadAttendanceStats();
     }
   }, [student]);
 
   const loadAttendanceStats = async () => {
-    if (!student?.group?.id) return;
+    const gid = groupInfo?.id;
+    if (!gid) return;
     try {
       setAttendanceLoading(true);
-      const lessons = student.group_students?.[0]?.group?.lessons || student.group?.lessons || [];
-      const totalLessons = lessons.length;
-      const pastLessons = lessons.filter((l: any) => new Date(l.date) <= new Date());
-      let present = 0;
-      let absent = 0;
-
-      for (const lesson of pastLessons) {
-        try {
-          const records = await attendanceApi.getGroupAttendance(Number(student.group.id), lesson.date.split('T')[0]);
-          const myRecord = records.find((r: any) => Number(r.student_id) === Number(student.id));
-          if (myRecord) {
-            if (myRecord.is_present) present++;
-            else absent++;
-          }
-        } catch {}
-      }
-
-      const totalChecked = present + absent;
+      const now = new Date();
+      const stats = await attendanceApi.getStats(Number(gid), now.getFullYear(), now.getMonth() + 1);
       setAttendanceStats({
-        total: totalLessons,
-        present,
-        absent,
-        rate: totalChecked > 0 ? Math.round((present / totalChecked) * 100) : 0,
+        total: stats.lessons,
+        present: stats.present,
+        absent: stats.absent,
+        rate: stats.presentPercent,
       });
     } catch {} finally { setAttendanceLoading(false); }
   };
 
+  const getLessonsFromGroupInfo = () => groupInfo?.lessons || [];
+
   const handleMarkAttendance = async (isPresent: boolean, reason?: string) => {
-    if (!student?.group?.id || !attendanceDate) return;
+    const gid = groupInfo?.id;
+    if (!gid || !attendanceDate) return;
     try {
-      const lessons = student.group_students?.[0]?.group?.lessons || student.group?.lessons || [];
+      const lessons = getLessonsFromGroupInfo();
       const todayLesson = lessons.find((l: any) => l.date.split('T')[0] === attendanceDate);
       if (!todayLesson) { toast.error('Bu sana uchun dars topilmadi'); return; }
 
@@ -116,7 +104,7 @@ export default function StudentDetailPage() {
         lesson_id: Number(todayLesson.id),
         attendance: [{ student_id: Number(student.id), is_present: isPresent, reason }],
       });
-      toast.success(isPresent ? 'Keldi ✅' : "Kelmadi ❌");
+      toast.success(isPresent ? 'Keldi' : "Kelmadi");
       loadAttendanceStats();
     } catch { toast.error('Xatolik'); }
   };
@@ -385,6 +373,17 @@ export default function StudentDetailPage() {
                       <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-lg">
                         <GraduationCap className="h-5 w-5 text-purple-600" />
                         <span className="font-medium text-purple-700">{groupInfo.level.name} - {groupInfo.level.title}</span>
+                      </div>
+                    )}
+                    {groupInfo.kp && (
+                      <div className="flex items-center gap-2 p-3 bg-orange-50 rounded-lg">
+                        <Hash className="h-5 w-5 text-orange-600" />
+                        <span className="font-medium text-orange-700">KP: {groupInfo.kp}</span>
+                        {groupInfo.monthly_price && (
+                          <span className="text-sm text-orange-600 ml-2">
+                            ({(Number(groupInfo.monthly_price) * Number(groupInfo.kp)).toLocaleString()} so'm / oy)
+                          </span>
+                        )}
                       </div>
                     )}
                     {groupInfo.room && (

@@ -260,6 +260,11 @@ create: async (data: CreateTeacherRequest | FormData): Promise<Teacher> => {
   /**
    * Guruh bo'yicha teacherlarni olish
    */
+  login: async (data: { phone_number: string; password: string }): Promise<{ access_token: string; teacher: any }> => {
+    const response = await api.post('/teachers/login', data);
+    return response.data;
+  },
+
   getByGroup: async (groupId: number): Promise<Teacher[]> => {
     try {
       const response = await api.get(`/teachers/group/${groupId}`);

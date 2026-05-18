@@ -7,6 +7,7 @@ export interface Group {
   support_teacher_id: string;
   level_id: string;
   monthly_price?: number;
+  kp?: number;
   created_at: string;
   updated_at: string;
   mainTeacher?: {
@@ -60,6 +61,7 @@ export interface CreateGroupRequest {
   level_id?: string;
   room_id?: string | null;
   monthly_price?: number;
+  kp?: number;
   start_date?: string;
   duration_months?: number;
   time?: string;
@@ -75,6 +77,7 @@ export interface UpdateGroupRequest {
   level_id?: string;
   room_id?: string | null;
   monthly_price?: number;
+  kp?: number;
   start_date?: string;
   duration_months?: number;
   time?: string;

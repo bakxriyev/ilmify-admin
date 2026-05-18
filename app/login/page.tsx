@@ -6,8 +6,9 @@ import { Button } from '../../components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Alert, AlertDescription } from '../../components/ui/alert';
-import { Phone, Lock, GraduationCap, AlertCircle, Shield, Users, BookOpen, Eye, EyeOff, CheckCircle, Sparkles } from 'lucide-react';
+import { Phone, Lock, GraduationCap, AlertCircle, Shield, Users, BookOpen, Eye, EyeOff, CheckCircle, Sparkles, UserCheck } from 'lucide-react';
 import { adminApi } from '@/api/adminApi';
+import { teachersApi } from '@/api/teachersApi';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function LoginPage() {
   // State'lar
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'admin' | 'teacher'>('admin');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,11 +46,10 @@ export default function LoginPage() {
       if (typeof window !== 'undefined') {
         const token = localStorage.getItem('access_token');
         const admin = localStorage.getItem('admin');
+        const teacher = localStorage.getItem('teacher');
         
         if (token && admin) {
           const adminData = JSON.parse(admin);
-          // Agar super admin bo'lsa, bu sahifada qoldirib bo'lmaydi
-          // Tokenni tozalab, super admin login sahifasiga yo'naltiramiz
           if (adminData?.role === 'super_admin') {
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
@@ -57,6 +58,8 @@ export default function LoginPage() {
           } else {
             router.push('/dashboard');
           }
+        } else if (token && teacher) {
+          router.push('/teachers');
         }
       }
     };
@@ -136,32 +139,54 @@ export default function LoginPage() {
       
       const formattedPhone = preparePhoneForBackend(phone);
       
-      const response = await adminApi.login({
-        phone_number: formattedPhone,
-        password
-      });
-      
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('access_token', response.access_token);
-        localStorage.setItem('refresh_token', response.refresh_token);
-        localStorage.setItem('admin', JSON.stringify(response.admin));
-      }
-      
-      if (rememberMe) {
-        localStorage.setItem('rememberedPhone', phone);
-      } else {
-        localStorage.removeItem('rememberedPhone');
-      }
-      
-      // Success animation dan keyin yo'naltirish
-      setTimeout(() => {
-        const adminData = response.admin as any;
-        if (adminData?.role === 'super_admin') {
-          router.push('/super-admin');
-        } else {
-          router.push('/dashboard');
+      if (role === 'teacher') {
+        const response = await teachersApi.login({
+          phone_number: formattedPhone,
+          password
+        });
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('access_token', response.access_token);
+          localStorage.setItem('teacher', JSON.stringify(response.teacher));
+          localStorage.removeItem('admin');
+          localStorage.removeItem('refresh_token');
         }
-      }, 800);
+
+        if (rememberMe) {
+          localStorage.setItem('rememberedPhone', phone);
+        } else {
+          localStorage.removeItem('rememberedPhone');
+        }
+
+        setTimeout(() => router.push('/teachers'), 800);
+      } else {
+        const response = await adminApi.login({
+          phone_number: formattedPhone,
+          password
+        });
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('access_token', response.access_token);
+          localStorage.setItem('refresh_token', response.refresh_token);
+          localStorage.setItem('admin', JSON.stringify(response.admin));
+          localStorage.removeItem('teacher');
+        }
+
+        if (rememberMe) {
+          localStorage.setItem('rememberedPhone', phone);
+        } else {
+          localStorage.removeItem('rememberedPhone');
+        }
+
+        setTimeout(() => {
+          const adminData = response.admin as any;
+          if (adminData?.role === 'super_admin') {
+            router.push('/super-admin');
+          } else {
+            router.push('/dashboard');
+          }
+        }, 800);
+      }
       
     } catch (err: any) {
       console.error('Login error:', err);
@@ -182,6 +207,7 @@ export default function LoginPage() {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('admin');
+        localStorage.removeItem('teacher');
       }
       
     } finally {
@@ -324,10 +350,10 @@ export default function LoginPage() {
 
           <div className={`mb-10 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3 animate-gradient bg-gradient-to-r from-blue-900 via-blue-700 to-blue-600 bg-clip-text text-transparent">
-              Admin Panelga Kirish
+              {role === 'teacher' ? "O'qituvchi" : 'Admin'} Panelga Kirish
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Hisob ma'lumotlaringizni kiriting
+              {role === 'teacher' ? "O'qituvchi" : 'Admin'} hisob ma'lumotlaringizni kiriting
             </p>
           </div>
 
@@ -343,6 +369,33 @@ export default function LoginPage() {
                     <AlertDescription className="font-medium">{error}</AlertDescription>
                   </Alert>
                 )}
+
+                <div className={`flex gap-2 p-1 bg-gray-100 rounded-xl transition-all duration-500 ${mounted ? 'opacity-100' : 'opacity-0'}`} style={{ transitionDelay: '50ms' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRole('admin')}
+                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      role === 'admin'
+                        ? 'bg-white text-blue-700 shadow-sm border border-blue-200'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <Shield className="h-4 w-4 inline mr-1.5" />
+                    Admin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('teacher')}
+                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      role === 'teacher'
+                        ? 'bg-white text-blue-700 shadow-sm border border-blue-200'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <UserCheck className="h-4 w-4 inline mr-1.5" />
+                    O'qituvchi
+                  </button>
+                </div>
 
                 <div className="space-y-6">
                   <div className={`transition-all duration-500 ${mounted ? 'opacity-100' : 'opacity-0'}`} style={{ transitionDelay: '100ms' }}>

@@ -69,6 +69,7 @@ export default function EditGroupPage() {
           support_teacher_id: String(groupData.support_teacher_id),
           room_id: groupData.room_id ? String(groupData.room_id) : '',
           monthly_price: groupData.monthly_price,
+          kp: groupData.kp,
         });
 
         const teachers = teachersRes.data;
@@ -352,6 +353,24 @@ export default function EditGroupPage() {
                   placeholder="Masalan, 200000"
                   className="transition-all duration-300"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="kp" className="text-gray-900 font-medium">
+                  KP (koeffitsient)
+                </Label>
+                <Input
+                  id="kp"
+                  type="number"
+                  min="0.5"
+                  max="5"
+                  step="0.1"
+                  value={formData.kp ?? ''}
+                  onChange={(e) => setFormData({ ...formData, kp: e.target.value ? Number(e.target.value) : undefined })}
+                  placeholder="Masalan, 1.0"
+                  className="transition-all duration-300"
+                />
+                <p className="text-xs text-gray-500">Oylik to'lovni hisoblashda qo'llaniladi</p>
               </div>
 
               <div className="pt-6 border-t border-gray-200">

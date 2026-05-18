@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import CenterStatusChecker from '@/components/CenterStatusChecker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,9 +18,9 @@ import {
 import { educationCentersApi } from '@/api/educationCentersApi';
 import { tariffsApi, type Tariff } from '@/api/tariffsApi';
 import {
-  Shield, Plus, Building, MapPin, Phone, Power, PowerOff,
-  Eye, Edit2, Trash2, RefreshCw, LogOut, School, Users, GraduationCap,
-  BookOpen, BarChart3, Menu, X, Loader2, AlertCircle, Package,
+  Plus, Building, MapPin, Phone, Power, PowerOff,
+  Eye, Edit2, Trash2, RefreshCw, School, Users, GraduationCap,
+  BookOpen, X, Loader2, AlertCircle, Package, BarChart3,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -32,7 +31,6 @@ export default function SuperAdminDashboard() {
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<any>(null);
@@ -74,13 +72,6 @@ export default function SuperAdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('admin');
-    router.replace('/super-admin/login');
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -165,60 +156,26 @@ export default function SuperAdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <>
       <CenterStatusChecker />
-      <div className="flex h-screen overflow-hidden">
-        {sidebarOpen && (
-          <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
+      <div className="p-4 md:p-6 space-y-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <span>{error}</span>
+            <button onClick={() => setError('')} className="ml-auto text-red-500 hover:text-red-700"><X className="h-4 w-4" /></button>
+          </div>
         )}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-30 w-64 h-full bg-gray-900 text-white transition-all duration-300 flex flex-col`}>
-          <div className="p-5 border-b border-gray-700">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-purple-600 rounded-xl"><Shield className="h-6 w-6" /></div>
-              <div><h2 className="font-bold text-lg">Super Admin</h2><p className="text-xs text-gray-400">Boshqaruv paneli</p></div>
-            </div>
-          </div>
-          <nav className="flex-1 p-4 space-y-1">
-            <Link href="/super-admin" className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-purple-600/20 text-purple-300 font-medium">
-              <BarChart3 className="h-5 w-5" /> Dashboard
-            </Link>
-            <Link href="/super-admin/tariffs" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-800">
-              <Package className="h-5 w-5" /> Tariflar
-            </Link>
-          </nav>
-          <div className="p-4 border-t border-gray-700">
-            <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-red-300 hover:bg-red-500/10 transition-colors">
-              <LogOut className="h-5 w-5" /> Chiqish
-            </button>
-          </div>
-        </aside>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="bg-white shadow-sm border-b px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 rounded-lg hover:bg-gray-100">
-                {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
-              <h1 className="text-lg font-bold text-gray-900">Super Admin Panel</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button onClick={loadData} variant="outline" size="sm" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                Yangilash
-              </Button>
-            </div>
-          </header>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
+          <Button onClick={loadData} variant="outline" size="sm" disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Yangilash
+          </Button>
+        </div>
 
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                <span>{error}</span>
-                <button onClick={() => setError('')} className="ml-auto text-red-500 hover:text-red-700"><X className="h-4 w-4" /></button>
-              </div>
-            )}
-
-            {stats && (
+        {stats && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-xl p-5 shadow-lg">
                   <p className="text-sm text-blue-200 font-medium">Markazlar</p>
@@ -375,8 +332,8 @@ export default function SuperAdminDashboard() {
                 })}
               </div>
             )}
-          </main>
-        </div>
+
+
       </div>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
@@ -459,6 +416,6 @@ export default function SuperAdminDashboard() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

@@ -95,6 +95,9 @@ export default function CreateGroupPage() {
       if (formData.monthly_price) {
         payload.monthly_price = formData.monthly_price;
       }
+      if (formData.kp) {
+        payload.kp = formData.kp;
+      }
       if (formData.start_date) {
         payload.start_date = formData.start_date;
       }
@@ -300,6 +303,24 @@ export default function CreateGroupPage() {
                   placeholder="Masalan, 200000"
                   className="transition-all duration-300"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="kp" className="text-gray-900 font-medium">
+                  KP (koeffitsient)
+                </Label>
+                <Input
+                  id="kp"
+                  type="number"
+                  min="0.5"
+                  max="5"
+                  step="0.1"
+                  value={formData.kp || ''}
+                  onChange={(e) => setFormData({ ...formData, kp: e.target.value ? Number(e.target.value) : undefined })}
+                  placeholder="Masalan, 1.0"
+                  className="transition-all duration-300"
+                />
+                <p className="text-xs text-gray-500">Oylik to'lovni hisoblashda qo'llaniladi (standart: 1.0)</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-200">

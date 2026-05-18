@@ -32,6 +32,7 @@ export default function TeacherDetailPage() {
 
   const [teacher, setTeacher] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -46,9 +47,14 @@ export default function TeacherDetailPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setFetchError(null);
         const data = await teachersApi.getById(id);
         setTeacher(data);
-      } catch { toast.error("Ma'lumotlarni yuklashda xatolik"); }
+      } catch (err: any) {
+        const msg = err?.response?.data?.message || err?.message || "Ma'lumotlarni yuklashda xatolik";
+        setFetchError(msg);
+        toast.error(msg);
+      }
       finally { setLoading(false); }
     };
     fetchData();
@@ -91,7 +97,15 @@ export default function TeacherDetailPage() {
   );
 
   if (!teacher) return (
-    <Layout><div className="p-6"><Alert variant="destructive" className="max-w-lg"><AlertCircle className="h-4 w-4" /><AlertDescription>O'qituvchi topilmadi</AlertDescription></Alert></div></Layout>
+    <Layout><div className="p-6">
+      <Button variant="ghost" onClick={() => router.back()} className="text-gray-600 mb-4">
+        <ArrowLeft className="h-4 w-4 mr-2" /> Orqaga
+      </Button>
+      <Alert variant="destructive" className="max-w-lg">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{fetchError || "O'qituvchi topilmadi"}</AlertDescription>
+      </Alert>
+    </div></Layout>
   );
 
   const mainGroups = teacher.mainGroups || [];
@@ -191,6 +205,7 @@ export default function TeacherDetailPage() {
                           <th className="text-left p-2 text-gray-600">Rol</th>
                           <th className="text-left p-2 text-gray-600">Xona</th>
                           <th className="text-center p-2 text-gray-600">Yosh./Band/Bo'sh</th>
+                          <th className="text-center p-2 text-gray-600">KP</th>
                           <th className="text-left p-2 text-gray-600">Dars vaqti</th>
                         </tr>
                       </thead>
@@ -203,11 +218,8 @@ export default function TeacherDetailPage() {
                               <Link href={`/groups/${g.id}`} className="text-blue-600 hover:underline">{g.name}</Link>
                             </td>
                             <td className="p-2">
-                              <Badge className={mainGroups.includes(g) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}>
-                                {mainGroups.includes(g) ? 'Asosiy' : 'Yordamchi'}
-                              </Badge>
+                              {g.room ? <span className="flex items-center gap-1"><DoorOpen className="h-3 w-3 text-gray-400" />{g.room.name}</span> : <span className="text-gray-400">-</span>}
                             </td>
-                            <td className="p-2">{g.room ? <span className="flex items-center gap-1"><DoorOpen className="h-3 w-3 text-gray-400" />{g.room.name}</span> : <span className="text-gray-400">-</span>}</td>
                             <td className="p-2 text-center">
                               {g.room ? (
                                 <span className="text-xs font-medium">{g.student_count || 0}/{g.room.occupied_seats || 0}/{g.room.capacity - (g.room.occupied_seats || 0)}</span>
@@ -215,6 +227,7 @@ export default function TeacherDetailPage() {
                                 <span className="text-xs">{g.student_count || 0}/-/-</span>
                               )}
                             </td>
+                            <td className="p-2 text-center text-xs font-medium">{g.kp ?? '1.0'}</td>
                             <td className="p-2 text-xs text-gray-500">{nextLesson ? `${new Date(nextLesson.date).toLocaleDateString('uz-UZ', { weekday: 'short', day: 'numeric', month: 'short' })} ${nextLesson.time?.slice(0,5)}` : '-'}</td>
                           </tr>
                           );
@@ -246,6 +259,7 @@ export default function TeacherDetailPage() {
                         </div>
                         <div className="mt-3 space-y-2 text-xs text-gray-600">
                           <div className="flex items-center gap-1"><Users className="h-3 w-3" /> {g.student_count || 0} o'quvchi</div>
+                          <div className="flex items-center gap-1"><Hash className="h-3 w-3" /> KP: {g.kp ?? '1.0'}</div>
                           {g.room && (
                             <div className="flex flex-col gap-1 p-2 bg-gray-50 rounded">
                               <span className="flex items-center gap-1"><DoorOpen className="h-3 w-3" /> Xona: {g.room.name}</span>
@@ -293,6 +307,7 @@ export default function TeacherDetailPage() {
                         </div>
                         <div className="mt-3 space-y-2 text-xs text-gray-600">
                           <div className="flex items-center gap-1"><Users className="h-3 w-3" /> {g.student_count || 0} o'quvchi</div>
+                          <div className="flex items-center gap-1"><Hash className="h-3 w-3" /> KP: {g.kp ?? '1.0'}</div>
                           {g.room && (
                             <div className="flex flex-col gap-1 p-2 bg-gray-50 rounded">
                               <span className="flex items-center gap-1"><DoorOpen className="h-3 w-3" /> Xona: {g.room.name}</span>

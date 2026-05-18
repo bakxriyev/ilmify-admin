@@ -119,11 +119,11 @@ export default function CenterDetailPage() {
   };
   const trialDays = getTrialDays();
 
-  if (loading) return <div className="p-6"><Skeleton className="h-8 w-48" /></div>;
-  if (!center) return <div className="p-6 text-gray-500">Markaz topilmadi</div>;
+  if (loading) return <div className="p-4 md:p-6"><Skeleton className="h-8 w-48" /></div>;
+  if (!center) return <div className="p-4 md:p-6 text-gray-500">Markaz topilmadi</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="max-w-4xl mx-auto space-y-6">
         <Button variant="ghost" onClick={() => router.push('/super-admin')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Orqaga

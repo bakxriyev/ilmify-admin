@@ -573,6 +573,7 @@ export default function GroupDetailPage() {
                 <Wallet className="h-5 w-5 text-amber-600" />
                 <span className="text-sm text-amber-800 flex-1">
                   {group?.monthly_price ? `Oylik to'lov: ${group.monthly_price.toLocaleString()} so'm` : 'Oylik to\'lov belgilanmagan'}
+                  {group?.kp ? ` | KP: ${group.kp}` : ''}
                   {paymentData.length > 0 && ` | ${paymentData.filter(p => p.status === 'paid').length}/${paymentData.length} to'ladi`}
                 </span>
                 <Button size="sm" onClick={async () => {
