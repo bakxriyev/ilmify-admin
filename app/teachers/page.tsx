@@ -153,13 +153,11 @@ export default function TeachersPage() {
       // Search params
       if (filters.first_name) params.first_name = filters.first_name;
       if (filters.last_name) params.last_name = filters.last_name;
-      if (filters.email) params.email = filters.email;
+      if (filters.email) params.gmail = filters.email;
       if (filters.phone_number) params.phone_number = filters.phone_number;
 
       // Experience filter
-      if (experienceFilter.min) params.experience_min = experienceFilter.min;
-      if (experienceFilter.max) params.experience_max = experienceFilter.max;
-
+   
       // Tab filter
       if (activeTab === 'with-groups') {
         params.group_id = 'notnull';
@@ -170,8 +168,8 @@ export default function TeachersPage() {
       const response = await teachersApi.getAll(params);
       
       setTeachers(response.data ?? []);
-      setTotalTeachers(response.pagination?.total ?? 0);
-      setTotalPages(response.pagination?.total_pages ?? 1);
+      setTotalTeachers(response.total ?? 0);
+      setTotalPages(response.totalPages ?? 1);
       
       // Calculate stats
       const withGroupsCount = response.data?.filter((t: Teacher) => t.groups && t.groups.length > 0).length || 0;
@@ -180,7 +178,7 @@ export default function TeachersPage() {
       const avgExp = response.data?.reduce((acc: number, t: Teacher) => acc + (t.experience || 0), 0) / (response.data?.length || 1);
       
       setStats({
-        total: response.pagination?.total || 0,
+        total: response.total || 0,
         withGroups: withGroupsCount,
         withoutGroups: (response.data?.length || 0) - withGroupsCount,
         averageExperience: Math.round(avgExp) || 0,
@@ -284,12 +282,12 @@ export default function TeachersPage() {
     if (bulkData.length === 0) return;
     try {
       setIsBulkCreating(true);
-      const response = await teachersApi.bulkCreate({ teachers: bulkData });
+      const response = await teachersApi.bulkCreate({ teachers: bulkData.map(d => ({ ...d, gmail: d.email })) });
       setShowBulkModal(false);
       setBulkData([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
       fetchTeachers();
-      toast.success(`${response.created} ta oʻqituvchi qoʻshildi, ${response.errors.length} ta xatolik.`);
+      toast.success(`${response.success_count} ta oʻqituvchi qoʻshildi, ${response.errors.length} ta xatolik.`);
     } catch (err: any) {
       toast.error(err.message || 'Import qilishda xatolik');
     } finally {
@@ -772,7 +770,7 @@ export default function TeachersPage() {
                                 <div className="space-y-1.5">
                                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                                     <Mail className="h-3 w-3 text-blue-500" />
-                                    <span className="truncate max-w-[200px]">{teacher.email}</span>
+                                    <span className="truncate max-w-[200px]">{teacher.gmail}</span>
                                   </div>
                                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                                     <Phone className="h-3 w-3 text-indigo-500" />
@@ -944,7 +942,7 @@ export default function TeachersPage() {
                           <div className="space-y-3">
                             <div className="flex items-center gap-3 text-sm">
                               <Mail className="h-4 w-4 text-blue-500" />
-                              <span className="text-gray-700 dark:text-gray-300">{teacher.email}</span>
+                              <span className="text-gray-700 dark:text-gray-300">{teacher.gmail}</span>
                             </div>
                             
                             <div className="flex items-center gap-3 text-sm">
@@ -1087,7 +1085,7 @@ export default function TeachersPage() {
                           <div className="w-full space-y-2 mb-4">
                             <div className="flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                               <Mail className="h-4 w-4 text-blue-500" />
-                              <span className="truncate max-w-[200px]">{teacher.email}</span>
+                              <span className="truncate max-w-[200px]">{teacher.gmail}</span>
                             </div>
                             <div className="flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                               <Phone className="h-4 w-4 text-indigo-500" />

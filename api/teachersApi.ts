@@ -11,6 +11,9 @@ export interface Teacher {
   photo: string | null;
   teacher_type: 'MAIN_TEACHER' | 'SUPPORT';
   age?: string;
+  experience?: number;
+  specialization?: string;
+  students_count?: number;
   mainGroups?: Array<{
     id: number;
     name: string;
@@ -20,6 +23,14 @@ export interface Teacher {
     lessons?: Array<{ id: number; date: string; time: string; parity: string }>;
   }>;
   supportGroups?: Array<{
+    id: number;
+    name: string;
+    room?: { id: number; name: string; capacity: number; occupied_seats?: number; available_seats?: number };
+    student_count?: number;
+    level?: { name: string; title: string };
+    lessons?: Array<{ id: number; date: string; time: string; parity: string }>;
+  }>;
+  groups?: Array<{
     id: number;
     name: string;
     room?: { id: number; name: string; capacity: number; occupied_seats?: number; available_seats?: number };
@@ -58,6 +69,7 @@ export interface GetAllTeachersParams {
   last_name?: string;
   gmail?: string;                        // backendda email o'rniga gmail
   phone_number?: string;
+  group_id?: number | 'notnull' | 0;
 }
 
 export interface TeachersResponse {
