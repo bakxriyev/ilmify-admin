@@ -357,20 +357,19 @@ export default function EditGroupPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="kp" className="text-gray-900 font-medium">
-                  KP (koeffitsient)
+                  O'quvchi narxi (so'm)
                 </Label>
                 <Input
                   id="kp"
                   type="number"
-                  min="0.5"
-                  max="5"
-                  step="0.1"
+                  min="0"
+                  step="1000"
                   value={formData.kp ?? ''}
                   onChange={(e) => setFormData({ ...formData, kp: e.target.value ? Number(e.target.value) : undefined })}
-                  placeholder="Masalan, 1.0"
+                  placeholder="Masalan, 150000"
                   className="transition-all duration-300"
                 />
-                <p className="text-xs text-gray-500">Oylik to'lovni hisoblashda qo'llaniladi</p>
+                <p className="text-xs text-gray-500">Har bir o'quvchidan olinadigan oylik summa</p>
               </div>
 
               <div className="pt-6 border-t border-gray-200">

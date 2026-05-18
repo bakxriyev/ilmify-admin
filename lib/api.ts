@@ -14,7 +14,6 @@ const api = axios.create({
   timeout: 15000, // 15 soniya
 });
 
-// Request interceptor - har bir so'rovdan oldin token qo'shish
 api.interceptors.request.use(
   (config) => {
     // Faqat client side'da ishlaydi
@@ -30,6 +29,13 @@ api.interceptors.request.use(
         const admin = JSON.parse(localStorage.getItem('admin') || '{}');
         if (admin.center_id) {
           config.headers['x-center-id'] = admin.center_id;
+        }
+      } catch {}
+      // Teacher uchun center_id ni tekshirish
+      try {
+        const teacherData = JSON.parse(localStorage.getItem('teacher') || '{}');
+        if (teacherData.center_id) {
+          config.headers['x-center-id'] = teacherData.center_id;
         }
       } catch {}
     }
@@ -67,6 +73,7 @@ api.interceptors.response.use(
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('admin');
+        localStorage.removeItem('teacher');
         sessionStorage.removeItem('admin');
         const isSuperAdmin = window.location.pathname.startsWith('/super-admin');
         window.location.href = isSuperAdmin ? '/super-admin/login' : '/login';

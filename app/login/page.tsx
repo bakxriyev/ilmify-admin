@@ -234,7 +234,7 @@ export default function LoginPage() {
 
     window.addEventListener('keypress', handleKeyPress);
     return () => window.removeEventListener('keypress', handleKeyPress);
-  }, [loading, phone, password]);
+  }, [loading, phone, password, role]);
 
   // Loading komponenti
   if (loading && !mounted) {

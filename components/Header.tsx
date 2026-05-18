@@ -33,8 +33,19 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
     if (typeof window !== 'undefined') {
       try {
         const adminData = JSON.parse(localStorage.getItem('admin') || '{}');
-        setAdmin(adminData);
-        if (adminData.center) setCenter(adminData.center);
+        if (adminData?.full_name || adminData?.role) {
+          setAdmin(adminData);
+          if (adminData.center) setCenter(adminData.center);
+        } else {
+          const teacherData = JSON.parse(localStorage.getItem('teacher') || '{}');
+          if (teacherData?.first_name) {
+            setAdmin({
+              full_name: `${teacherData.first_name} ${teacherData.last_name || ''}`,
+              role: 'teacher',
+              phone_number: teacherData.phone_number,
+            });
+          }
+        }
       } catch {}
     }
   }, []);
@@ -56,6 +67,7 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('admin');
+    localStorage.removeItem('teacher');
     router.push('/login');
   };
 

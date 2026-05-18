@@ -377,11 +377,11 @@ export default function StudentDetailPage() {
                     )}
                     {groupInfo.kp && (
                       <div className="flex items-center gap-2 p-3 bg-orange-50 rounded-lg">
-                        <Hash className="h-5 w-5 text-orange-600" />
-                        <span className="font-medium text-orange-700">KP: {groupInfo.kp}</span>
+                        <Wallet className="h-5 w-5 text-orange-600" />
+                        <span className="font-medium text-orange-700">O'quvchi narxi: {Number(groupInfo.kp).toLocaleString()} so'm / oy</span>
                         {groupInfo.monthly_price && (
                           <span className="text-sm text-orange-600 ml-2">
-                            ({(Number(groupInfo.monthly_price) * Number(groupInfo.kp)).toLocaleString()} so'm / oy)
+                            (oyiga)
                           </span>
                         )}
                       </div>

@@ -7,7 +7,7 @@ import Layout from '@/components/Layout';
 import {
   ArrowLeft, User, Mail, Phone, Calendar, GraduationCap, BookOpen,
   Users, Edit, Trash2, AlertCircle, CheckCircle, Loader2, Building,
-  School, MapPin, DoorOpen, Key, Eye, EyeOff, Award, Clock, Hash,
+  School, MapPin, DoorOpen, Key, Eye, EyeOff, Award, Clock, Hash, Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -170,6 +170,12 @@ export default function TeacherDetailPage() {
             <p className="text-xs text-amber-600 font-medium">Asosiy/Yordamchi</p>
             <p className="text-xl font-bold text-gray-900">{mainGroups.length}/{supportGroups.length}</p>
           </div>
+          <div className="bg-emerald-50 rounded-xl p-3">
+            <p className="text-xs text-emerald-600 font-medium">Oylik daromad</p>
+            <p className="text-xl font-bold text-emerald-600">
+              {allGroups.reduce((s: number, g: any) => s + ((g.kp || 0) * (g.student_count || 0)), 0).toLocaleString()} so'm
+            </p>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -205,7 +211,7 @@ export default function TeacherDetailPage() {
                           <th className="text-left p-2 text-gray-600">Rol</th>
                           <th className="text-left p-2 text-gray-600">Xona</th>
                           <th className="text-center p-2 text-gray-600">Yosh./Band/Bo'sh</th>
-                          <th className="text-center p-2 text-gray-600">KP</th>
+                          <th className="text-center p-2 text-gray-600">O'quvchi narxi</th>
                           <th className="text-left p-2 text-gray-600">Dars vaqti</th>
                         </tr>
                       </thead>
@@ -227,7 +233,7 @@ export default function TeacherDetailPage() {
                                 <span className="text-xs">{g.student_count || 0}/-/-</span>
                               )}
                             </td>
-                            <td className="p-2 text-center text-xs font-medium">{g.kp ?? '1.0'}</td>
+                            <td className="p-2 text-center text-xs font-medium">{g.kp ? `${Number(g.kp).toLocaleString()} so'm` : '-'}</td>
                             <td className="p-2 text-xs text-gray-500">{nextLesson ? `${new Date(nextLesson.date).toLocaleDateString('uz-UZ', { weekday: 'short', day: 'numeric', month: 'short' })} ${nextLesson.time?.slice(0,5)}` : '-'}</td>
                           </tr>
                           );
@@ -259,7 +265,7 @@ export default function TeacherDetailPage() {
                         </div>
                         <div className="mt-3 space-y-2 text-xs text-gray-600">
                           <div className="flex items-center gap-1"><Users className="h-3 w-3" /> {g.student_count || 0} o'quvchi</div>
-                          <div className="flex items-center gap-1"><Hash className="h-3 w-3" /> KP: {g.kp ?? '1.0'}</div>
+                          <div className="flex items-center gap-1"><Wallet className="h-3 w-3" /> O'quvchi narxi: {g.kp ? `${Number(g.kp).toLocaleString()} so'm` : '-'}</div>
                           {g.room && (
                             <div className="flex flex-col gap-1 p-2 bg-gray-50 rounded">
                               <span className="flex items-center gap-1"><DoorOpen className="h-3 w-3" /> Xona: {g.room.name}</span>
@@ -307,7 +313,7 @@ export default function TeacherDetailPage() {
                         </div>
                         <div className="mt-3 space-y-2 text-xs text-gray-600">
                           <div className="flex items-center gap-1"><Users className="h-3 w-3" /> {g.student_count || 0} o'quvchi</div>
-                          <div className="flex items-center gap-1"><Hash className="h-3 w-3" /> KP: {g.kp ?? '1.0'}</div>
+                          <div className="flex items-center gap-1"><Wallet className="h-3 w-3" /> O'quvchi narxi: {g.kp ? `${Number(g.kp).toLocaleString()} so'm` : '-'}</div>
                           {g.room && (
                             <div className="flex flex-col gap-1 p-2 bg-gray-50 rounded">
                               <span className="flex items-center gap-1"><DoorOpen className="h-3 w-3" /> Xona: {g.room.name}</span>
