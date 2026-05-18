@@ -95,8 +95,13 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
           </div>
           {center && (
             <div className="hidden lg:flex items-center gap-3 pl-4 border-l border-gray-200">
-              <div className="p-1.5 bg-blue-50 rounded-lg">
-                <Building className="h-4 w-4 text-blue-600" />
+              <div className="w-8 h-8 rounded-lg overflow-hidden bg-blue-50 flex items-center justify-center shrink-0">
+                {center.logo ? (
+                  <img src={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz'}/uploads/centers/${center.logo}`}
+                    className="w-full h-full object-cover" alt={center.name} />
+                ) : (
+                  <Building className="h-4 w-4 text-blue-600" />
+                )}
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">{center.name}</p>

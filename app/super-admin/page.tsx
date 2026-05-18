@@ -277,8 +277,13 @@ export default function SuperAdminDashboard() {
                     <div key={c.id} className={`bg-white rounded-xl shadow-sm border p-5 ${!c.is_active ? 'opacity-70' : ''}`}>
                       <div className="flex flex-col lg:flex-row justify-between gap-4">
                         <div className="flex items-start gap-4 flex-1">
-                          <div className={`p-3 rounded-xl ${c.is_active ? 'bg-purple-100' : 'bg-gray-100'}`}>
-                            <School className={`h-6 w-6 ${c.is_active ? 'text-purple-600' : 'text-gray-400'}`} />
+                          <div className={`w-12 h-12 rounded-xl overflow-hidden shrink-0 ${c.is_active ? 'bg-purple-100' : 'bg-gray-100'} flex items-center justify-center`}>
+                            {c.logo ? (
+                              <img src={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz'}/uploads/centers/${c.logo}`}
+                                className="w-full h-full object-cover" alt={c.name} />
+                            ) : (
+                              <School className={`h-6 w-6 ${c.is_active ? 'text-purple-600' : 'text-gray-400'}`} />
+                            )}
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 flex-wrap">

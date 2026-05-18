@@ -133,7 +133,14 @@ export default function CenterDetailPage() {
         <Card className="border-0 shadow-lg bg-gradient-to-r from-purple-600 to-indigo-700">
           <CardContent className="p-6 text-white">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-white/20 rounded-xl"><School className="h-8 w-8" /></div>
+              <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/20 flex items-center justify-center shrink-0">
+                {center.logo ? (
+                  <img src={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz'}/uploads/centers/${center.logo}`}
+                    className="w-full h-full object-cover" alt={center.name} />
+                ) : (
+                  <School className="h-8 w-8" />
+                )}
+              </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-bold">{center.name}</h1>
