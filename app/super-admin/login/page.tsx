@@ -31,7 +31,7 @@ export default function SuperAdminLoginPage() {
         localStorage.setItem('access_token', data.access_token);
         localStorage.setItem('refresh_token', data.refresh_token);
         localStorage.setItem('admin', JSON.stringify(data.admin || data.user));
-        toast.success('Xush kelibsiz!');
+        toast.success('Xush kelibsiz!!');
         router.push('/super-admin');
       }
     } catch (err: any) {
