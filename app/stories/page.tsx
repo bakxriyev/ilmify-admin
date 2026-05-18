@@ -28,7 +28,7 @@ export default function StoriesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [limit] = useState(10);
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
 
   // Get current user ID from localStorage
   const getCurrentUserId = (): string | null => {

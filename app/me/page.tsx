@@ -182,7 +182,7 @@ export default function MePage() {
       const fd = new FormData();
       fd.append('photo', file);
       const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-      const res = await fetch(`http://localhost:4000/admin/${admin.id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/${admin.id}`, {
         method: 'PATCH',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,

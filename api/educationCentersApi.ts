@@ -99,4 +99,11 @@ export const educationCentersApi = {
     api.delete(`/education-centers/branches/${branchId}`).then(r => r.data),
   getMyPublicToken: () =>
     api.get<{ token: string }>('/education-centers/my-public-token').then(r => r.data),
+  uploadLogo: (id: number, file: File) => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    return api.post<EducationCenter>(`/education-centers/${id}/logo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data);
+  },
 };

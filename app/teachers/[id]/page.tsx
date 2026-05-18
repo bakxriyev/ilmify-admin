@@ -135,7 +135,7 @@ export default function TeacherDetailPage() {
           <CardContent className="p-5">
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16 border-2 border-white shadow-lg">
-                <AvatarImage src={teacher.photo ? `http://localhost:4000/uploads/teachers/${teacher.photo}` : ''} />
+                <AvatarImage src={teacher.photo ? `${process.env.NEXT_PUBLIC_API_URL}/uploads/teachers/${teacher.photo}` : ''} />
                 <AvatarFallback className="bg-blue-200 text-blue-800 text-xl font-bold">
                   {getInitials(teacher.first_name, teacher.last_name)}
                 </AvatarFallback>

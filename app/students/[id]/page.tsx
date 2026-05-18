@@ -228,7 +228,7 @@ export default function StudentDetailPage() {
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-6">
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16 border-2 border-white shadow-lg">
-                  <AvatarImage src={student.photo ? `http://localhost:4000/uploads/students/${student.photo}` : ''} />
+                  <AvatarImage src={student.photo ? `${process.env.NEXT_PUBLIC_API_URL}/uploads/students/${student.photo}` : ''} />
                   <AvatarFallback className="bg-blue-200 text-blue-800 text-xl font-bold">
                     {getInitials(student.first_name, student.last_name)}
                   </AvatarFallback>
@@ -552,7 +552,7 @@ export default function StudentDetailPage() {
                     <CardContent className="p-6">
                       <div className="flex items-center gap-4">
                         <Avatar className="h-14 w-14 border-2 border-pink-200">
-                          <AvatarImage src={parent.photo ? `http://localhost:4000/uploads/parents/${parent.photo}` : ''} />
+                          <AvatarImage src={parent.photo ? `${process.env.NEXT_PUBLIC_API_URL}/uploads/parents/${parent.photo}` : ''} />
                           <AvatarFallback className="bg-pink-100 text-pink-700 font-bold">
                             {getInitials(parent.first_name, parent.last_name)}
                           </AvatarFallback>

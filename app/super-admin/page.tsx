@@ -20,7 +20,7 @@ import { tariffsApi, type Tariff } from '@/api/tariffsApi';
 import {
   Plus, Building, MapPin, Phone, Power, PowerOff,
   Eye, Edit2, Trash2, RefreshCw, School, Users, GraduationCap,
-  BookOpen, X, Loader2, AlertCircle, Package, BarChart3,
+  BookOpen, X, Loader2, AlertCircle, Package, BarChart3, Image,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -38,7 +38,9 @@ export default function SuperAdminDashboard() {
     name: '', location: '', phone: '', tariff_id: '',
     admin_first_name: '', admin_last_name: '', admin_email: '', admin_phone: '', admin_password: '',
   });
-  const [editForm, setEditForm] = useState({ name: '', location: '', phone: '', tariff_id: '', call_center_enabled: false, features: '' });
+  const [editForm, setEditForm] = useState({ name: '', location: '', phone: '', tariff_id: '', call_center_enabled: false, features: '', logoPreview: '' });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -307,11 +309,13 @@ export default function SuperAdminDashboard() {
                           </button>
                           <button onClick={() => {
                             setShowEdit(c);
+                            setLogoFile(null);
                             setEditForm({
                               name: c.name, location: c.location || '', phone: c.phone || '',
                               tariff_id: c.tariff_id ? String(c.tariff_id) : '',
                               call_center_enabled: c.call_center_enabled || false,
                               features: JSON.stringify(c.features || {}),
+                              logoPreview: c.logo ? `${process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz'}/uploads/centers/${c.logo}` : '',
                             });
                           }}
                             className="p-2 rounded-lg text-blue-600 hover:bg-blue-50">
@@ -386,6 +390,46 @@ export default function SuperAdminDashboard() {
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Manzil</Label><Input value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} /></div>
               <div><Label>Telefon</Label><Input value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} /></div>
+            </div>
+            <div>
+              <Label>Logo</Label>
+              <div className="flex items-center gap-3">
+                {editForm.logoPreview && (
+                  <div className="w-16 h-16 rounded-lg overflow-hidden border bg-gray-50 shrink-0">
+                    <img src={editForm.logoPreview} alt="Logo" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Input type="file" accept="image/*" onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setLogoFile(file);
+                      setEditForm({...editForm, logoPreview: URL.createObjectURL(file)});
+                    }
+                  }} />
+                </div>
+                {logoFile && (
+                  <Button type="button" variant="outline" size="sm" disabled={logoUploading}
+                    onClick={async () => {
+                      if (!showEdit || !logoFile) return;
+                      setLogoUploading(true);
+                      try {
+                        await educationCentersApi.uploadLogo(showEdit.id, logoFile);
+                        toast.success('Logo yuklandi');
+                        setLogoFile(null);
+                        setEditForm({...editForm, logoPreview: ''});
+                        loadData();
+                      } catch (err: any) {
+                        toast.error(err?.response?.data?.message || err?.message || 'Xatolik');
+                      } finally {
+                        setLogoUploading(false);
+                      }
+                    }}>
+                    {logoUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Image className="h-4 w-4 mr-1" />}
+                    Yuklash
+                  </Button>
+                )}
+              </div>
             </div>
             <div>
               <Label>Tarif</Label>

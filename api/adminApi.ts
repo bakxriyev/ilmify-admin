@@ -1,12 +1,24 @@
 // api/adminApi.ts
 import api from '../lib/api';
 
+export interface CenterInfo {
+  id: number;
+  name: string;
+  logo: string | null;
+  location?: string;
+  phone?: string;
+  is_active?: boolean;
+  balance?: number;
+}
+
 export interface Admin {
   id: string;
   full_name: string;
   email?: string | null;
   photo?: string | null;
   phone_number: string;
+  center_id?: number;
+  center?: CenterInfo | null;
 }
 
 export interface LoginRequest {

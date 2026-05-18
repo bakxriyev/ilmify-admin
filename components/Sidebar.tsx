@@ -16,6 +16,7 @@ import {
   SparklesIcon,
 } from 'lucide-react';
 import { studentsApi } from '../api/studentApi';
+import { educationCentersApi, type EducationCenter } from '../api/educationCentersApi';
 import toast from 'react-hot-toast';
 
 interface SidebarProps {
@@ -39,6 +40,7 @@ interface NavigationItem {
 // Extend iconMap with Newspaper and Camera
 const iconMap = {
   HomeIcon: Home,
+  UserGroupIcon: Users,
   AcademicCapIcon: GraduationCap,
   UsersIcon: UserCircle,
   PencilSquareIcon: FileText,
@@ -85,6 +87,12 @@ const navigationItems: NavigationItem[] = [
     label: 'Studentlar',
     path: '/students',
     icon: 'AcademicCapIcon',
+    badge: 0,
+  },
+  {
+    label: "O'qituvchilar",
+    path: '/teachers',
+    icon: 'UserGroupIcon',
     badge: 0,
   },
   {
@@ -187,6 +195,7 @@ export default function Sidebar({
   const [mounted, setMounted] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [student, setStudent] = useState<any>(null);
+  const [centerInfo, setCenterInfo] = useState<{ name: string; logo: string | null } | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -202,6 +211,20 @@ export default function Sidebar({
       const savedTheme = localStorage.getItem('theme');
       setIsDark(savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches));
     }
+  }, []);
+
+  // Center info ni yuklash (admin localStorage dan)
+  useEffect(() => {
+    try {
+      const adminRaw = localStorage.getItem('admin');
+      if (adminRaw) {
+        const adminData = JSON.parse(adminRaw);
+        const center = adminData.center;
+        if (center) {
+          setCenterInfo({ name: center.name, logo: center.logo });
+        }
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -418,25 +441,33 @@ export default function Sidebar({
         >
           {!collapsed ? (
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl  flex items-center justify-center">
-                <img src="/logo.jpg" className='rounded-2xl' />
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden">
+                {centerInfo?.logo ? (
+                  <img src={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz'}/uploads/centers/${centerInfo.logo}`}
+                    className="w-full h-full object-cover rounded-xl" alt={centerInfo.name} />
+                ) : (
+                  <School className="w-7 h-7 text-white" />
+                )}
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-white text-lg leading-tight flex items-center gap-1">
-                  ILMIFY
-                  <BadgeCheck className="w-4 h-4 text-blue-200" />
+                <span className="font-bold text-white text-sm leading-tight flex items-center gap-1 max-w-[140px] truncate">
+                  {centerInfo?.name || "ILMIFY"}
                 </span>
-                <span className="text-xs text-blue-200 leading-tight">
-                  Education Platform
+                <span className="text-[10px] text-blue-200 leading-tight">
+                  {centerInfo ? "O'quv markazi" : "Education Platform"}
                 </span>
               </div>
             </div>
           ) : (
-            <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-md mx-auto">
-              <School className="w-7 h-7 text-white" />
+            <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-md mx-auto overflow-hidden">
+              {centerInfo?.logo ? (
+                <img src={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz'}/uploads/centers/${centerInfo.logo}`}
+                  className="w-full h-full object-cover" alt={centerInfo.name} />
+              ) : (
+                <School className="w-7 h-7 text-white" />
+              )}
             </div>
           )}
-          
         </div>
 
         {/* Navigation */}
