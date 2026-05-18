@@ -10,8 +10,8 @@ interface Admin {
   id: string;
   full_name: string;
   phone_number: string;
-  email?: string;
-  photo?: string;
+  email?: string | null;
+  photo?: string | null;
   role?: string;
 }
 
@@ -29,7 +29,7 @@ export default function MePage() {
     email: '',
   });
   const [passwordData, setPasswordData] = useState({
-    old_password: '',
+    current_password: '',
     new_password: '',
     confirm_password: '',
   });
@@ -72,20 +72,20 @@ export default function MePage() {
 
       // API dan yangi ma'lumotlarni olish
       try {
-        const response = await adminApi.getAdminById(adminId);
-        if (response?.data) {
-          setAdmin(response.data);
+        const response = await adminApi.getProfile();
+        if (response) {
+          setAdmin(response);
           setFormData({
-            full_name: response.data.full_name || '',
-            phone_number: response.data.phone_number || '',
-            email: response.data.email || '',
+            full_name: response.full_name || '',
+            phone_number: response.phone_number || '',
+            email: response.email || '',
           });
-          if (response.data.photo) {
-            setPhotoPreview(response.data.photo);
+          if (response.photo) {
+            setPhotoPreview(response.photo);
           }
           // LocalStorage ni yangilash
           if (typeof window !== 'undefined') {
-            localStorage.setItem('admin', JSON.stringify(response.data));
+            localStorage.setItem('admin', JSON.stringify(response));
           }
         } else {
           // Agar API dan ma'lumot kelmasa, localStorage dagi ma'lumotni ishlatamiz
@@ -134,12 +134,12 @@ export default function MePage() {
     setSaving(true);
     setMessage(null);
     try {
-      const updatedAdmin = await adminApi.updateAdmin(admin.id, formData);
-      if (updatedAdmin?.data) {
-        setAdmin(updatedAdmin.data);
+      const updatedAdmin = await adminApi.updateProfile(formData);
+      if (updatedAdmin) {
+        setAdmin(updatedAdmin);
         // LocalStorage ni yangilash
         if (typeof window !== 'undefined') {
-          localStorage.setItem('admin', JSON.stringify(updatedAdmin.data));
+          localStorage.setItem('admin', JSON.stringify(updatedAdmin));
         }
         setMessage({ type: 'success', text: 'Profile updated successfully' });
       }
@@ -179,13 +179,18 @@ export default function MePage() {
     setUploading(true);
     setMessage(null);
     try {
-      const formData = new FormData();
-      formData.append('photo', file);
-      const response = await adminApi.uploadPhoto(admin.id, formData);
-      if (response?.data?.photo) {
-        const updatedAdmin = { ...admin, photo: response.data.photo };
+      const fd = new FormData();
+      fd.append('photo', file);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+      const res = await fetch(`http://localhost:4000/admin/${admin.id}`, {
+        method: 'PATCH',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      const responseData = await res.json();
+      if (responseData?.photo) {
+        const updatedAdmin = { ...admin, photo: responseData.photo };
         setAdmin(updatedAdmin);
-        // LocalStorage ni yangilash
         if (typeof window !== 'undefined') {
           localStorage.setItem('admin', JSON.stringify(updatedAdmin));
         }
@@ -211,7 +216,7 @@ export default function MePage() {
   // Parolni o'zgartirish
   const handleChangePassword = async () => {
     // Validatsiya
-    if (!passwordData.old_password || !passwordData.new_password || !passwordData.confirm_password) {
+    if (!passwordData.current_password || !passwordData.new_password || !passwordData.confirm_password) {
       setMessage({ type: 'error', text: 'All fields are required' });
       return;
     }
@@ -232,12 +237,13 @@ export default function MePage() {
     setChangingPassword(true);
     setMessage(null);
     try {
-      await adminApi.changePassword(admin.id, {
-        old_password: passwordData.old_password,
+      await adminApi.changePassword({
+        current_password: passwordData.current_password,
         new_password: passwordData.new_password,
+        confirm_password: passwordData.confirm_password,
       });
       setMessage({ type: 'success', text: 'Password changed successfully' });
-      setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+      setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
     } catch (error: any) {
       console.error('Error changing password:', error);
       setMessage({ 
@@ -490,8 +496,8 @@ export default function MePage() {
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type={showOldPassword ? 'text' : 'password'}
-                    name="old_password"
-                    value={passwordData.old_password}
+                    name="current_password"
+                    value={passwordData.current_password}
                     onChange={handlePasswordChange}
                     className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                     placeholder="Enter current password"

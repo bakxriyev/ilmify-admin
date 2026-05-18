@@ -178,7 +178,7 @@ export default function UnitsPage() {
   const loadLevelById = async (id: number) => {
     try {
       setLoading(true);
-      const level = await levelsApi.getById(id);
+      const level = await levelsApi.getById(String(id));
       setSelectedLevel(level);
       setFilters(prev => ({ ...prev, level_id: id, page: 1 }));
     } catch (err: any) {
@@ -427,7 +427,7 @@ export default function UnitsPage() {
         title: u.title || u.name,
       }));
       if (selectedLevel) {
-        payloadUnits = payloadUnits.map(u => ({ ...u, level_id: selectedLevel.id }));
+        payloadUnits = payloadUnits.map(u => ({ ...u, level_id: Number(selectedLevel.id) }));
       }
 
       const response = await unitsApi.bulkCreate({ units: payloadUnits });
@@ -483,7 +483,7 @@ export default function UnitsPage() {
       title: '',
       description: '',
       unit_number: '',
-      level_id: selectedLevel ? selectedLevel.id : undefined,
+      level_id: selectedLevel ? Number(selectedLevel.id) : undefined,
     });
     setSelectedUnit(null);
   };
@@ -536,7 +536,7 @@ export default function UnitsPage() {
       limit: 10,
       sort_by: 'unit_number',
       sort_order: 'ASC',
-      ...(selectedLevel ? { level_id: selectedLevel.id } : {}),
+      ...(selectedLevel ? { level_id: Number(selectedLevel.id) } : {}),
     });
   };
 
@@ -659,7 +659,7 @@ export default function UnitsPage() {
                 <Card
                   key={level.id}
                   className="border-gray-200 hover:border-blue-300 cursor-pointer transition-all hover:shadow-md"
-                  onClick={() => loadLevelById(level.id)}
+                  onClick={() => loadLevelById(Number(level.id))}
                 >
                   <CardHeader>
                     <CardTitle className="text-lg font-semibold flex items-center gap-2">

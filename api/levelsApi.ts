@@ -7,6 +7,7 @@ export interface Level {
   name: string;
   title: string;
   description: string;
+  order?: number;
   unit_count?: number;
   units?: Unit[];
   created_at: string;
@@ -183,9 +184,9 @@ export const levelsApi = {
     try {
       // Parametrlarni to'g'rilash
       const processedParams = processApiParams({
-        page: params?.page,
-        limit: params?.limit,
-      });
+        page: params?.page ? Number(params.page) : undefined,
+        limit: params?.limit ? Number(params.limit) : undefined,
+      } as GetAllLevelsParams);
       
       const response = await api.get(`/levels/${id}/units`, { 
         params: processedParams 

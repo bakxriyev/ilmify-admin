@@ -253,7 +253,7 @@ export default function ExercisesPage() {
         setFormError('Exercise name is required');
         return;
       }
-      if (!formData.description.trim()) {
+      if (!formData.description?.trim()) {
         setFormError('Description is required');
         return;
       }
@@ -303,7 +303,7 @@ export default function ExercisesPage() {
         setFormError('Exercise name is required');
         return;
       }
-      if (!formData.description.trim()) {
+      if (!formData.description?.trim()) {
         setFormError('Description is required');
         return;
       }

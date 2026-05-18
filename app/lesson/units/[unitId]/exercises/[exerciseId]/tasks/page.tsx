@@ -26,7 +26,7 @@ import {
 import { tasksApi, Task } from '@/api/tasksApi';
 import { exercisesApi, Exercise } from '@/api/exercisesApi';
 import SummaryDModal from '../../../../../../../components/questionTypes/SummaryDModal';
-import SummaryDPreviewModal from '../../../../../../../components/questionPrewiev/SummaryDPreviewMOdal';
+import SummaryDPreviewModal from '../../../../../../../components/questionPrewiev/SummaryDPreviewModal';
 import SummaryCModal from '../../../../../../../components/questionTypes/SummaryCModal';
 import SummaryCEditModal from '../../../../../../../components/questionPrewiev/SummaryCEditModal'; // to‘g‘ri import
 import SummaryChoicePreviewModal from '../../../../../../../components/questionPrewiev/SummaryChoicePreviewModal';

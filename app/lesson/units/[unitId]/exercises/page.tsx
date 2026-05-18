@@ -119,7 +119,12 @@ const exerciseTypeConfig = {
     color: 'bg-teal-100 text-teal-800 border-teal-200',
     badgeColor: 'teal'
   },
-  
+   summary_writing: { 
+    label: 'Writing Summary', 
+    icon: ListChecks, 
+    color: 'bg-teal-100 text-teal-800 border-teal-200',
+    badgeColor: 'teal'
+  },
 };
 
 // Exercise types array for select dropdown
@@ -513,9 +518,9 @@ export default function UnitExercisesPage() {
                           <td className="py-3 px-4 max-w-xs truncate text-gray-600">{ex.qText}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
-                              {ex.audio_url && <Music className="h-4 w-4 text-blue-500" title="Audio bor" />}
-                              {ex.video_url && <Video className="h-4 w-4 text-green-500" title="Video bor" />}
-                              {ex.image_url && <Image className="h-4 w-4 text-purple-500" title="Rasm bor" />}
+                              {ex.audio_url && <span title="Audio bor"><Music className="h-4 w-4 text-blue-500 inline" /></span>}
+                              {ex.video_url && <span title="Video bor"><Video className="h-4 w-4 text-green-500 inline" /></span>}
+                              {ex.image_url && <span title="Rasm bor"><Image className="h-4 w-4 text-purple-500 inline" /></span>}
                               {!ex.audio_url && !ex.video_url && !ex.image_url && (
                                 <span className="text-xs text-gray-400">Yo'q</span>
                               )}

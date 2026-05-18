@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { tasksApi, Task } from '../../../../api/tasksApi';
 import { format } from 'date-fns';
 import { uz } from 'date-fns/locale';
-import SummaryDPreviewModal from '../../../../components/questionPrewiev/SummaryDPreviewMOdal';
+import SummaryDPreviewModal from '../../../../components/questionPrewiev/SummaryDPreviewModal';
 import SummaryDEditModal from '../../../../components/questionPrewiev/SummaryDEditModal';
 
 // Icons
@@ -302,7 +302,7 @@ export default function TaskDetailPage() {
             {/* Sidebar */}
             <div className="space-y-6">
               <InfoCard task={task} />
-              <ActionsCard onEdit={() => setShowEditModal(true)} onDelete={() => setShowDeleteModal(true)} />
+               <ActionsCard onEdit={() => setShowEditModal(true)} onDelete={() => setShowDeleteModal(true)} exerciseId={task?.exercise_id?.toString()} />
               <StatsCard />
             </div>
           </div>
@@ -521,7 +521,7 @@ const MediaIcons = ({ task }: any) => (
   </div>
 );
 
-const ActionsCard = ({ onEdit, onDelete }: any) => (
+const ActionsCard = ({ onEdit, onDelete, exerciseId }: { onEdit: () => void; onDelete: () => void; exerciseId?: string }) => (
   <Card className="border-none shadow-xl">
     <CardHeader>
       <CardTitle className="text-lg flex items-center gap-2">
@@ -531,7 +531,7 @@ const ActionsCard = ({ onEdit, onDelete }: any) => (
     <CardContent className="space-y-2">
       <ActionButton onClick={onEdit} icon={<Edit className="h-4 w-4 mr-2" />} label="Tahrirlash" />
       <ActionButton onClick={() => {}} icon={<Copy className="h-4 w-4 mr-2" />} label="Nusxalash" />
-      <ActionButton onClick={() => window.open(`/tasks?exercise_id=${task.exercise_id}`, '_blank')} icon={<Layers className="h-4 w-4 mr-2" />} label="Exercise tasklari" />
+      <ActionButton onClick={() => window.open(`/tasks?exercise_id=${exerciseId}`, '_blank')} icon={<Layers className="h-4 w-4 mr-2" />} label="Exercise tasklari" />
       <ActionButton onClick={onDelete} icon={<Trash2 className="h-4 w-4 mr-2" />} label="O'chirish" className="hover:bg-red-50 hover:text-red-600" />
     </CardContent>
   </Card>

@@ -134,7 +134,7 @@ export function useUnits() {
   const loadLevelById = async (id: number) => {
     try {
       setLoading(true);
-      const level = await levelsApi.getById(id);
+      const level = await levelsApi.getById(String(id));
       setSelectedLevel(level);
       setFilters(prev => ({ ...prev, level_id: id, page: 1 }));
     } catch (err: any) {

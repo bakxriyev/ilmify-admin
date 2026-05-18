@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, BookOpen, Layers, FileText, Edit, Hash, Calendar, BrainCircuit, Mic, Pencil, Headphones, HelpCircle, Languages, GraduationCap, ListChecks } from 'lucide-react';
+import { ArrowLeft, BookOpen, Layers, FileText, Edit, Hash, Calendar, BrainCircuit, Mic, Pencil, Headphones, HelpCircle, Languages, GraduationCap, ListChecks, Users } from 'lucide-react';
 import { unitsApi, Unit, UnitStatistics } from '../../../../api/unitsApi';
 import { levelsApi, Level } from '../../../../api/levelsApi';
 
@@ -48,7 +48,7 @@ export default function UnitDetailPage() {
         setUnit(unitData);
 
         if (unitData.level_id) {
-          const levelData = await levelsApi.getById(unitData.level_id);
+          const levelData = await levelsApi.getById(String(unitData.level_id));
           setLevel(levelData);
         }
 

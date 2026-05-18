@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import StudentForm, { StudentFormData } from '../../../../components/StudentForm';
-import { studentsApi } from '../../../../api/studentApi.ts';
+import { studentsApi } from '@/api/studentApi';
 
 export default function EditStudentPage() {
   const router = useRouter();

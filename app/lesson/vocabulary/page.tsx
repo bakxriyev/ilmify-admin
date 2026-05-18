@@ -9,8 +9,6 @@ import Icon from '@/components/ui/icon';
 
 export default function VocabularyPage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
-
 
   return (
     <Layout>

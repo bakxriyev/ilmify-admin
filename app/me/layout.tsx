@@ -44,8 +44,8 @@ export default function MeLayout({
         isMobile={isMobile}
       />
       <Sidebar 
-        collapsed={sidebarCollapsed} 
-        onToggle={toggleSidebar}
+        isCollapsed={sidebarCollapsed} 
+        onCollapsedChange={toggleSidebar}
         isMobile={isMobile}
       />
       <main

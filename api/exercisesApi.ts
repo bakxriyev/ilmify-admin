@@ -7,7 +7,7 @@ export interface Exercise {
   name: string;
   description: string;
   number: number;
-  type: 'reading' | 'gap_fill' | 'speaking' | 'writing' | 'listening' | 'test' | 'vocabulary' | 'grammar' | "summary_c"| 'summary_d' ;
+  type: 'reading' | 'gap_fill' | 'speaking' | 'writing' | 'listening' | 'test' | 'vocabulary' | 'grammar' | 'summary_c' | 'summary_d' | 'summary_ing' | 'summary_choice' | 'summary_no' | 'summary_writing';
   qText: string;
   audio_url?: string;
   video_url?: string;
@@ -37,7 +37,7 @@ export interface PaginatedResponse<T> {
 export interface CreateExerciseRequest {
   unit_id: number;
   name: string;
-  description: string;
+  description?: string;
   number: number;
   type: Exercise['type'];
   qText: string;
