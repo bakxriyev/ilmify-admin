@@ -11,13 +11,17 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { educationCentersApi } from '@/api/educationCentersApi';
+import { tariffsApi, type Tariff } from '@/api/tariffsApi';
 import {
-  Shield, Plus, Building, MapPin, Phone, DollarSign, Power, PowerOff,
+  Shield, Plus, Building, MapPin, Phone, Power, PowerOff,
   Eye, Edit2, Trash2, RefreshCw, LogOut, School, Users, GraduationCap,
-  BookOpen, BarChart3, Menu, X, Loader2, AlertCircle,
+  BookOpen, BarChart3, Menu, X, Loader2, AlertCircle, Package,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -25,13 +29,18 @@ export default function SuperAdminDashboard() {
   const router = useRouter();
   const [centers, setCenters] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<any>(null);
-  const [form, setForm] = useState({ name: '', location: '', phone: '', balance: '', admin_first_name: '', admin_last_name: '', admin_email: '', admin_phone: '', admin_password: '' });
-  const [editForm, setEditForm] = useState({ name: '', location: '', phone: '', balance: '' });
+  const [form, setForm] = useState({
+    name: '', location: '', phone: '', tariff_id: '',
+    admin_first_name: '', admin_last_name: '', admin_email: '', admin_phone: '', admin_password: '',
+  });
+  const [editForm, setEditForm] = useState({ name: '', location: '', phone: '', tariff_id: '', call_center_enabled: false, features: '' });
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -45,12 +54,14 @@ export default function SuperAdminDashboard() {
       setError('');
       const token = localStorage.getItem('access_token');
       if (!token) { router.replace('/super-admin/login'); return; }
-      const [c, s] = await Promise.all([
+      const [c, s, t] = await Promise.all([
         educationCentersApi.getAll(),
         educationCentersApi.getStats(),
+        tariffsApi.getAll(),
       ]);
       setCenters(c || []);
       setStats(s);
+      setTariffs(t || []);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Xatolik yuz berdi';
       setError(msg);
@@ -77,7 +88,7 @@ export default function SuperAdminDashboard() {
     try {
       await educationCentersApi.create({
         name: form.name, location: form.location || undefined, phone: form.phone || undefined,
-        balance: form.balance ? Number(form.balance) : 0,
+        tariff_id: form.tariff_id ? Number(form.tariff_id) : undefined,
         admin: {
           first_name: form.admin_first_name, last_name: form.admin_last_name,
           email: form.admin_email, phone_number: form.admin_phone, password: form.admin_password,
@@ -85,7 +96,7 @@ export default function SuperAdminDashboard() {
       });
       toast.success("Markaz yaratildi");
       setShowCreate(false);
-      setForm({ name: '', location: '', phone: '', balance: '', admin_first_name: '', admin_last_name: '', admin_email: '', admin_phone: '', admin_password: '' });
+      setForm({ name: '', location: '', phone: '', tariff_id: '', admin_first_name: '', admin_last_name: '', admin_email: '', admin_phone: '', admin_password: '' });
       loadData();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'Xatolik');
@@ -96,11 +107,13 @@ export default function SuperAdminDashboard() {
     e.preventDefault();
     if (!showEdit) return;
     try {
-      await educationCentersApi.update(showEdit.id, {
+      const payload: any = {
         name: editForm.name, location: editForm.location || undefined,
         phone: editForm.phone || undefined,
-        balance: editForm.balance ? Number(editForm.balance) : 0,
-      });
+        call_center_enabled: editForm.call_center_enabled,
+      };
+      if (editForm.tariff_id) payload.tariff_id = Number(editForm.tariff_id);
+      await educationCentersApi.update(showEdit.id, payload);
       toast.success("Markaz yangilandi");
       setShowEdit(null);
       loadData();
@@ -130,6 +143,27 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const getTariffName = (c: any) => c.tariff?.name || (c.tariff_id ? 'Tarif o\'chirilgan' : '—');
+  const getTrialStatus = (c: any) => {
+    if (!c.trial_ends_at && c.tariff_id) return { label: 'To\'lovli', color: 'bg-green-100 text-green-700' as const };
+    if (!c.trial_ends_at) return null;
+    const now = new Date();
+    const end = new Date(c.trial_ends_at);
+    const diff = end.getTime() - now.getTime();
+    if (diff <= 0) return { label: 'Sinov tugagan', color: 'bg-red-100 text-red-700' as const };
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return { label: `Sinov: ${days} kun`, color: days <= 2 ? 'bg-yellow-100 text-yellow-700' as const : 'bg-blue-100 text-blue-700' as const };
+  };
+  const getTariffEndStatus = (c: any) => {
+    if (!c.tariff_ends_at) return null;
+    const now = new Date();
+    const end = new Date(c.tariff_ends_at);
+    const diff = end.getTime() - now.getTime();
+    if (diff <= 0) return { label: 'Muddat tugagan', color: 'bg-red-100 text-red-700' as const };
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return { label: `${days} kun qoldi`, color: days <= 7 ? 'bg-yellow-100 text-yellow-700' as const : 'bg-green-100 text-green-700' as const };
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <CenterStatusChecker />
@@ -147,6 +181,9 @@ export default function SuperAdminDashboard() {
           <nav className="flex-1 p-4 space-y-1">
             <Link href="/super-admin" className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-purple-600/20 text-purple-300 font-medium">
               <BarChart3 className="h-5 w-5" /> Dashboard
+            </Link>
+            <Link href="/super-admin/tariffs" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-800">
+              <Package className="h-5 w-5" /> Tariflar
             </Link>
           </nav>
           <div className="p-4 border-t border-gray-700">
@@ -214,6 +251,7 @@ export default function SuperAdminDashboard() {
                       <tr className="border-b bg-gray-50">
                         <th className="text-left p-3 text-gray-600 font-medium">Markaz</th>
                         <th className="text-center p-3 text-gray-600 font-medium">Holat</th>
+                        <th className="text-center p-3 text-gray-600 font-medium">Tarif</th>
                         <th className="text-center p-3 text-gray-600 font-medium">O'quvchilar</th>
                         <th className="text-center p-3 text-gray-600 font-medium">O'qituvchilar</th>
                         <th className="text-center p-3 text-gray-600 font-medium">Guruhlar</th>
@@ -223,7 +261,18 @@ export default function SuperAdminDashboard() {
                       {stats.centers.map((c: any) => (
                         <tr key={c.id} className="border-b hover:bg-gray-50">
                           <td className="p-3 font-medium text-gray-900">{c.name}</td>
-                          <td className="p-3 text-center"><Badge className={c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>{c.is_active ? 'Faol' : 'Bloklangan'}</Badge></td>
+                          <td className="p-3 text-center">
+                            <Badge className={c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                              {c.is_active ? 'Faol' : 'Bloklangan'}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-center">
+                            {c.tariff ? (
+                              <Badge className="bg-purple-100 text-purple-700">{c.tariff.name}</Badge>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </td>
                           <td className="p-3 text-center font-semibold text-blue-600">{c.students}</td>
                           <td className="p-3 text-center font-semibold text-indigo-600">{c.teachers}</td>
                           <td className="p-3 text-center font-semibold text-purple-600">{c.groups}</td>
@@ -243,7 +292,7 @@ export default function SuperAdminDashboard() {
             </div>
 
             {loading ? (
-              <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}</div>
+              <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}</div>
             ) : centers.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm p-12 text-center text-gray-500">
                 <Building className="h-12 w-12 mx-auto text-gray-300 mb-3" />
@@ -252,52 +301,78 @@ export default function SuperAdminDashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {centers.map((c) => (
-                  <div key={c.id} className={`bg-white rounded-xl shadow-sm border p-5 ${!c.is_active ? 'opacity-70' : ''}`}>
-                    <div className="flex flex-col lg:flex-row justify-between gap-4">
-                      <div className="flex items-start gap-4 flex-1">
-                        <div className={`p-3 rounded-xl ${c.is_active ? 'bg-purple-100' : 'bg-gray-100'}`}>
-                          <School className={`h-6 w-6 ${c.is_active ? 'text-purple-600' : 'text-gray-400'}`} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-bold text-gray-900 text-lg">{c.name}</h3>
-                            <Badge className={c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
-                              {c.is_active ? 'Faol' : 'Bloklangan'}
-                            </Badge>
+                {centers.map((c) => {
+                  const trialStatus = getTrialStatus(c);
+                  const tariffEnd = getTariffEndStatus(c);
+                  return (
+                    <div key={c.id} className={`bg-white rounded-xl shadow-sm border p-5 ${!c.is_active ? 'opacity-70' : ''}`}>
+                      <div className="flex flex-col lg:flex-row justify-between gap-4">
+                        <div className="flex items-start gap-4 flex-1">
+                          <div className={`p-3 rounded-xl ${c.is_active ? 'bg-purple-100' : 'bg-gray-100'}`}>
+                            <School className={`h-6 w-6 ${c.is_active ? 'text-purple-600' : 'text-gray-400'}`} />
                           </div>
-                          <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-500">
-                            {c.location && <span><MapPin className="h-3.5 w-3.5 inline mr-1" />{c.location}</span>}
-                            {c.phone && <span><Phone className="h-3.5 w-3.5 inline mr-1" />{c.phone}</span>}
-                            <span><DollarSign className="h-3.5 w-3.5 inline mr-1" />{Number(c.balance).toLocaleString()} so'm</span>
-                            <span><Users className="h-3.5 w-3.5 inline mr-1" />{c.student_count || 0} o'quvchi</span>
-                            <span><GraduationCap className="h-3.5 w-3.5 inline mr-1" />{c.teacher_count || 0} o'qituvchi</span>
-                            <span><BookOpen className="h-3.5 w-3.5 inline mr-1" />{c.group_count || 0} guruh</span>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-bold text-gray-900 text-lg">{c.name}</h3>
+                              <Badge className={c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                                {c.is_active ? 'Faol' : 'Bloklangan'}
+                              </Badge>
+                              {c.tariff && (
+                                <Badge className="bg-purple-100 text-purple-700">{c.tariff.name}</Badge>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-500">
+                              {c.location && <span><MapPin className="h-3.5 w-3.5 inline mr-1" />{c.location}</span>}
+                              {c.phone && <span><Phone className="h-3.5 w-3.5 inline mr-1" />{c.phone}</span>}
+                              <span><Users className="h-3.5 w-3.5 inline mr-1" />{c.student_count || 0} o'quvchi</span>
+                              <span><GraduationCap className="h-3.5 w-3.5 inline mr-1" />{c.teacher_count || 0} o'qituvchi</span>
+                              <span><BookOpen className="h-3.5 w-3.5 inline mr-1" />{c.group_count || 0} guruh</span>
+                              {c.call_center_enabled && (
+                                <Badge className="bg-teal-100 text-teal-700">Call center yoqilgan</Badge>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {trialStatus && <Badge className={trialStatus.color}>{trialStatus.label}</Badge>}
+                              {tariffEnd && <Badge className={tariffEnd.color}>{tariffEnd.label}</Badge>}
+                              {c.tariff && (
+                                <span className="text-xs text-gray-400">
+                                  Cheklov: {c.tariff.student_min}–{c.tariff.student_max} talaba
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => toggleActive(c)}
-                          className={`p-2 rounded-lg transition-colors ${c.is_active ? 'text-red-500 hover:bg-red-50' : 'text-green-500 hover:bg-green-50'}`}
-                          title={c.is_active ? 'Bloklash' : 'Faollashtirish'}>
-                          {c.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
-                        </button>
-                        <button onClick={() => { setShowEdit(c); setEditForm({ name: c.name, location: c.location || '', phone: c.phone || '', balance: String(c.balance) }); }}
-                          className="p-2 rounded-lg text-blue-600 hover:bg-blue-50">
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => router.push(`/super-admin/centers/${c.id}`)}
-                          className="p-2 rounded-lg text-gray-600 hover:bg-gray-100">
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => handleDelete(c.id)}
-                          className="p-2 rounded-lg text-red-600 hover:bg-red-50">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => toggleActive(c)}
+                            className={`p-2 rounded-lg transition-colors ${c.is_active ? 'text-red-500 hover:bg-red-50' : 'text-green-500 hover:bg-green-50'}`}
+                            title={c.is_active ? 'Bloklash' : 'Faollashtirish'}>
+                            {c.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                          </button>
+                          <button onClick={() => {
+                            setShowEdit(c);
+                            setEditForm({
+                              name: c.name, location: c.location || '', phone: c.phone || '',
+                              tariff_id: c.tariff_id ? String(c.tariff_id) : '',
+                              call_center_enabled: c.call_center_enabled || false,
+                              features: JSON.stringify(c.features || {}),
+                            });
+                          }}
+                            className="p-2 rounded-lg text-blue-600 hover:bg-blue-50">
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => router.push(`/super-admin/centers/${c.id}`)}
+                            className="p-2 rounded-lg text-gray-600 hover:bg-gray-100">
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => handleDelete(c.id)}
+                            className="p-2 rounded-lg text-red-600 hover:bg-red-50">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </main>
@@ -305,7 +380,7 @@ export default function SuperAdminDashboard() {
       </div>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="bg-white max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Yangi o'quv markaz</DialogTitle><DialogDescription>Markaz va admin ma'lumotlarini kiriting</DialogDescription></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <h4 className="font-semibold text-gray-800 border-b pb-2">Markaz ma'lumotlari</h4>
@@ -314,7 +389,20 @@ export default function SuperAdminDashboard() {
               <div><Label>Manzil</Label><Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} /></div>
               <div><Label>Telefon</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
             </div>
-            <div><Label>Boshlang'ich balans</Label><Input type="number" value={form.balance} onChange={e => setForm({...form, balance: e.target.value})} /></div>
+            <div>
+              <Label>Tarif <span className="text-red-500">*</span></Label>
+              <Select value={form.tariff_id} onValueChange={v => setForm({...form, tariff_id: v})}>
+                <SelectTrigger><SelectValue placeholder="Tarifni tanlang" /></SelectTrigger>
+                <SelectContent>
+                  {tariffs.map(t => (
+                    <SelectItem key={t.id} value={String(t.id)}>
+                      {t.name} ({t.student_min}–{t.student_max} talaba)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!form.tariff_id && <p className="text-xs text-amber-600 mt-1">Tarif tanlanmasa 7 kunlik sinov rejimi boshlanadi</p>}
+            </div>
             <h4 className="font-semibold text-gray-800 border-b pb-2">Admin ma'lumotlari</h4>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Ism <span className="text-red-500">*</span></Label><Input value={form.admin_first_name} onChange={e => setForm({...form, admin_first_name: e.target.value})} required /></div>
@@ -334,7 +422,7 @@ export default function SuperAdminDashboard() {
       </Dialog>
 
       <Dialog open={!!showEdit} onOpenChange={v => !v && setShowEdit(null)}>
-        <DialogContent className="bg-white max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Markazni tahrirlash</DialogTitle></DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4">
             <div><Label>Nomi</Label><Input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} required /></div>
@@ -342,7 +430,28 @@ export default function SuperAdminDashboard() {
               <div><Label>Manzil</Label><Input value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} /></div>
               <div><Label>Telefon</Label><Input value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} /></div>
             </div>
-            <div><Label>Balans (so'm)</Label><Input type="number" value={editForm.balance} onChange={e => setEditForm({...editForm, balance: e.target.value})} /></div>
+            <div>
+              <Label>Tarif</Label>
+              <Select value={editForm.tariff_id} onValueChange={v => setEditForm({...editForm, tariff_id: v})}>
+                <SelectTrigger><SelectValue placeholder="Tarifni tanlang (o'zgartirilmaydi)" /></SelectTrigger>
+                <SelectContent>
+                  {tariffs.map(t => (
+                    <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-3">
+              <Label>Call center</Label>
+              <button
+                type="button"
+                onClick={() => setEditForm({...editForm, call_center_enabled: !editForm.call_center_enabled})}
+                className={`w-12 h-6 rounded-full transition-colors ${editForm.call_center_enabled ? 'bg-green-500' : 'bg-gray-300'}`}
+              >
+                <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${editForm.call_center_enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+              </button>
+              <span className="text-sm text-gray-500">{editForm.call_center_enabled ? 'Yoqilgan' : 'O\'chirilgan'}</span>
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowEdit(null)}>Bekor qilish</Button>
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">Saqlash</Button>

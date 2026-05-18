@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertCircle, ArrowLeft, Save, DoorOpen } from 'lucide-react';
 import { groupsApi, type CreateGroupRequest } from '@/api/groupsApi';
 import { teachersApi, type Teacher } from '@/api/teachersApi';
-import { levelsApi, type Level } from '@/api/levelsApi';
 import { roomsApi, type Room } from '@/api/roomsApi';
 import toast from 'react-hot-toast';
 
@@ -22,7 +21,6 @@ export default function CreateGroupPage() {
     name: '',
     teacher_id: '',
     support_teacher_id: '',
-    level_id: '',
     room_id: '',
     monthly_price: undefined,
     start_time: '',
@@ -31,7 +29,6 @@ export default function CreateGroupPage() {
 
   const [mainTeachers, setMainTeachers] = useState<Teacher[]>([]);
   const [supportTeachers, setSupportTeachers] = useState<Teacher[]>([]);
-  const [levels, setLevels] = useState<Level[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -42,18 +39,15 @@ export default function CreateGroupPage() {
     const fetchData = async () => {
       try {
         setFetching(true);
-        const [teachersRes, levelsRes, roomsRes] = await Promise.all([
+        const [teachersRes, roomsRes] = await Promise.all([
           teachersApi.getAll(),
-          levelsApi.getAll(),
           roomsApi.getAll(),
         ]);
 
         const teachers = teachersRes.data;
-        const levels = levelsRes.data;
 
         setMainTeachers(teachers.filter(t => t.teacher_type === 'MAIN_TEACHER'));
         setSupportTeachers(teachers.filter(t => t.teacher_type === 'SUPPORT'));
-        setLevels(levels);
 
         if (Array.isArray(roomsRes)) {
           setRooms(roomsRes);
@@ -85,10 +79,6 @@ export default function CreateGroupPage() {
       toast.error('Iltimos, yordamchi o\'qituvchini tanlang');
       return;
     }
-    if (!formData.level_id) {
-      toast.error('Iltimos, darajani tanlang');
-      return;
-    }
 
     try {
       setLoading(true);
@@ -97,7 +87,6 @@ export default function CreateGroupPage() {
         name: formData.name,
         teacher_id: Number(formData.teacher_id),
         support_teacher_id: Number(formData.support_teacher_id),
-        level_id: Number(formData.level_id),
       };
 
       if (formData.room_id) {
@@ -139,8 +128,7 @@ export default function CreateGroupPage() {
     return (
       formData.name.trim() !== '' &&
       formData.teacher_id !== '' &&
-      formData.support_teacher_id !== '' &&
-      formData.level_id !== ''
+      formData.support_teacher_id !== ''
     );
   };
 
@@ -150,7 +138,7 @@ export default function CreateGroupPage() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="flex flex-col items-center gap-4 animate-pulse">
             <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-400 border-t-transparent"></div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">O'qituvchilar va darajalar yuklanmoqda...</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">O'qituvchilar yuklanmoqda...</p>
           </div>
         </div>
       </Layout>
@@ -250,33 +238,6 @@ export default function CreateGroupPage() {
                       supportTeachers.map((teacher) => (
                         <SelectItem key={teacher.id} value={teacher.id.toString()}>
                           {teacher.first_name} {teacher.last_name} ({teacher.gmail})
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="level_id" className="text-gray-900 font-medium">
-                  Daraja <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={formData.level_id}
-                  onValueChange={(value) => setFormData({ ...formData, level_id: value })}
-                >
-                  <SelectTrigger className="transition-all duration-300">
-                    <SelectValue placeholder="Darajani tanlang" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {levels.length === 0 ? (
-                      <SelectItem value="no-level" disabled>
-                        Darajalar mavjud emas
-                      </SelectItem>
-                    ) : (
-                      levels.map((level) => (
-                        <SelectItem key={level.id} value={level.id.toString()}>
-                          {level.title} ({level.name})
                         </SelectItem>
                       ))
                     )}

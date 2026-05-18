@@ -429,16 +429,6 @@ export default function GroupsListPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {group.level ? (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                <BookOpen className="h-3 w-3 mr-1" />
-                                {group.level.name}
-                              </Badge>
-                            ) : (
-                              <span className="text-gray-500">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
                             {group.room ? (
                               <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
                                 <DoorOpen className="h-3 w-3 mr-1" />
@@ -619,15 +609,6 @@ export default function GroupsListPage() {
                           </div>
 
                           <div className="flex flex-wrap gap-2">
-                            {group.level && (
-                              <Badge
-                                variant="outline"
-                                className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200"
-                              >
-                                <BookOpen className="h-3 w-3" />
-                                {group.level.name}
-                              </Badge>
-                            )}
                             <Badge
                               variant="outline"
                               className="flex items-center gap-1 bg-gray-50 text-gray-700 border-gray-200"

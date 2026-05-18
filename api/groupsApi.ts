@@ -57,7 +57,7 @@ export interface CreateGroupRequest {
   name: string;
   teacher_id: string;
   support_teacher_id: string;
-  level_id: string;
+  level_id?: string;
   room_id?: string | null;
   monthly_price?: number;
   start_date?: string;
@@ -108,7 +108,7 @@ export const groupsApi = {
     try {
       // Default include relations
       const defaultParams = {
-        include: 'mainTeacher,supportTeacher,level,lessons',
+        include: 'mainTeacher,supportTeacher,lessons',
         ...params
       };
       
@@ -123,7 +123,7 @@ export const groupsApi = {
     getById: async (id: string): Promise<Group> => {
     try {
       const response = await api.get(`/groups/${id}`, {
-        params: { include: 'mainTeacher,supportTeacher,level,lessons,room' },
+        params: { include: 'mainTeacher,supportTeacher,lessons,room' },
       });
       return response.data;
     } catch (error: any) {

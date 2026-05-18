@@ -14,7 +14,6 @@ import { AlertCircle, ArrowLeft, Save, Plus, Trash2, DoorOpen } from 'lucide-rea
 import { groupsApi, type Group, type UpdateGroupRequest } from '@/api/groupsApi';
 import { lessonsApi, type Lesson, type CreateLessonRequest } from '@/api/lessonsApi';
 import { teachersApi, type Teacher } from '@/api/teachersApi';
-import { levelsApi, type Level } from '@/api/levelsApi';
 import { roomsApi, type Room } from '@/api/roomsApi';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import toast from 'react-hot-toast';
@@ -31,14 +30,12 @@ export default function EditGroupPage() {
     name: '',
     teacher_id: '',
     support_teacher_id: '',
-    level_id: '',
     room_id: '',
   });
   const [submitting, setSubmitting] = useState(false);
 
   const [mainTeachers, setMainTeachers] = useState<Teacher[]>([]);
   const [supportTeachers, setSupportTeachers] = useState<Teacher[]>([]);
-  const [levels, setLevels] = useState<Level[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [fetchingMeta, setFetchingMeta] = useState(true);
 
@@ -59,10 +56,9 @@ export default function EditGroupPage() {
     const fetchAll = async () => {
       try {
         setLoading(true);
-        const [groupData, teachersRes, levelsRes, roomsRes] = await Promise.all([
+        const [groupData, teachersRes, roomsRes] = await Promise.all([
           groupsApi.getById(groupId),
           teachersApi.getAll(),
-          levelsApi.getAll(),
           roomsApi.getAll(),
         ]);
 
@@ -71,7 +67,6 @@ export default function EditGroupPage() {
           name: groupData.name,
           teacher_id: String(groupData.teacher_id),
           support_teacher_id: String(groupData.support_teacher_id),
-          level_id: String(groupData.level_id),
           room_id: groupData.room_id ? String(groupData.room_id) : '',
           monthly_price: groupData.monthly_price,
         });
@@ -79,7 +74,6 @@ export default function EditGroupPage() {
         const teachers = teachersRes.data;
         setMainTeachers(teachers.filter(t => t.teacher_type === 'MAIN_TEACHER'));
         setSupportTeachers(teachers.filter(t => t.teacher_type === 'SUPPORT'));
-        setLevels(levelsRes.data);
 
         if (Array.isArray(roomsRes)) {
           setRooms(roomsRes);
@@ -117,7 +111,6 @@ export default function EditGroupPage() {
     if (!formData.name?.trim()) { toast.error('Guruh nomi majburiy'); return; }
     if (!formData.teacher_id) { toast.error('Iltimos, asosiy o\'qituvchini tanlang'); return; }
     if (!formData.support_teacher_id) { toast.error('Iltimos, yordamchi o\'qituvchini tanlang'); return; }
-    if (!formData.level_id) { toast.error('Iltimos, darajani tanlang'); return; }
 
     try {
       setSubmitting(true);
@@ -126,7 +119,6 @@ export default function EditGroupPage() {
         ...formData,
         teacher_id: Number(formData.teacher_id),
         support_teacher_id: Number(formData.support_teacher_id),
-        level_id: Number(formData.level_id),
       };
       delete payload.room_id;
 
@@ -298,33 +290,6 @@ export default function EditGroupPage() {
                       supportTeachers.map((teacher) => (
                         <SelectItem key={teacher.id} value={String(teacher.id)}>
                           {teacher.first_name} {teacher.last_name} ({teacher.gmail})
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="level_id" className="text-gray-900 font-medium">
-                  Daraja <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={formData.level_id}
-                  onValueChange={(value) => setFormData({ ...formData, level_id: value })}
-                >
-                  <SelectTrigger className="transition-all duration-300">
-                    <SelectValue placeholder="Darajani tanlang" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {levels.length === 0 ? (
-                      <SelectItem value="no-level" disabled>
-                        Darajalar mavjud emas
-                      </SelectItem>
-                    ) : (
-                      levels.map((level) => (
-                        <SelectItem key={level.id} value={String(level.id)}>
-                          {level.title} ({level.name})
                         </SelectItem>
                       ))
                     )}
@@ -530,7 +495,7 @@ export default function EditGroupPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={submitting || !formData.name || !formData.teacher_id || !formData.support_teacher_id || !formData.level_id}
+                disabled={submitting || !formData.name || !formData.teacher_id || !formData.support_teacher_id}
                 className="min-w-[120px] shadow-md hover:shadow-lg font-semibold"
               >
                 {submitting ? (

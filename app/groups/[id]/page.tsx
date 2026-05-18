@@ -6,9 +6,9 @@ import Link from 'next/link';
 import Layout from '@/components/Layout';
 import {
   ArrowLeft, Edit, UserPlus, Trash2, Users, User, Mail, Phone,
-  Calendar, Clock, BookOpen, GraduationCap, DoorOpen, Hash,
+  Calendar, Clock, BookOpen, DoorOpen, Hash,
   CheckCircle, XCircle, AlertCircle, UserCheck, School, BarChart3,
-  Clock3, CalendarDays, BookMarked, Layers, MapPin, ChevronDown,
+  Clock3, CalendarDays, Layers, MapPin, ChevronDown,
   ChevronUp, Download, RefreshCw, Loader2, ChevronLeft, ChevronRight,
   Wallet, Bell,
 } from 'lucide-react';
@@ -330,12 +330,6 @@ export default function GroupDetailPage() {
                   <span className="flex items-center gap-1"><Hash className="h-3.5 w-3.5" /> ID: {group.id}</span>
                   <span className="w-1 h-1 rounded-full bg-white/50" />
                   <span className="flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> Yaratilgan: {formatDate(group.created_at)}</span>
-                  {group.level && (
-                    <>
-                      <span className="w-1 h-1 rounded-full bg-white/50" />
-                      <span className="flex items-center gap-1"><GraduationCap className="h-3.5 w-3.5" /> {group.level.name}</span>
-                    </>
-                  )}
                 </div>
               </div>
             </div>
@@ -459,45 +453,7 @@ export default function GroupDetailPage() {
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="border-0 rounded-xl shadow-lg bg-white overflow-hidden">
-                  <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      <GraduationCap className="h-5 w-5" /> Daraja ma'lumotlari
-                    </h3>
-                  </div>
-                  <CardContent className="p-6">
-                    {group.level ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="p-3 bg-purple-100 rounded-lg">
-                              <BookMarked className="h-6 w-6 text-purple-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-gray-900 text-xl">{group.level.name}</h4>
-                              <p className="text-sm text-gray-500">ID: {group.level_id}</p>
-                            </div>
-                          </div>
-                          <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-sm px-4 py-2">
-                            {group.level.title}
-                          </Badge>
-                        </div>
-                        {group.level.description && (
-                          <div className="pt-3 border-t border-gray-100">
-                            <h5 className="text-sm font-medium text-gray-700 mb-1">Tavsif</h5>
-                            <p className="text-gray-600 text-sm">{group.level.description}</p>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-500 py-4">
-                        <XCircle className="h-5 w-5" /> <span>Daraja biriktirilmagan</span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
+              <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
                 <Card className="border-0 rounded-xl shadow-lg bg-white overflow-hidden">
                   <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-4">
                     <h3 className="text-lg font-semibold text-white flex items-center gap-2">

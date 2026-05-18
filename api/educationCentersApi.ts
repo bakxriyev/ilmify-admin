@@ -1,4 +1,4 @@
-import api from '../lib/api';
+import api from '@/lib/api';
 
 export interface EducationCenter {
   id: number;
@@ -15,6 +15,20 @@ export interface EducationCenter {
   teacher_count?: number;
   group_count?: number;
   admin_count?: number;
+  tariff_id?: number | null;
+  tariff?: TariffInfo | null;
+  trial_ends_at?: string | null;
+  tariff_started_at?: string | null;
+  tariff_ends_at?: string | null;
+  call_center_enabled?: boolean;
+  features?: Record<string, boolean>;
+}
+
+export interface TariffInfo {
+  id: number;
+  name: string;
+  student_min: number;
+  student_max: number;
 }
 
 export interface CenterBranch {
@@ -40,15 +54,42 @@ export interface CenterStats {
     teachers: number;
     groups: number;
     is_active: boolean;
+    tariff?: { id: number; name: string } | null;
+    trial_ends_at?: string | null;
+    tariff_ends_at?: string | null;
   }>;
+}
+
+export interface CreateCenterRequest {
+  name: string;
+  location?: string;
+  phone?: string;
+  tariff_id?: number;
+  admin?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone_number: string;
+    password: string;
+  };
+}
+
+export interface UpdateCenterRequest {
+  name?: string;
+  location?: string;
+  phone?: string;
+  is_active?: boolean;
+  tariff_id?: number;
+  call_center_enabled?: boolean;
+  features?: Record<string, boolean>;
 }
 
 export const educationCentersApi = {
   getAll: () => api.get<EducationCenter[]>('/education-centers').then(r => r.data),
   getById: (id: number) => api.get<EducationCenter>(`/education-centers/${id}`).then(r => r.data),
   getStats: () => api.get<CenterStats>('/education-centers/stats').then(r => r.data),
-  create: (data: any) => api.post<EducationCenter>('/education-centers', data).then(r => r.data),
-  update: (id: number, data: any) => api.patch<EducationCenter>(`/education-centers/${id}`, data).then(r => r.data),
+  create: (data: CreateCenterRequest) => api.post<EducationCenter>('/education-centers', data).then(r => r.data),
+  update: (id: number, data: UpdateCenterRequest) => api.patch<EducationCenter>(`/education-centers/${id}`, data).then(r => r.data),
   remove: (id: number) => api.delete(`/education-centers/${id}`).then(r => r.data),
   addBranch: (centerId: number, data: { name: string; location?: string; phone?: string }) =>
     api.post<CenterBranch>(`/education-centers/${centerId}/branches`, data).then(r => r.data),
