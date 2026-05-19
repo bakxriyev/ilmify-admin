@@ -224,9 +224,6 @@ export default function AddStudentsModal({
                           <span className="truncate max-w-[200px]">{student.email}</span>
                         )}
                         <span>{student.phone_number}</span>
-                        <Badge variant="outline" className="bg-gray-100 text-gray-600 border-0 text-xs">
-                          Yosh: {student.age}
-                        </Badge>
                       </div>
                     </div>
                   </div>

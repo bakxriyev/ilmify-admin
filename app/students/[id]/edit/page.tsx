@@ -43,7 +43,6 @@ export default function EditStudentPage() {
       const payload = {
         first_name: data.first_name,
         last_name: data.last_name,
-        age: data.age ? Number(data.age) : undefined,
         phone_number: data.phone_number,
         password: data.password || undefined,
         group_id: data.group_id ? Number(data.group_id) : undefined,
@@ -113,7 +112,6 @@ export default function EditStudentPage() {
                 initialData={{
                   first_name: student.first_name,
                   last_name: student.last_name,
-                  age: student.age,
                   phone_number: student.phone_number,
                   password: '',
                   group_id: student.group_id || '',

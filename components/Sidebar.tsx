@@ -47,6 +47,7 @@ const iconMap = {
   ClipboardDocumentListIcon: FileText,
   LanguageIcon: Library,
   ChatBubbleLeftRightIcon: MessageSquare,
+  BellIcon: Bell,
   ChartPieIcon: ChartPie,
   Cog6ToothIcon: Cog,
   SchoolIcon: School,
@@ -140,6 +141,12 @@ const navigationItems: NavigationItem[] = [
     label: 'Hikoyalar',
     path: '/stories',
     icon: 'CameraIcon',
+    badge: 0,
+  },
+  {
+    label: 'Bildirishnomalar',
+    path: '/notifications',
+    icon: 'BellIcon',
     badge: 0,
   },
   {

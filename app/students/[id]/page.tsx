@@ -68,15 +68,18 @@ export default function StudentDetailPage() {
     }).catch(err => setError(err.message || 'Xatolik')).finally(() => setLoading(false));
   }, [id]);
 
+  const getGroupId = () => student?.group_students?.[0]?.group?.id || student?.group?.id;
+  const getGroupInfo = () => student?.group_students?.[0]?.group || student?.group;
+  const getLessonsFromGroupInfo = () => getGroupInfo()?.lessons || [];
+
   useEffect(() => {
-    if (groupInfo?.id) {
-      loadAttendanceStats();
+    const gid = getGroupId();
+    if (gid) {
+      loadAttendanceStats(gid);
     }
   }, [student]);
 
-  const loadAttendanceStats = async () => {
-    const gid = groupInfo?.id;
-    if (!gid) return;
+  const loadAttendanceStats = async (gid: number) => {
     try {
       setAttendanceLoading(true);
       const now = new Date();
@@ -90,10 +93,8 @@ export default function StudentDetailPage() {
     } catch {} finally { setAttendanceLoading(false); }
   };
 
-  const getLessonsFromGroupInfo = () => groupInfo?.lessons || [];
-
   const handleMarkAttendance = async (isPresent: boolean, reason?: string) => {
-    const gid = groupInfo?.id;
+    const gid = getGroupId();
     if (!gid || !attendanceDate) return;
     try {
       const lessons = getLessonsFromGroupInfo();
@@ -105,7 +106,7 @@ export default function StudentDetailPage() {
         attendance: [{ student_id: Number(student.id), is_present: isPresent, reason }],
       });
       toast.success(isPresent ? 'Keldi' : "Kelmadi");
-      loadAttendanceStats();
+      loadAttendanceStats(gid);
     } catch { toast.error('Xatolik'); }
   };
 
@@ -175,12 +176,12 @@ export default function StudentDetailPage() {
   const lessons = groupInfo?.lessons || [];
   const sortedLessons = [...lessons].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const upcomingLessons = sortedLessons.filter((l: any) => new Date(l.date) > new Date());
+
   const parents = student.parent_links?.map((pl: any) => pl.parent).filter(Boolean) || [];
   const totalPaid = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
   const totalUnpaid = payments.filter(p => p.status === 'unpaid').reduce((s, p) => s + p.amount, 0);
 
   const statCards = [
-    { label: 'Yosh', value: `${student.age}`, icon: Calendar, color: 'blue' },
     { label: "To'lovlar", value: `${payments.length} ta`, icon: Wallet, color: 'green' },
     { label: "To'langan", value: `${totalPaid.toLocaleString()} so'm`, icon: CreditCard, color: 'emerald' },
     { label: 'Qarzdorlik', value: `${totalUnpaid.toLocaleString()} so'm`, icon: DollarSign, color: 'red' },
@@ -237,8 +238,6 @@ export default function StudentDetailPage() {
                   <h1 className="text-2xl font-bold">{student.first_name} {student.last_name}</h1>
                   <div className="flex items-center gap-3 text-white/80 text-sm mt-1">
                     <span className="flex items-center gap-1"><Hash className="h-3 w-3" /> ID: {student.id}</span>
-                    <span className="w-1 h-1 rounded-full bg-white/50" />
-                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {student.age} yosh</span>
                     {groupInfo && (
                       <>
                         <span className="w-1 h-1 rounded-full bg-white/50" />
@@ -302,10 +301,6 @@ export default function StudentDetailPage() {
                   <div>
                     <p className="text-xs text-gray-500 font-medium">Familiya</p>
                     <p className="text-gray-900 font-semibold mt-1">{student.last_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">Yosh</p>
-                    <p className="text-gray-900 font-semibold mt-1">{student.age} yosh</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 font-medium">Email</p>

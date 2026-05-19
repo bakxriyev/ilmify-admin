@@ -52,9 +52,11 @@ export default function GroupDetailPage() {
   // Payment state
   const [paymentData, setPaymentData] = useState<GroupPaymentSummary[]>([]);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const now = new Date();
+  const [payMonth, setPayMonth] = useState(now.getMonth() + 1);
+  const [payYear, setPayYear] = useState(now.getFullYear());
 
   // Attendance grid state
-  const now = new Date();
   const [gridYear, setGridYear] = useState(now.getFullYear());
   const [gridMonth, setGridMonth] = useState(now.getMonth());
   const [gridLessons, setGridLessons] = useState<Array<{ id: number; date: string; start_time: string }>>([]);
@@ -103,7 +105,7 @@ export default function GroupDetailPage() {
     if (activeTab === 'students' && group) {
       fetchPayments();
     }
-  }, [activeTab, group, gridYear, gridMonth]);
+  }, [activeTab, group, gridYear, gridMonth, payMonth, payYear]);
 
   const fetchMonthlyGrid = async () => {
     try {
@@ -167,8 +169,7 @@ export default function GroupDetailPage() {
   const fetchPayments = async () => {
     try {
       setPaymentLoading(true);
-      const now = new Date();
-      const data = await paymentsApi.findByGroup(groupId, now.getMonth() + 1, now.getFullYear());
+      const data = await paymentsApi.findByGroup(groupId, payMonth, payYear);
       setPaymentData(data);
     } catch {
       setPaymentData([]);
@@ -576,6 +577,14 @@ export default function GroupDetailPage() {
                   {group?.kp ? ` | O'quvchi narxi: ${Number(group.kp).toLocaleString()} so'm` : ''}
                   {paymentData.length > 0 && ` | ${paymentData.filter(p => p.status === 'paid').length}/${paymentData.length} to'ladi`}
                 </span>
+                <div className="flex items-center gap-1">
+                  <select value={payMonth} onChange={e => setPayMonth(Number(e.target.value))} className="h-8 text-xs border border-amber-300 rounded bg-white px-2">
+                    {monthNames.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
+                  </select>
+                  <select value={payYear} onChange={e => setPayYear(Number(e.target.value))} className="h-8 text-xs border border-amber-300 rounded bg-white px-2">
+                    {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
                 <Button size="sm" onClick={async () => {
                   try {
                     const res = await paymentsApi.checkReminders(groupId);

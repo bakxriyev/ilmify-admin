@@ -3,6 +3,7 @@
 import { ReactNode, useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import TokenChecker from './TokenChecker';
 
 interface LayoutProps {
   children: ReactNode;
@@ -29,6 +30,7 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
+      <TokenChecker />
       <Sidebar 
         isCollapsed={sidebarCollapsed} 
         onCollapsedChange={setSidebarCollapsed} 

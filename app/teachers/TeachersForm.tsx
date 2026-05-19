@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { User, Phone, Calendar, Key, Upload, X, AlertCircle, UserCog } from 'lucide-react';
+import { User, Phone, Key, Upload, X, AlertCircle, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,6 @@ export type TeacherType = 'MAIN_TEACHER' | 'SUPPORT';
 export interface TeacherFormData {
   first_name: string;
   last_name: string;
-  age: number | string;
   phone_number: string;
   password?: string;
   teacher_type: TeacherType;
@@ -43,7 +42,6 @@ export default function TeacherForm({
   const [formData, setFormData] = useState<TeacherFormData>({
     first_name: initialData?.first_name || '',
     last_name: initialData?.last_name || '',
-    age: initialData?.age || '',
     phone_number: initialData?.phone_number || '',
     password: initialData?.password || '',
     teacher_type: initialData?.teacher_type || 'SUPPORT',
@@ -108,12 +106,6 @@ export default function TeacherForm({
 
     if (!formData.first_name.trim()) errors.first_name = 'Ism kiritilishi shart';
     if (!formData.last_name.trim()) errors.last_name = 'Familiya kiritilishi shart';
-    if (formData.age) {
-      const ageNum = Number(formData.age);
-      if (isNaN(ageNum) || ageNum < 1 || ageNum > 100) {
-        errors.age = 'Yosh 1 dan 100 gacha boʻlishi kerak';
-      }
-    }
     if (!formData.phone_number.trim()) errors.phone_number = 'Telefon raqami kiritilishi shart';
     if (!formData.teacher_type) {
       errors.teacher_type = 'Teacher turi tanlanishi shart';
@@ -236,30 +228,6 @@ export default function TeacherForm({
           </div>
           {validationErrors.last_name && (
             <p className="text-sm text-red-600">{validationErrors.last_name}</p>
-          )}
-        </div>
-
-        {/* Age */}
-        <div className="space-y-2">
-          <Label htmlFor="age" className="text-gray-700 font-medium">
-            Yosh
-          </Label>
-          <div className="relative">
-            <Input
-              id="age"
-              name="age"
-              type="number"
-              min="1"
-              max="100"
-              value={formData.age}
-              onChange={handleChange}
-              placeholder="Yosh"
-              className={`pl-10 ${validationErrors.age ? 'border-red-500' : 'border-gray-300 focus:border-blue-500'}`}
-            />
-            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-emerald-500" />
-          </div>
-          {validationErrors.age && (
-            <p className="text-sm text-red-600">{validationErrors.age}</p>
           )}
         </div>
 

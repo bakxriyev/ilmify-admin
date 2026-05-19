@@ -1,5 +1,6 @@
 // api/api.ts
 import axios from 'axios';
+import { isTokenExpired, logoutAndRedirect } from './tokenUtils';
 
 // API ning asosiy URL'i
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
@@ -19,8 +20,13 @@ api.interceptors.request.use(
     // Faqat client side'da ishlaydi
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('access_token');
-      
+
       if (token) {
+        // JWT muddatini tekshirish
+        if (isTokenExpired(token)) {
+          logoutAndRedirect();
+          return Promise.reject(new Error('Token muddati tugagan'));
+        }
         config.headers.Authorization = `Bearer ${token}`;
       }
 
@@ -69,15 +75,7 @@ api.interceptors.response.use(
 
     // Agar token expired yoki invalid bo'lsa
     if (status === 401) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('admin');
-        localStorage.removeItem('teacher');
-        sessionStorage.removeItem('admin');
-        const isSuperAdmin = window.location.pathname.startsWith('/super-admin');
-        window.location.href = isSuperAdmin ? '/super-admin/login' : '/login';
-      }
+      logoutAndRedirect();
     }
     
     // Error message'ni chiqarish
@@ -93,5 +91,14 @@ api.interceptors.response.use(
     });
   }
 );
+
+// localStorage o'zgarishlarini kuzatish (token o'chirilsa logout)
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'access_token' && !e.newValue) {
+      logoutAndRedirect();
+    }
+  });
+}
 
 export default api;

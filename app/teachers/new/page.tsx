@@ -36,14 +36,6 @@ export default function NewTeacherPage() {
       formData.append('password', data.password);
       formData.append('teacher_type', data.teacher_type);
 
-      if (data.age) {
-        const ageNum = Number(data.age);
-        if (isNaN(ageNum) || ageNum < 1 || ageNum > 100) {
-          throw new Error('Yosh 1 dan 100 gacha boʻlishi kerak');
-        }
-        formData.append('age', ageNum.toString());
-      }
-
       if (data.photo instanceof File) {
         formData.append('photo', data.photo, data.photo.name);
       } else if (typeof data.photo === 'string' && data.photo) {

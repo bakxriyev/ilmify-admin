@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Users, GraduationCap, BookOpen, DoorOpen, Calendar, UserPlus,
   UserCircle, School, BarChart3, TrendingUp, Clock, CheckCircle,
-  XCircle, Loader2, RefreshCw, Trophy, ArrowUpRight, Eye, Building, DollarSign,
+  XCircle, Loader2, RefreshCw, Trophy, ArrowUpRight, Eye, Building, DollarSign, AlertTriangle,
 } from 'lucide-react';
 import { dashboardApi, type DashboardStats, type ChartData, type TeacherStats, type StudentAttendance, type Activity } from '@/api/dashboard';
 import {
@@ -34,6 +34,7 @@ export default function Layout({ children }: LayoutProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [isDashboard, setIsDashboard] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [studentGrowth, setStudentGrowth] = useState<ChartData | null>(null);
@@ -63,10 +64,12 @@ export default function Layout({ children }: LayoutProps) {
     if (isDash) loadAllData();
   }, [pathname]);
 
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     try {
+      setError(null);
       setLoading(true);
-      const [s, growth, dist, tGroups, tStudents, attendance, monthlyAtt, acts] = await Promise.all([
+      console.log('Dashboard loadAllData started');
+      const results = await Promise.allSettled([
         dashboardApi.getStats(),
         dashboardApi.getStudentGrowth('month'),
         dashboardApi.getGroupDistribution(),
@@ -76,20 +79,36 @@ export default function Layout({ children }: LayoutProps) {
         dashboardApi.getMonthlyAttendance(),
         dashboardApi.getRecentActivities(10),
       ]);
-      setStats(s);
-      setStudentGrowth(growth);
-      setGroupDistribution(dist);
-      setTopTeachersByGroups(tGroups);
-      setTopTeachersByStudents(tStudents);
-      setBestAttendance(attendance);
-      setMonthlyAttendance(monthlyAtt);
-      setActivities(acts);
+      console.log('Dashboard results:', results.map(r => r.status));
+
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          console.error(`Dashboard API #${i} failed:`, r.reason);
+        }
+      });
+
+      if (results[0].status === 'fulfilled') setStats(results[0].value as DashboardStats);
+      else console.error('getStats rejected:', results[0].reason);
+      if (results[1].status === 'fulfilled') setStudentGrowth(results[1].value as ChartData);
+      if (results[2].status === 'fulfilled') setGroupDistribution(results[2].value as ChartData);
+      if (results[3].status === 'fulfilled') setTopTeachersByGroups(results[3].value as TeacherStats[]);
+      if (results[4].status === 'fulfilled') setTopTeachersByStudents(results[4].value as TeacherStats[]);
+      if (results[5].status === 'fulfilled') setBestAttendance(results[5].value as StudentAttendance[]);
+      if (results[6].status === 'fulfilled') setMonthlyAttendance(results[6].value as ChartData);
+      if (results[7].status === 'fulfilled') setActivities(results[7].value as Activity[]);
+
+      if (results[0].status === 'rejected') {
+        const reason = results[0].reason;
+        setError(reason?.response?.data?.message || reason?.message || 'Serverga ulanishda xatolik');
+      }
     } catch (err: any) {
+      console.error('Dashboard loadAllData crashed:', err);
+      setError("Ma'lumotlarni yuklashda kutilmagan xatolik: " + (err?.message || 'unknown'));
       toast.error("Ma'lumotlarni yuklashda xatolik");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const today = new Date().toLocaleDateString('uz-UZ', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -111,12 +130,30 @@ export default function Layout({ children }: LayoutProps) {
       );
     }
 
-    const kpiCards = stats ? [
+    if (!stats) {
+      return (
+        <div className="space-y-6">
+          <Card className="border-0 shadow-lg rounded-xl border-red-200">
+            <CardContent className="p-8 flex flex-col items-center justify-center text-center">
+              <AlertTriangle className="h-12 w-12 text-red-400 mb-3" />
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Ma'lumot yuklanmadi</h2>
+              <p className="text-sm text-gray-500 mb-4">{error || 'Statistika ma\'lumotlari olinmadi'}</p>
+              <Button onClick={loadAllData} variant="outline" className="gap-2">
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Qayta urinish
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    const kpiCards = [
       { label: "Jami o'quvchilar", value: stats.total_students.toLocaleString(), icon: Users, color: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-600', sub: `+${stats.students_this_month} shu oyda` },
       { label: "O'qituvchilar", value: stats.total_teachers.toLocaleString(), icon: GraduationCap, color: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-600', sub: `Jami` },
       { label: 'Guruhlar', value: stats.total_groups.toLocaleString(), icon: BookOpen, color: 'bg-purple-500', bg: 'bg-purple-50', text: 'text-purple-600', sub: `${stats.groups_with_lessons} tasida dars bor` },
       { label: 'Davomat', value: `${stats.attendance_rate}%`, icon: Clock, color: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-600', sub: `${stats.total_lessons} ta dars` },
-    ] : [];
+    ];
 
     return (
       <div className="space-y-6">
