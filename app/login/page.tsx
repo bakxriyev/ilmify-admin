@@ -49,14 +49,7 @@ export default function LoginPage() {
         
         if (token && admin) {
           const adminData = JSON.parse(admin);
-          if (adminData?.role === 'super_admin') {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('admin');
-            router.push('/super-admin/login');
-          } else {
-            router.push('/dashboard');
-          }
+          router.push('/dashboard');
         } else if (token && teacher) {
           router.push('/teachers');
         }
@@ -158,12 +151,7 @@ export default function LoginPage() {
         }
 
         setTimeout(() => {
-          const adminData = response.admin as any;
-          if (adminData?.role === 'super_admin') {
-            router.push('/super-admin');
-          } else {
-            router.push('/dashboard');
-          }
+          router.push('/dashboard');
         }, 800);
       }
       

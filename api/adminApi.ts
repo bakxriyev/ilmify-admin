@@ -63,13 +63,6 @@ export const adminApi = {
       
       console.log('Login response received:', response.data);
       
-      // Tokenni localStorage ga saqlash
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('access_token', response.data.access_token);
-        localStorage.setItem('refresh_token', response.data.refresh_token);
-        localStorage.setItem('admin', JSON.stringify(response.data.admin));
-      }
-      
       return response.data;
     } catch (error: any) {
       console.error('Login API error:', error);

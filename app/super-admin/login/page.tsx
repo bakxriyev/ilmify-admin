@@ -25,7 +25,7 @@ export default function SuperAdminLoginPage() {
     try {
       setLoading(true);
       setError('');
-      const res = await api.post('/admin/login/phone', { phone_number: phone, password });
+      const res = await api.post('/admin/login/phone', { phone_number: phone, password, type: 'super_admin' });
       const data = res.data;
       if (data.access_token) {
         localStorage.setItem('access_token', data.access_token);
