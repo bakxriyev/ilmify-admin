@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { User, Mail, Phone, Calendar, Key, Upload, X, AlertCircle } from 'lucide-react';
+import { User, Phone, Calendar, Key, Upload, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,6 @@ export interface StudentFormData {
   first_name: string;
   last_name: string;
   age: number | string;
-  email: string;
   phone_number: string;
   password?: string;
   photo: File | string | null;
@@ -42,7 +41,6 @@ export default function StudentForm({
     first_name: initialData?.first_name || '',
     last_name: initialData?.last_name || '',
     age: initialData?.age || '',
-    email: initialData?.email || '',
     phone_number: initialData?.phone_number || '',
     password: initialData?.password || '',
     photo: initialData?.photo || null,
@@ -103,9 +101,7 @@ export default function StudentForm({
     if (!formData.last_name.trim()) {
       errors.last_name = 'Familiya kiritilishi shart';
     }
-    if (!formData.age) {
-      errors.age = 'Yosh kiritilishi shart';
-    } else {
+    if (formData.age) {
       const ageNum = Number(formData.age);
       if (isNaN(ageNum) || ageNum < 1 || ageNum > 100) {
         errors.age = 'Yosh 1 dan 100 gacha boʻlishi kerak';
@@ -116,9 +112,6 @@ export default function StudentForm({
     }
     if (requirePassword && !formData.password?.trim()) {
       errors.password = 'Parol kiritilishi shart';
-    }
-    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = 'Notoʻgʻri email formati';
     }
 
     setValidationErrors(errors);
@@ -244,7 +237,7 @@ export default function StudentForm({
         {/* Age */}
         <div className="space-y-2">
           <Label htmlFor="age" className="text-gray-700 font-medium">
-            Yosh <span className="text-red-500">*</span>
+            Yosh
           </Label>
           <div className="relative">
             <Input
@@ -283,26 +276,6 @@ export default function StudentForm({
           </div>
           {validationErrors.phone_number && (
             <p className="text-sm text-red-600">{validationErrors.phone_number}</p>
-          )}
-        </div>
-
-        {/* Email (ixtiyoriy) */}
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
-          <div className="relative">
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="student@example.com"
-              className={`pl-10 ${validationErrors.email ? 'border-red-500' : 'border-gray-300 focus:border-blue-500'}`}
-            />
-            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-cyan-500" />
-          </div>
-          {validationErrors.email && (
-            <p className="text-sm text-red-600">{validationErrors.email}</p>
           )}
         </div>
 

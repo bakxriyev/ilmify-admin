@@ -295,6 +295,37 @@ export default function TeachersPage() {
     }
   };
 
+  // Excel export
+  const handleExportExcel = () => {
+    try {
+      const exportData = teachers.map((t) => ({
+        'ID': t.id,
+        'Ism': t.first_name,
+        'Familiya': t.last_name,
+        'Email': t.gmail || '-',
+        'Telefon': t.phone_number,
+        'Yosh': t.age || '-',
+        'Tajriba': `${t.experience || 0} yil`,
+        'Mutaxassislik': t.specialization || '-',
+        'Oʻquvchilar soni': t.students_count || 0,
+        'Guruhlar soni': t.groups?.length || 0,
+      }));
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Oqituvchilar');
+      const colWidths = [
+        { wch: 8 }, { wch: 20 }, { wch: 20 }, { wch: 30 },
+        { wch: 18 }, { wch: 8 }, { wch: 10 }, { wch: 25 },
+        { wch: 14 }, { wch: 14 },
+      ];
+      ws['!cols'] = colWidths;
+      XLSX.writeFile(wb, `oqituvchilar_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success('Excel fayl yuklandi');
+    } catch (err) {
+      toast.error('Eksport qilishda xatolik');
+    }
+  };
+
   // Pagination
   const handlePageChange = (page: number) => {
     setFilters((prev) => ({ ...prev, page }));
@@ -381,6 +412,9 @@ export default function TeachersPage() {
               </div>
               <div className="flex gap-2">
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.xls" className="hidden" />
+                <Button variant="outline" size="sm" onClick={handleExportExcel} className="text-xs">
+                  <Download className="h-3.5 w-3.5 mr-1" /> Excel Export
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="text-xs">
                   <Upload className="h-3.5 w-3.5 mr-1" /> Excel Import
                 </Button>

@@ -66,7 +66,7 @@ export default function EditGroupPage() {
         setFormData({
           name: groupData.name,
           teacher_id: String(groupData.teacher_id),
-          support_teacher_id: String(groupData.support_teacher_id),
+          support_teacher_id: groupData.support_teacher_id ? String(groupData.support_teacher_id) : '',
           room_id: groupData.room_id ? String(groupData.room_id) : '',
           monthly_price: groupData.monthly_price,
           kp: groupData.kp,
@@ -111,7 +111,6 @@ export default function EditGroupPage() {
 
     if (!formData.name?.trim()) { toast.error('Guruh nomi majburiy'); return; }
     if (!formData.teacher_id) { toast.error('Iltimos, asosiy o\'qituvchini tanlang'); return; }
-    if (!formData.support_teacher_id) { toast.error('Iltimos, yordamchi o\'qituvchini tanlang'); return; }
 
     try {
       setSubmitting(true);
@@ -119,8 +118,12 @@ export default function EditGroupPage() {
       const payload: any = {
         ...formData,
         teacher_id: Number(formData.teacher_id),
-        support_teacher_id: Number(formData.support_teacher_id),
       };
+      if (formData.support_teacher_id) {
+        payload.support_teacher_id = Number(formData.support_teacher_id);
+      } else {
+        payload.support_teacher_id = null;
+      }
       delete payload.room_id;
 
       if (formData.room_id) {
@@ -273,16 +276,17 @@ export default function EditGroupPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="support_teacher_id" className="text-gray-900 font-medium">
-                  Yordamchi o'qituvchi <span className="text-destructive">*</span>
+                  Yordamchi o'qituvchi
                 </Label>
                 <Select
-                  value={formData.support_teacher_id}
-                  onValueChange={(value) => setFormData({ ...formData, support_teacher_id: value })}
+                  value={formData.support_teacher_id || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, support_teacher_id: value === 'none' ? '' : value })}
                 >
                   <SelectTrigger className="transition-all duration-300">
-                    <SelectValue placeholder="Yordamchi o'qituvchini tanlang" />
+                    <SelectValue placeholder="Yordamchi o'qituvchini tanlang (ixtiyoriy)" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">Yo'q</SelectItem>
                     {supportTeachers.length === 0 ? (
                       <SelectItem value="no-support" disabled>
                         Yordamchi o'qituvchilar mavjud emas
@@ -513,7 +517,7 @@ export default function EditGroupPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={submitting || !formData.name || !formData.teacher_id || !formData.support_teacher_id}
+                disabled={submitting || !formData.name || !formData.teacher_id}
                 className="min-w-[120px] shadow-md hover:shadow-lg font-semibold"
               >
                 {submitting ? (

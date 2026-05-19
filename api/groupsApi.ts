@@ -57,7 +57,7 @@ export interface Group {
 export interface CreateGroupRequest {
   name: string;
   teacher_id: string;
-  support_teacher_id: string;
+  support_teacher_id?: string;
   level_id?: string;
   room_id?: string | null;
   monthly_price?: number;
@@ -73,7 +73,7 @@ export interface CreateGroupRequest {
 export interface UpdateGroupRequest {
   name?: string;
   teacher_id?: string;
-  support_teacher_id?: string;
+  support_teacher_id?: string | null;
   level_id?: string;
   room_id?: string | null;
   monthly_price?: number;

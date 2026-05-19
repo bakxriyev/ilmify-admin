@@ -28,29 +28,23 @@ export default function NewStudentPage() {
 
       if (!data.first_name?.trim()) throw new Error('Ism kiritilishi shart');
       if (!data.last_name?.trim()) throw new Error('Familiya kiritilishi shart');
-      if (!data.age) throw new Error('Yosh kiritilishi shart');
       if (!data.phone_number?.trim()) throw new Error('Telefon raqam kiritilishi shart');
       if (!data.password || data.password.length < 6) {
         throw new Error('Parol kamida 6 belgidan iborat boʻlishi kerak');
       }
 
-      const ageNum = Number(data.age);
-      if (isNaN(ageNum) || ageNum < 1 || ageNum > 100) {
-        throw new Error('Yosh 1 dan 100 gacha boʻlishi kerak');
-      }
-
       const formData = new FormData();
       formData.append('first_name', data.first_name.trim());
       formData.append('last_name', data.last_name.trim());
-      formData.append('age', ageNum.toString());
       formData.append('phone_number', data.phone_number.trim());
       formData.append('password', data.password);
 
-      if (data.email?.trim()) {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-          throw new Error('Email notoʻgʻri formatda');
+      if (data.age) {
+        const ageNum = Number(data.age);
+        if (isNaN(ageNum) || ageNum < 1 || ageNum > 100) {
+          throw new Error('Yosh 1 dan 100 gacha boʻlishi kerak');
         }
-        formData.append('email', data.email.trim());
+        formData.append('age', ageNum.toString());
       }
 
       if (data.photo instanceof File) {
@@ -59,15 +53,21 @@ export default function NewStudentPage() {
         formData.append('photo', data.photo);
       }
 
-      // Parent fields (optional)
+      // Parent fields - auto-generate from student data if not filled
       if (parentFirstName.trim()) {
         formData.append('parent_first_name', parentFirstName.trim());
+      } else {
+        formData.append('parent_first_name', data.first_name.trim());
       }
       if (parentLastName.trim()) {
         formData.append('parent_last_name', parentLastName.trim());
+      } else {
+        formData.append('parent_last_name', data.last_name.trim());
       }
       if (parentPhoneNumber.trim()) {
         formData.append('parent_phone_number', parentPhoneNumber.trim());
+      } else {
+        formData.append('parent_phone_number', data.phone_number.trim());
       }
 
       await studentsApi.create(formData);
