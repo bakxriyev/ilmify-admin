@@ -191,9 +191,9 @@ export default function TeacherDetailPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div><p className="text-xs text-gray-500">Ism</p><p className="font-medium text-gray-900">{teacher.first_name}</p></div>
                   <div><p className="text-xs text-gray-500">Familiya</p><p className="font-medium text-gray-900">{teacher.last_name}</p></div>
-                  <div><p className="text-xs text-gray-500">Telefon</p><p className="font-medium text-gray-900">{teacher.phone_number || "Ko'rsatilmagan"}</p></div>
                   <div><p className="text-xs text-gray-500">Email</p><p className="font-medium text-gray-900 flex items-center gap-1"><Mail className="h-3 w-3 text-gray-400" />{teacher.gmail}</p></div>
                   <div><p className="text-xs text-gray-500">Telefon</p><p className="font-medium text-gray-900 flex items-center gap-1"><Phone className="h-3 w-3 text-gray-400" />{formatPhone(teacher.phone_number)}</p></div>
+                  <div><p className="text-xs text-gray-500">Parol</p><p className="font-medium text-gray-900 font-mono text-xs break-all">{teacher.password || "—"}</p></div>
                   <div><p className="text-xs text-gray-500">Rol</p><Badge className="bg-blue-100 text-blue-700">{teacher.teacher_type === 'MAIN_TEACHER' ? 'Asosiy o\'qituvchi' : 'Yordamchi o\'qituvchi'}</Badge></div>
                 </div>
               </CardContent>

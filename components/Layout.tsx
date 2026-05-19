@@ -14,10 +14,19 @@ export default function Layout({ children }: LayoutProps) {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setMounted(true);
     
+    const adminRaw = localStorage.getItem('admin');
+    if (adminRaw) {
+      try {
+        const adminData = JSON.parse(adminRaw);
+        setUserId(adminData.id);
+      } catch {}
+    }
+
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -35,7 +44,7 @@ export default function Layout({ children }: LayoutProps) {
         isCollapsed={sidebarCollapsed} 
         onCollapsedChange={setSidebarCollapsed} 
         isMobile={isMobile}
-        userId="1" // You'll get this from auth context
+        userId={userId}
       />
       <Header 
         sidebarCollapsed={sidebarCollapsed} 

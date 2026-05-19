@@ -18,10 +18,15 @@ export interface Payment {
 
 export interface GroupPaymentSummary {
   student: { id: number; first_name: string; last_name: string; phone_number: string };
+  group?: { id: number; name: string; monthly_price?: number };
   payment: Payment | null;
   status: string;
   month: number;
   year: number;
+  monthly_price: number;
+  paid_amount: number;
+  debt: number;
+  overdue_days: number;
 }
 
 export interface PaymentStats {
@@ -44,6 +49,12 @@ export const paymentsApi = {
 
   findByGroup: (groupId: number, month?: number, year?: number) =>
     api.get<GroupPaymentSummary[]>(`/payments/groups/${groupId}`, { params: { month, year } }).then(r => r.data),
+
+  getStudentsOverview: (month: number, year: number) =>
+    api.get<GroupPaymentSummary[]>('/payments/students-overview', { params: { month, year } }).then(r => r.data),
+
+  getYearOverview: (year: number) =>
+    api.get<{ month: number; year: number; total: number; paid: number; unpaid: number; partial: number }[]>('/payments/year-overview', { params: { year } }).then(r => r.data),
 
   create: (data: { student_id: number; group_id: number; amount: number; month: number; year: number; status?: string; note?: string }) =>
     api.post<Payment>('/payments', data).then(r => r.data),

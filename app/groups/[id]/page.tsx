@@ -180,26 +180,6 @@ export default function GroupDetailPage() {
 
   const getPaymentForStudent = (studentId: number) => paymentData.find(p => p.student.id === studentId);
 
-  const markAsPaid = async (studentId: number) => {
-    const existing = getPaymentForStudent(studentId);
-    try {
-      if (existing?.payment) {
-        await paymentsApi.update(existing.payment.id, { status: 'paid' });
-      } else {
-        await paymentsApi.create({
-          student_id: studentId,
-          group_id: groupId,
-          amount: group?.monthly_price || 0,
-          month: new Date().getMonth() + 1,
-          year: new Date().getFullYear(),
-          status: 'paid',
-        });
-      }
-      toast.success("To'lov tasdiqlandi");
-      fetchPayments();
-    } catch { toast.error('Xatolik'); }
-  };
-
   const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr']; 
   const activeRelations = groupStudents.filter(r => !r.left_date && r.student);
 
@@ -212,6 +192,20 @@ export default function GroupDetailPage() {
 
   const getInitials = (firstName: string, lastName: string) =>
     `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+
+  const isStudentActiveInMonth = (relation: GroupStudent, month: number, year: number) => {
+    const monthEnd = new Date(year, month, 0, 23, 59, 59);
+    const joined = new Date(relation.joined_date);
+    if (joined > monthEnd) return false;
+    const now = new Date();
+    const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
+    if (isCurrentMonth) return !relation.left_date;
+    if (!relation.left_date) return true;
+    const monthStart = new Date(year, month - 1, 1);
+    return new Date(relation.left_date) >= monthStart;
+  };
+
+  const monthFilteredStudents = groupStudents.filter(r => isStudentActiveInMonth(r, payMonth, payYear));
 
   const sortedLessons = group?.lessons
     ?.slice()
@@ -546,7 +540,7 @@ export default function GroupDetailPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <Card className="border-0 shadow-sm">
                   <CardContent className="p-4 text-center">
-                    <p className="text-2xl font-bold text-green-600">{groupStudents.filter(r => !r.left_date).length}</p>
+                    <p className="text-2xl font-bold text-green-600">{paymentData.length}</p>
                     <p className="text-xs text-gray-500">Faol studentlar</p>
                   </CardContent>
                 </Card>
@@ -599,7 +593,7 @@ export default function GroupDetailPage() {
               <Card className="border-0 rounded-xl shadow-lg bg-white overflow-hidden">
                 <div className="bg-gradient-to-r from-green-600 to-emerald-700 px-6 py-4 flex justify-between items-center">
                   <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Users className="h-5 w-5" /> Faol studentlar ({groupStudents.filter(r => !r.left_date).length})
+                    <Users className="h-5 w-5" /> Faol studentlar ({paymentData.length})
                   </h3>
                   <Button onClick={() => setShowAddModal(true)} size="sm" className="bg-white text-green-700 hover:bg-green-50">
                     <UserPlus className="h-4 w-4 mr-2" /> Student qo'shish
@@ -610,7 +604,7 @@ export default function GroupDetailPage() {
                     <div className="space-y-3">
                       {[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
                     </div>
-                  ) : groupStudents.filter(r => !r.left_date).length === 0 ? (
+                  ) : paymentData.length === 0 ? (
                     <div className="text-center py-12">
                       <Users className="h-16 w-16 mx-auto text-gray-300 mb-4" />
                       <h4 className="text-lg font-medium text-gray-700 mb-2">Faol studentlar mavjud emas</h4>
@@ -634,19 +628,19 @@ export default function GroupDetailPage() {
                             </TableRow>
                           </TableHeader>
                         <TableBody>
-                          {groupStudents.filter(r => !r.left_date).map((relation, idx) => {
-                            const student = relation.student;
-                            if (!student) return null;
-                            const pay = paymentData.find(p => Number(p.student.id) === student.id);
-                            const payStatus = pay?.status || 'unpaid';
-                            const payAmount = pay?.payment?.amount || group?.monthly_price || 0;
+                          {paymentData.map((payItem, idx) => {
+                            const student = payItem.student;
+                            const relation = groupStudents.find(r => Number(r.student_id) === Number(student.id));
+                            const payStatus = payItem.status;
+                            const debt = payItem.debt;
+                            const overdueDays = payItem.overdue_days;
                             return (
                               <TableRow key={student.id} className="border-b border-gray-100 hover:bg-gray-50">
                                 <TableCell className="text-gray-500 font-medium">{idx + 1}</TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-3">
                                     <Avatar className="h-9 w-9 border border-gray-200">
-                                      <AvatarImage src={student.photo || ''} />
+                                      <AvatarImage src={relation?.student?.photo || ''} />
                                       <AvatarFallback className="bg-green-100 text-green-700 text-xs">
                                         {getInitials(student.first_name, student.last_name)}
                                       </AvatarFallback>
@@ -658,7 +652,7 @@ export default function GroupDetailPage() {
                                     </div>
                                   </div>
                                 </TableCell>
-                                <TableCell className="text-gray-600">{student.age} yosh</TableCell>
+                                <TableCell className="text-gray-600">{relation?.student?.age ?? '-'} yosh</TableCell>
                                 <TableCell className="text-gray-600">{student.phone_number}</TableCell>
                                 <TableCell className="text-center">
                                   {paymentLoading ? (
@@ -668,25 +662,37 @@ export default function GroupDetailPage() {
                                       <CheckCircle className="h-3 w-3 mr-1" /> To'lagan
                                     </Badge>
                                   ) : payStatus === 'partial' ? (
-                                    <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">
-                                      <Clock className="h-3 w-3 mr-1" /> Qisman
-                                    </Badge>
+                                    <div className="flex flex-col items-center gap-0.5">
+                                      <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">
+                                        <Clock className="h-3 w-3 mr-1" /> Qisman
+                                      </Badge>
+                                      <span className="text-xs text-amber-600 font-medium">
+                                        {Number(debt).toLocaleString()} so'm qarz
+                                      </span>
+                                      {overdueDays > 0 && (
+                                        <span className="text-[10px] text-orange-500 flex items-center gap-0.5">
+                                          <CalendarDays className="h-3 w-3" /> {overdueDays} kun
+                                        </span>
+                                      )}
+                                    </div>
                                   ) : (
-                                    <div className="flex flex-col items-center gap-1">
+                                    <div className="flex flex-col items-center gap-0.5">
                                       <Badge className="bg-red-100 text-red-700 border-red-200">
                                         <XCircle className="h-3 w-3 mr-1" /> To'lamagan
                                       </Badge>
                                       <span className="text-xs text-red-500 font-medium">
-                                        {payAmount.toLocaleString()} so'm qarz
+                                        {Number(debt).toLocaleString()} so'm qarz
                                       </span>
-                                      <Button size="sm" onClick={() => markAsPaid(student.id)} className="h-6 text-[10px] bg-green-600 hover:bg-green-700 text-white px-2 mt-0.5">
-                                        <CheckCircle className="h-3 w-3 mr-0.5" /> To'landi
-                                      </Button>
+                                      {overdueDays > 0 && (
+                                        <span className="text-[10px] text-orange-500 flex items-center gap-0.5">
+                                          <CalendarDays className="h-3 w-3" /> {overdueDays} kun
+                                        </span>
+                                      )}
                                     </div>
                                   )}
                                 </TableCell>
                                 <TableCell className="text-gray-600">
-                                  {formatDate(relation.joined_date)}
+                                  {relation ? formatDate(relation.joined_date) : '-'}
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <Button

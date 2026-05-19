@@ -7,7 +7,7 @@ import {
   Users, Plus, Search, RefreshCw, ChevronLeft, ChevronRight,
   Eye, Edit, Trash2, MoreVertical, Upload, X, AlertCircle, CheckCircle,
   Phone, Mail, Calendar, Building, Loader2, Filter,
-  UserPlus, Download, Grid, List, Award, Clock, MapPin, 
+  UserPlus, Download, Grid, List, Clock, MapPin, 
   BookOpen, MessageSquare, Settings, BarChart3, ChevronDown, ChevronUp,
   GraduationCap, BookMarked, School, BadgeCheck, Users as UsersIcon, KeyRound
 } from 'lucide-react';
@@ -51,7 +51,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { debounce } from 'lodash';
 import * as XLSX from 'xlsx';
-import { teachersApi, type Teacher, type GetAllTeachersParams } from '@/api/teachersApi';
+import { teachersApi, type Teacher, type GetAllTeachersParams, getTeacherGroups } from '@/api/teachersApi';
 import toast from 'react-hot-toast';
 
 interface FilterParams {
@@ -64,9 +64,6 @@ interface FilterParams {
   email?: string;
   phone_number?: string;
   group_id?: number | 'notnull' | 0;
-  specialization?: string;
-  experience_min?: number;
-  experience_max?: number;
 }
 
 export default function TeachersPage() {
@@ -86,7 +83,6 @@ export default function TeachersPage() {
     total: 0,
     withGroups: 0,
     withoutGroups: 0,
-    averageExperience: 0,
     totalGroups: 0,
     totalStudents: 0,
   });
@@ -105,7 +101,6 @@ export default function TeachersPage() {
     email: string;
     phone_number: string;
     specialization: string;
-    experience: number;
     password: string;
   }>>([]);
   const [isBulkCreating, setIsBulkCreating] = useState(false);
@@ -117,10 +112,10 @@ export default function TeachersPage() {
     sort_by: 'id',
     sort_order: 'desc',
   });
-  const [experienceFilter, setExperienceFilter] = useState<{ min?: number; max?: number }>({});
+
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Debounced search
   useEffect(() => {
@@ -172,16 +167,14 @@ export default function TeachersPage() {
       setTotalPages(response.totalPages ?? 1);
       
       // Calculate stats
-      const withGroupsCount = response.data?.filter((t: Teacher) => t.groups && t.groups.length > 0).length || 0;
-      const totalGroupsCount = response.data?.reduce((acc: number, t: Teacher) => acc + (t.groups?.length || 0), 0) || 0;
+      const withGroupsCount = response.data?.filter((t: Teacher) => getTeacherGroups(t).length > 0).length || 0;
+      const totalGroupsCount = response.data?.reduce((acc: number, t: Teacher) => acc + getTeacherGroups(t).length, 0) || 0;
       const totalStudentsCount = response.data?.reduce((acc: number, t: Teacher) => acc + (t.students_count || 0), 0) || 0;
-      const avgExp = response.data?.reduce((acc: number, t: Teacher) => acc + (t.experience || 0), 0) / (response.data?.length || 1);
       
       setStats({
         total: response.total || 0,
         withGroups: withGroupsCount,
         withoutGroups: (response.data?.length || 0) - withGroupsCount,
-        averageExperience: Math.round(avgExp) || 0,
         totalGroups: totalGroupsCount,
         totalStudents: totalStudentsCount,
       });
@@ -195,7 +188,7 @@ export default function TeachersPage() {
       setLoading(false);
       setTableLoading(false);
     }
-  }, [filters, experienceFilter, activeTab]);
+  }, [filters, activeTab]);
 
   useEffect(() => {
     fetchTeachers();
@@ -264,7 +257,6 @@ export default function TeachersPage() {
             email: row.email || row.Email || '',
             phone_number: row.phone_number || row.phone || row.Phone || '',
             specialization: row.specialization || row.Specialization || row.subject || row.Subject || '',
-            experience: parseInt(row.experience) || parseInt(row.Experience) || 0,
             password: row.password || '123456',
           }))
           .filter((row) => row.first_name && row.last_name && row.phone_number);
@@ -305,10 +297,9 @@ export default function TeachersPage() {
         'Email': t.gmail || '-',
         'Telefon': t.phone_number,
         'Yosh': t.age || '-',
-        'Tajriba': `${t.experience || 0} yil`,
         'Mutaxassislik': t.specialization || '-',
         'Oʻquvchilar soni': t.students_count || 0,
-        'Guruhlar soni': t.groups?.length || 0,
+        'Guruhlar soni': getTeacherGroups(t).length,
       }));
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
@@ -344,18 +335,8 @@ export default function TeachersPage() {
     }));
   };
 
-  const applyExperienceFilter = () => {
-    setFilters((prev) => ({ ...prev, page: 1 }));
-  };
-
-  const clearExperienceFilter = () => {
-    setExperienceFilter({});
-    setFilters((prev) => ({ ...prev, page: 1 }));
-  };
-
   const clearAllFilters = () => {
     setSearchTerm('');
-    setExperienceFilter({});
     setActiveTab('all');
     setFilters({
       page: 1,
@@ -439,8 +420,8 @@ export default function TeachersPage() {
                 <div><p className="text-xs text-gray-500">Guruhlar</p><p className="text-sm font-bold text-gray-900">{stats.totalGroups}</p></div>
               </div>
               <div className="bg-purple-50 rounded-lg p-3 flex items-center gap-2">
-                <div className="p-1.5 bg-purple-100 rounded"><Award className="h-4 w-4 text-purple-600" /></div>
-                <div><p className="text-xs text-gray-500">Tajriba</p><p className="text-sm font-bold text-gray-900">{stats.averageExperience} yil</p></div>
+                <div className="p-1.5 bg-purple-100 rounded"><UsersIcon className="h-4 w-4 text-purple-600" /></div>
+                <div><p className="text-xs text-gray-500">Oʻquvchilar</p><p className="text-sm font-bold text-gray-900">{stats.totalStudents}</p></div>
               </div>
             </div>
 
@@ -533,9 +514,9 @@ export default function TeachersPage() {
                       </TabsList>
                     </Tabs>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Search */}
-                      <div className="col-span-2">
+                      <div className="md:col-span-1">
                         <Label htmlFor="search" className="text-gray-700 dark:text-gray-300">Qidirish</Label>
                         <div className="relative mt-1">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -550,55 +531,7 @@ export default function TeachersPage() {
                         </div>
                       </div>
 
-                      {/* Experience filter */}
-                      <div>
-                        <Label className="text-gray-700 dark:text-gray-300">Tajriba (yil)</Label>
-                        <div className="flex gap-2 mt-1">
-                          <Input
-                            type="number"
-                            placeholder="Min"
-                            value={experienceFilter.min || ''}
-                            onChange={(e) =>
-                              setExperienceFilter((prev) => ({
-                                ...prev,
-                                min: e.target.value ? parseInt(e.target.value) : undefined,
-                              }))
-                            }
-                            className="w-20 border-gray-300 dark:border-gray-700 focus:ring-blue-500 dark:bg-gray-800 dark:text-white transition-all duration-300"
-                            min="0"
-                            max="50"
-                          />
-                          <Input
-                            type="number"
-                            placeholder="Max"
-                            value={experienceFilter.max || ''}
-                            onChange={(e) =>
-                              setExperienceFilter((prev) => ({
-                                ...prev,
-                                max: e.target.value ? parseInt(e.target.value) : undefined,
-                              }))
-                            }
-                            className="w-20 border-gray-300 dark:border-gray-700 focus:ring-blue-500 dark:bg-gray-800 dark:text-white transition-all duration-300"
-                            min="0"
-                            max="50"
-                          />
-                          <Button 
-                            size="sm" 
-                            onClick={applyExperienceFilter} 
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white transition-all duration-300 hover:scale-105"
-                          >
-                            <Filter className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={clearExperienceFilter} 
-                            className="border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-all duration-300 hover:scale-105"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+
 
                       {/* Items per page */}
                       <div>
@@ -683,7 +616,6 @@ export default function TeachersPage() {
                         <SelectItem value="id">Yangi (ID)</SelectItem>
                         <SelectItem value="first_name">Ism</SelectItem>
                         <SelectItem value="last_name">Familiya</SelectItem>
-                        <SelectItem value="experience">Tajriba</SelectItem>
                         <SelectItem value="groups_count">Guruhlar soni</SelectItem>
                       </SelectContent>
                     </Select>
@@ -744,7 +676,6 @@ export default function TeachersPage() {
                             <TableHead className="text-gray-700 dark:text-gray-300">Oʻqituvchi</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Aloqa</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Parol</TableHead>
-                            <TableHead className="text-gray-700 dark:text-gray-300">Tajriba</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Guruhlar</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Oʻquvchilar</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300 text-right">Amallar</TableHead>
@@ -820,29 +751,23 @@ export default function TeachersPage() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Badge className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0 px-3 py-1">
-                                  <Award className="h-3 w-3 mr-1" />
-                                  {teacher.experience || 0} yil
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
                                 <div className="flex flex-wrap gap-1 max-w-[200px]">
-                                  {teacher.groups && teacher.groups.length > 0 ? (
+                                  {(() => { const g = getTeacherGroups(teacher); return g.length > 0 ? (
                                     <>
-                                      {teacher.groups.slice(0, 2).map(group => (
+                                      {g.slice(0, 2).map(group => (
                                         <Badge key={group.id} variant="outline" className="border-blue-300 text-blue-800 dark:text-blue-400 text-xs">
                                           {group.name}
                                         </Badge>
                                       ))}
-                                      {teacher.groups.length > 2 && (
+                                      {g.length > 2 && (
                                         <Badge variant="outline" className="border-blue-300 text-blue-800 dark:text-blue-400 text-xs">
-                                          +{teacher.groups.length - 2}
+                                          +{g.length - 2}
                                         </Badge>
                                       )}
                                     </>
                                   ) : (
                                     <span className="text-gray-400 text-sm">Guruhsiz</span>
-                                  )}
+                                  )})()}
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -941,11 +866,6 @@ export default function TeachersPage() {
                                     <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
                                     ID: {teacher.id}
                                   </span>
-                                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                  <span className="flex items-center gap-1">
-                                    <Award className="h-3 w-3" />
-                                    {teacher.experience || 0} yil
-                                  </span>
                                 </p>
                               </div>
                             </div>
@@ -1003,12 +923,13 @@ export default function TeachersPage() {
                               </div>
                             )}
 
+                            {(() => { const g = getTeacherGroups(teacher); return (<>
                             <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
                               <div className="flex items-center gap-2">
-                                {teacher.groups && teacher.groups.length > 0 ? (
+                                {g.length > 0 ? (
                                   <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-0">
                                     <Building className="h-3 w-3 mr-1" />
-                                    {teacher.groups.length} guruh
+                                    {g.length} guruh
                                   </Badge>
                                 ) : (
                                   <Badge variant="outline" className="border-gray-300 dark:border-gray-700">
@@ -1023,11 +944,11 @@ export default function TeachersPage() {
                               </div>
                             </div>
 
-                            {teacher.groups && teacher.groups.length > 0 && (
+                            {g.length > 0 && (
                               <div className="pt-2">
                                 <p className="text-xs font-medium text-gray-500 mb-2">Guruhlari:</p>
                                 <div className="flex flex-wrap gap-1">
-                                  {teacher.groups.map(group => (
+                                  {g.map(group => (
                                     <Badge key={group.id} variant="outline" className="border-blue-300 text-blue-800 dark:text-blue-400">
                                       {group.name}
                                     </Badge>
@@ -1035,6 +956,7 @@ export default function TeachersPage() {
                                 </div>
                               </div>
                             )}
+                            </>)})()}
                           </div>
                         </div>
                       ))}
@@ -1119,7 +1041,7 @@ export default function TeachersPage() {
                             {teacher.first_name} {teacher.last_name}
                           </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                            ID: {teacher.id} • {teacher.experience || 0} yil tajriba
+                            ID: {teacher.id}
                           </p>
                           
                           {teacher.specialization && (
@@ -1143,10 +1065,11 @@ export default function TeachersPage() {
                             </div>
                           </div>
                           
+                          {(() => { const g = getTeacherGroups(teacher); return (<>
                           <div className="flex items-center gap-2 mb-4">
                             <Badge className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0 px-3 py-1">
                               <Building className="h-3 w-3 mr-1" />
-                              {teacher.groups?.length || 0} guruh
+                              {g.length} guruh
                             </Badge>
                             
                             <Badge className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-0 px-3 py-1">
@@ -1155,11 +1078,11 @@ export default function TeachersPage() {
                             </Badge>
                           </div>
                           
-                          {teacher.groups && teacher.groups.length > 0 && (
+                          {g.length > 0 && (
                             <div className="w-full pt-3 border-t border-gray-100 dark:border-gray-700">
                               <p className="text-xs font-medium text-gray-500 mb-2">Guruhlari:</p>
                               <div className="flex flex-wrap gap-1 justify-center">
-                                {teacher.groups.slice(0, 3).map(group => (
+                                {g.slice(0, 3).map(group => (
                                   <Badge key={group.id} variant="outline" className="border-blue-300 text-blue-800 dark:text-blue-400 text-xs">
                                     {group.name}
                                   </Badge>
@@ -1167,6 +1090,7 @@ export default function TeachersPage() {
                               </div>
                             </div>
                           )}
+                          </>)})()}
                           
                           <div className="flex items-center gap-2 w-full mt-4" onClick={(e) => e.stopPropagation()}>
                             <Button
@@ -1239,7 +1163,7 @@ export default function TeachersPage() {
                     ni oʻchirishni tasdiqlaysizmi?
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    ID: {teacherToDelete?.id} • {teacherToDelete?.experience || 0} yil tajriba
+                    ID: {teacherToDelete?.id}
                   </p>
                 </div>
               </div>
@@ -1299,7 +1223,6 @@ export default function TeachersPage() {
                       <th className="text-left py-3 px-4 font-medium text-gray-700 dark:text-gray-300">Email</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700 dark:text-gray-300">Telefon</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700 dark:text-gray-300">Mutaxassislik</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700 dark:text-gray-300">Tajriba</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1311,12 +1234,11 @@ export default function TeachersPage() {
                         <td className="py-2 px-4 text-gray-800 dark:text-gray-200">{item.email}</td>
                         <td className="py-2 px-4 text-gray-800 dark:text-gray-200">{item.phone_number}</td>
                         <td className="py-2 px-4 text-gray-800 dark:text-gray-200">{item.specialization || '-'}</td>
-                        <td className="py-2 px-4 text-gray-800 dark:text-gray-200">{item.experience} yil</td>
                       </tr>
                     ))}
                     {bulkData.length > 8 && (
                       <tr>
-                        <td colSpan={7} className="text-center py-4 text-gray-500 dark:text-gray-400">
+                        <td colSpan={6} className="text-center py-4 text-gray-500 dark:text-gray-400">
                           va yana {bulkData.length - 8} ta ...
                         </td>
                       </tr>

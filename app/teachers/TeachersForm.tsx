@@ -49,7 +49,9 @@ export default function TeacherForm({
   });
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(
-    typeof initialData?.photo === 'string' ? initialData.photo : null
+    typeof initialData?.photo === 'string'
+      ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/teachers/${initialData.photo}`
+      : null
   );
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -142,11 +144,7 @@ export default function TeacherForm({
           <div className="relative">
             <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border-2 border-blue-200">
               {photoPreview ? (
-                <img  src={
-      formData.photo
-        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/teachers/${formData.photo}`
-        : '/user.png' // default image public papkada bo‘lishi kerak
-    } className="h-full w-full object-cover" />
+                <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" />
               ) : (
                 <User className="h-8 w-8 text-blue-400" />
               )}

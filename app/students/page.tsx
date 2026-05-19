@@ -59,6 +59,7 @@ interface FilterParams {
   limit: number;
   sort_by: string;
   sort_order: 'asc' | 'desc';
+  search?: string;
   first_name?: string;
   last_name?: string;
   email?: string;
@@ -123,31 +124,21 @@ export default function StudentsPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [showFilters, setShowFilters] = useState(true);
 
-  // Debounced search - MUHIM: searchTerm o'zgarishini kuzatadi
   useEffect(() => {
     const handler = setTimeout(() => {
-      console.log('Searching for:', searchTerm); // Debug uchun
-      
       setFilters(prev => ({
         ...prev,
         page: 1,
-        first_name: searchTerm || undefined,
-        last_name: searchTerm || undefined,
-        email: searchTerm || undefined,
-        phone_number: searchTerm || undefined,
+        search: searchTerm.trim() || undefined,
       }));
-    }, 500);
+    }, 400);
 
-    return () => {
-      clearTimeout(handler);
-    };
+    return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  // Fetch students - MUHIM: filters o'zgarganda ishlaydi
   const fetchStudents = useCallback(async () => {
     try {
       setTableLoading(true);
-      console.log('Fetching with filters:', filters); // Debug uchun
 
       const params: GetAllStudentsParams = {
         page: filters.page,
@@ -156,17 +147,11 @@ export default function StudentsPage() {
         sort_order: filters.sort_order,
       };
 
-      // Search params
-      if (filters.first_name) params.first_name = filters.first_name;
-      if (filters.last_name) params.last_name = filters.last_name;
-      if (filters.email) params.email = filters.email;
-      if (filters.phone_number) params.phone_number = filters.phone_number;
+      if (filters.search) params.search = filters.search;
 
-      // Age filter
       if (ageFilter.min) params.min_age = ageFilter.min;
       if (ageFilter.max) params.max_age = ageFilter.max;
 
-      // Group filter
       if (activeTab === 'without-group') {
         params.group_id = 0;
       } else if (activeTab === 'with-group') {
@@ -174,27 +159,27 @@ export default function StudentsPage() {
       }
 
       const response = await studentsApi.getAll(params);
-      console.log('Response:', response); // Debug uchun
-      
+
       setStudents(response.data ?? []);
       setTotalStudents(response.pagination?.total ?? 0);
       setTotalPages(response.pagination?.total_pages ?? 1);
-      
-      // Calculate stats
+
+      const dataLength = response.data?.length || 0;
       const activeCount = response.data?.filter((s: Student) => s.isActive).length || 0;
       const withGroupCount = response.data?.filter((s: Student) => s.group).length || 0;
-      const avgAge = response.data?.reduce((acc: number, s: Student) => acc + (s.age || 0), 0) / (response.data?.length || 1);
-      
+      const avgAge = dataLength > 0
+        ? Math.round(response.data!.reduce((acc: number, s: Student) => acc + (s.age || 0), 0) / dataLength)
+        : 0;
+
       setStats({
         total: response.pagination?.total || 0,
         active: activeCount,
-        inactive: (response.data?.length || 0) - activeCount,
+        inactive: dataLength - activeCount,
         withGroup: withGroupCount,
-        withoutGroup: (response.data?.length || 0) - withGroupCount,
-        averageAge: Math.round(avgAge) || 0,
+        withoutGroup: dataLength - withGroupCount,
+        averageAge: avgAge,
       });
     } catch (err: any) {
-      console.error('Fetch error:', err);
       toast.error(err.message || 'Studentlarni yuklashda xatolik');
     } finally {
       setLoading(false);

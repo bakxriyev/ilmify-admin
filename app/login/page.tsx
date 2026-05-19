@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Phone, Lock, GraduationCap, AlertCircle, Shield, Users, BookOpen, Eye, EyeOff, CheckCircle, Sparkles } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { adminApi } from '@/api/adminApi';
 
 export default function LoginPage() {
@@ -168,6 +169,9 @@ export default function LoginPage() {
         errorMessage = err.response.data.error;
       }
       
+      if (!errorMessage.toLowerCase().includes('topilmadi') && !errorMessage.toLowerCase().includes('not')) {
+        toast.error(errorMessage, { duration: 3000, position: 'top-right' });
+      }
       setError(errorMessage);
       
       if (typeof window !== 'undefined') {

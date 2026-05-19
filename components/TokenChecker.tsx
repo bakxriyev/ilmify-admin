@@ -1,30 +1,30 @@
 'use client';
-
 import { useEffect } from 'react';
-import { checkTokenAndLogout } from '@/lib/tokenUtils';
+import { checkTokenAndLogout, silentRefresh } from '@/lib/tokenUtils';
+import { initActivityTracking } from '@/lib/activityTracker';
 
 export default function TokenChecker() {
   useEffect(() => {
-    // 1. Sahifa yuklanganda tekshirish
     checkTokenAndLogout();
+    const cleanup = initActivityTracking();
 
-    // 2. Har 30 soniyada token muddatini tekshirish
-    const interval = setInterval(() => {
-      checkTokenAndLogout();
-    }, 30000);
+    const check = async () => {
+      if (!checkTokenAndLogout()) {
+        await silentRefresh();
+      }
+    };
 
-    // 3. Tab fokuslanganda tekshirish
-    const handleFocus = () => checkTokenAndLogout();
+    const interval = setInterval(check, 60000);
+    const handleFocus = () => { check(); };
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) checkTokenAndLogout();
+      if (!document.hidden) check();
     });
-
     return () => {
+      cleanup();
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
   }, []);
-
   return null;
 }

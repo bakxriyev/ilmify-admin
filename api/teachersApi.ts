@@ -12,7 +12,6 @@ export interface Teacher {
   password?: string;
   teacher_type: 'MAIN_TEACHER' | 'SUPPORT';
   age?: string;
-  experience?: number;
   specialization?: string;
   students_count?: number;
   mainGroups?: Array<{
@@ -31,16 +30,12 @@ export interface Teacher {
     level?: { name: string; title: string };
     lessons?: Array<{ id: number; date: string; time: string; parity: string }>;
   }>;
-  groups?: Array<{
-    id: number;
-    name: string;
-    room?: { id: number; name: string; capacity: number; occupied_seats?: number; available_seats?: number };
-    student_count?: number;
-    level?: { name: string; title: string };
-    lessons?: Array<{ id: number; date: string; time: string; parity: string }>;
-  }>;
   created_at?: string;
   updated_at?: string;
+}
+
+export function getTeacherGroups(teacher: Teacher) {
+  return [...(teacher.mainGroups || []), ...(teacher.supportGroups || [])];
 }
 
 export interface CreateTeacherRequest {

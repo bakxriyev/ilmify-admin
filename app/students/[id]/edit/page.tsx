@@ -40,16 +40,25 @@ export default function EditStudentPage() {
       setIsSubmitting(true);
       setError(null);
 
-      const payload = {
-        first_name: data.first_name,
-        last_name: data.last_name,
-        phone_number: data.phone_number,
-        password: data.password || undefined,
-        group_id: data.group_id ? Number(data.group_id) : undefined,
-        photo: data.photo instanceof File ? data.photo : undefined,
-      };
-
-      await studentsApi.update(id, payload);
+      if (data.photo instanceof File) {
+        const fd = new FormData();
+        fd.append('photo', data.photo, data.photo.name);
+        fd.append('first_name', data.first_name);
+        fd.append('last_name', data.last_name);
+        fd.append('phone_number', data.phone_number);
+        if (data.password) fd.append('password', data.password);
+        if (data.group_id) fd.append('group_id', String(data.group_id));
+        await studentsApi.update(id, fd);
+      } else {
+        const payload: Record<string, any> = {
+          first_name: data.first_name,
+          last_name: data.last_name,
+          phone_number: data.phone_number,
+        };
+        if (data.password) payload.password = data.password;
+        if (data.group_id) payload.group_id = Number(data.group_id);
+        await studentsApi.update(id, payload);
+      }
       router.push(`/students/${id}`);
     } catch (err: any) {
       setError(err.message || 'Studentni yangilashda xatolik');

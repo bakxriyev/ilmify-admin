@@ -15,6 +15,7 @@ export interface SendNotificationData {
   send_to_all_teachers?: boolean;
   sender_type?: string;
   sender_id?: number;
+  template_id?: number;
 }
 
 export interface TemplateData {
@@ -41,6 +42,7 @@ export const notificationApi = {
     if (data.send_to_all_teachers) formData.append('send_to_all_teachers', 'true');
     if (data.sender_type) formData.append('sender_type', data.sender_type);
     if (data.sender_id) formData.append('sender_id', String(data.sender_id));
+    if (data.template_id) formData.append('template_id', String(data.template_id));
     return api.post('/notifications/send', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

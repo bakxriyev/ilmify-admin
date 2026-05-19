@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import {
   Bell, Send, History, FileText, Plus, Trash2, Edit, X, CheckCircle,
-  AlertCircle, Loader2, Users, User, UserCheck, School, Globe,
+  AlertCircle, Loader2, Users, User, UserCheck, School, Globe, HelpCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,14 @@ import { teachersApi } from '@/api/teachersApi';
 import { groupsApi } from '@/api/groupsApi';
 import toast from 'react-hot-toast';
 
+const PLACEHOLDER_HELP = [
+  { key: '{ism}', desc: "O'quvchi ismi" },
+  { key: '{familiya}', desc: "O'quvchi familiyasi" },
+  { key: '{guruh}', desc: 'Guruh nomi' },
+  { key: '{summa}', desc: 'Qarz summasi' },
+  { key: '{oy}', desc: 'Oy nomi' },
+];
+
 export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState('send');
 
@@ -45,6 +53,9 @@ export default function NotificationsPage() {
   const [groups, setGroups] = useState<any[]>([]);
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<any>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [showPlaceholders, setShowPlaceholders] = useState(false);
 
   // History
   const [history, setHistory] = useState<any[]>([]);
@@ -52,8 +63,7 @@ export default function NotificationsPage() {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyTotal, setHistoryTotal] = useState(0);
 
-  // Templates
-  const [templates, setTemplates] = useState<any[]>([]);
+  // Template CRUD
   const [templateName, setTemplateName] = useState('');
   const [templateTitle, setTemplateTitle] = useState('');
   const [templateDesc, setTemplateDesc] = useState('');
@@ -90,12 +100,31 @@ export default function NotificationsPage() {
     if (activeTab === 'templates') loadTemplates();
   }, [activeTab]);
 
+  // When template changes, auto-fill title and description
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    if (templateId && templateId !== 'none') {
+      const tpl = templates.find(t => String(t.id) === templateId);
+      if (tpl) {
+        setTitle(tpl.title);
+        setDescription(tpl.description || '');
+      }
+    } else {
+      setTitle('');
+      setDescription('');
+    }
+  };
+
   const handleSend = async () => {
     if (!title.trim()) { toast.error('Sarlavha kiriting'); return; }
     setSending(true);
     setSendResult(null);
     try {
       const data: SendNotificationData = { title: title.trim(), description: description.trim() || undefined, link: link.trim() || undefined };
+
+      if (selectedTemplate && selectedTemplate !== 'none') {
+        data.template_id = Number(selectedTemplate);
+      }
 
       switch (targetType) {
         case 'student':
@@ -124,6 +153,7 @@ export default function NotificationsPage() {
       setTitle('');
       setDescription('');
       setLink('');
+      setSelectedTemplate('none');
     } catch (err: any) {
       toast.error(err.message || 'Xatolik');
     } finally { setSending(false); }
@@ -184,8 +214,23 @@ export default function NotificationsPage() {
   const useTemplate = (tpl: any) => {
     setTitle(tpl.title);
     setDescription(tpl.description || '');
+    setSelectedTemplate(String(tpl.id));
     setActiveTab('send');
     toast.success('Shablon qo\'llanildi');
+  };
+
+  const getRecipientLabel = (n: any) => {
+    if (n.student && n.student.first_name) {
+      return <Badge className="bg-blue-100 text-blue-700">{n.student.first_name} {n.student.last_name}</Badge>;
+    }
+    if (n.teacher && n.teacher.first_name) {
+      return <Badge className="bg-purple-100 text-purple-700">{n.teacher.first_name} {n.teacher.last_name}</Badge>;
+    }
+    if (n.student_id) return <Badge className="bg-blue-100 text-blue-700">Student #{n.student_id}</Badge>;
+    if (n.teacher_id) return <Badge className="bg-purple-100 text-purple-700">Teacher #{n.teacher_id}</Badge>;
+    if (n.role) return <Badge className="bg-green-100 text-green-700">{n.role}</Badge>;
+    if (n.user_id) return <Badge className="bg-gray-100 text-gray-700">User #{n.user_id}</Badge>;
+    return <Badge className="bg-orange-100 text-orange-700">Barcha</Badge>;
   };
 
   return (
@@ -222,6 +267,30 @@ export default function NotificationsPage() {
                     </AlertDescription>
                   </Alert>
                 )}
+
+                {/* Template selection */}
+                <div className="space-y-2">
+                  <Label>Shablondan foydalanish (ixtiyoriy)</Label>
+                  <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
+                    <SelectTrigger className="w-full md:w-72">
+                      <SelectValue placeholder="Shablon tanlanmagan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Shablonsiz</SelectItem>
+                      {templates.map((tpl: any) => (
+                        <SelectItem key={tpl.id} value={String(tpl.id)}>
+                          {tpl.name} {tpl.category ? `(${tpl.category})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedTemplate && selectedTemplate !== 'none' && (
+                    <Button variant="ghost" size="sm" onClick={() => { setSelectedTemplate('none'); setTitle(''); setDescription(''); }}
+                      className="text-red-500 text-xs">
+                      <X className="h-3 w-3 mr-1" /> Shabloni olib tashlash
+                    </Button>
+                  )}
+                </div>
 
                 <div className="space-y-2">
                   <Label>Qabul qiluvchi turi</Label>
@@ -303,9 +372,28 @@ export default function NotificationsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Matn</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Matn</Label>
+                    <Button variant="ghost" size="sm" onClick={() => setShowPlaceholders(!showPlaceholders)}
+                      className="text-xs text-blue-600 h-6 gap-1">
+                      <HelpCircle className="h-3 w-3" /> Placeholderlar
+                    </Button>
+                  </div>
                   <Textarea value={description} onChange={e => setDescription(e.target.value)}
                     placeholder="Xabar matni..." rows={4} />
+                  {showPlaceholders && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm space-y-1">
+                      <p className="font-medium text-blue-800 text-xs">Mavjud placeholderlar (avtomatik to'ldiriladi):</p>
+                      <div className="grid grid-cols-2 gap-1">
+                        {PLACEHOLDER_HELP.map(ph => (
+                          <div key={ph.key} className="flex gap-2 text-xs text-blue-700">
+                            <code className="bg-white px-1.5 py-0.5 rounded border border-blue-200 font-mono text-blue-800">{ph.key}</code>
+                            <span>— {ph.desc}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -348,6 +436,7 @@ export default function NotificationsPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Sarlavha</TableHead>
+                          <TableHead>Matn</TableHead>
                           <TableHead>Qabul qiluvchi</TableHead>
                           <TableHead>Vaqt</TableHead>
                           <TableHead>Holat</TableHead>
@@ -357,15 +446,12 @@ export default function NotificationsPage() {
                       <TableBody>
                         {history.map((n: any) => (
                           <TableRow key={n.id}>
-                            <TableCell className="font-medium">{n.title}</TableCell>
-                            <TableCell>
-                              {n.student_id ? <Badge className="bg-blue-100 text-blue-700">Student #{n.student_id}</Badge>
-                                : n.teacher_id ? <Badge className="bg-purple-100 text-purple-700">Teacher #{n.teacher_id}</Badge>
-                                : n.role ? <Badge className="bg-green-100 text-green-700">{n.role}</Badge>
-                                : n.user_id ? <Badge className="bg-gray-100 text-gray-700">User #{n.user_id}</Badge>
-                                : <Badge className="bg-orange-100 text-orange-700">Barcha</Badge>}
+                            <TableCell className="font-medium max-w-[150px] truncate" title={n.title}>{n.title}</TableCell>
+                            <TableCell className="max-w-[200px] truncate text-gray-500 text-sm" title={n.description || ''}>
+                              {n.description || '—'}
                             </TableCell>
-                            <TableCell className="text-gray-500 text-sm">
+                            <TableCell>{getRecipientLabel(n)}</TableCell>
+                            <TableCell className="text-gray-500 text-sm whitespace-nowrap">
                               {new Date(n.createdAt).toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </TableCell>
                             <TableCell>
@@ -411,6 +497,17 @@ export default function NotificationsPage() {
                 </div>
               </CardHeader>
               <CardContent>
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4 text-sm">
+                  <p className="text-blue-800 font-medium mb-1">Placeholderlar:</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-blue-700">
+                    <span><code className="bg-white px-1 rounded border border-blue-200 font-mono">{'{ism}'}</code> — Ism</span>
+                    <span><code className="bg-white px-1 rounded border border-blue-200 font-mono">{'{familiya}'}</code> — Familiya</span>
+                    <span><code className="bg-white px-1 rounded border border-blue-200 font-mono">{'{guruh}'}</code> — Guruh</span>
+                    <span><code className="bg-white px-1 rounded border border-blue-200 font-mono">{'{summa}'}</code> — Qarz summasi</span>
+                    <span><code className="bg-white px-1 rounded border border-blue-200 font-mono">{'{oy}'}</code> — Oy nomi</span>
+                  </div>
+                </div>
+
                 {templates.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     <FileText className="h-12 w-12 mx-auto text-gray-300 mb-3" />
@@ -474,7 +571,7 @@ export default function NotificationsPage() {
               <Input value={templateTitle} onChange={e => setTemplateTitle(e.target.value)} placeholder="Xabar sarlavhasi" />
             </div>
             <div className="space-y-2">
-              <Label>Matn</Label>
+              <Label>Matn <span className="text-xs text-gray-400">{'({ism}, {guruh}, {summa} va h.k. ishlatish mumkin)'}</span></Label>
               <Textarea value={templateDesc} onChange={e => setTemplateDesc(e.target.value)} rows={3} placeholder="Xabar matni..." />
             </div>
             <div className="space-y-2">

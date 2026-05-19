@@ -15,7 +15,7 @@ import {
   PhoneIcon,
   SparklesIcon,
 } from 'lucide-react';
-import { studentsApi } from '../api/studentApi';
+import { adminApi } from '../api/adminApi';
 import { educationCentersApi, type EducationCenter } from '../api/educationCentersApi';
 import toast from 'react-hot-toast';
 
@@ -132,46 +132,9 @@ const navigationItems: NavigationItem[] = [
     ],
   },
   {
-    label: 'Yangiliklar',
-    path: '/news',
-    icon: 'NewspaperIcon',
-    badge: 0,
-  },
-  {
-    label: 'Hikoyalar',
-    path: '/stories',
-    icon: 'CameraIcon',
-    badge: 0,
-  },
-  {
     label: 'Bildirishnomalar',
     path: '/notifications',
     icon: 'BellIcon',
-    badge: 0,
-  },
-  {
-    label: 'Xabarlar',
-    path: '/messages',
-    icon: 'ChatBubbleLeftRightIcon',
-    badge: 0,
-  },
-  {
-    label: 'Hisobotlar',
-    path: '/reports',
-    icon: 'ChartPieIcon',
-    badge: 0,
-  },
-  {
-    label: 'Analitika',
-    path: '/analytics',
-    icon: 'BarChart3Icon',
-    badge: 0,
-    highlight: true,
-  },
-  {
-    label: 'Sozlamalar',
-    path: '/settings',
-    icon: 'Cog6ToothIcon',
     badge: 0,
   },
 ];
@@ -242,21 +205,21 @@ export default function Sidebar({
   }, []);
 
   useEffect(() => {
-    if (!userId) return;
-    const fetchStudent = async () => {
+    const adminRaw = localStorage.getItem('admin');
+    if (adminRaw) {
       try {
-        setLoadingProfile(true);
-        setProfileError(null);
-        const data = await studentsApi.getById(userId);
-        setStudent(data);
-      } catch (err: any) {
-        // Student topilmasa - bu admin bo'lishi mumkin, xatolik ko'rsatilmaydi
-        setStudent(null);
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
-    fetchStudent();
+        const adminData = JSON.parse(adminRaw);
+        setStudent({
+          id: adminData.id,
+          first_name: adminData.full_name?.split(' ')[0] || 'Admin',
+          last_name: adminData.full_name?.split(' ').slice(1).join(' ') || '',
+          email: adminData.email || '',
+          photo: adminData.photo || null,
+          phone_number: adminData.phone_number || '',
+        });
+      } catch {}
+    }
+    setLoadingProfile(false);
   }, [userId]);
 
   useEffect(() => {
@@ -327,9 +290,7 @@ export default function Sidebar({
   };
 
   const handleProfileClick = () => {
-    if (userId) {
-      router.push(`/students/${userId}`);
-    }
+    router.push('/me');
   };
 
   const handleDropdownToggle = (e: React.MouseEvent) => {
@@ -355,16 +316,29 @@ export default function Sidebar({
 
   const handlePhotoUpload = async () => {
     if (!selectedFile || !userId) return;
-    const formData = new FormData();
-    formData.append('photo', selectedFile);
     try {
       setUploadingPhoto(true);
-      await studentsApi.update(userId, formData);
-      toast.success('Rasm muvaffaqiyatli yangilandi');
-      const updated = await studentsApi.getById(userId);
-      setStudent(updated);
-      setPhotoModalOpen(false);
-      setSelectedFile(null);
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64 = e.target?.result as string;
+        await adminApi.updateProfile({ photo: base64 });
+        const adminRaw = localStorage.getItem('admin');
+        if (adminRaw) {
+          const adminData = JSON.parse(adminRaw);
+          setStudent({
+            id: adminData.id,
+            first_name: adminData.full_name?.split(' ')[0] || 'Admin',
+            last_name: adminData.full_name?.split(' ').slice(1).join(' ') || '',
+            email: adminData.email || '',
+            photo: adminData.photo || null,
+            phone_number: adminData.phone_number || '',
+          });
+        }
+        toast.success('Rasm muvaffaqiyatli yangilandi');
+        setPhotoModalOpen(false);
+        setSelectedFile(null);
+      };
+      reader.readAsDataURL(selectedFile);
     } catch (err: any) {
       toast.error(err.message || 'Rasmni yangilashda xatolik');
     } finally {
@@ -635,7 +609,7 @@ export default function Sidebar({
                   <p className="text-sm font-bold text-white truncate">{student?.first_name} {student?.last_name}</p>
                 </div>
                 <Link
-                  href={`/students/${userId}`}
+                  href="/me"
                   className="flex items-center gap-2 px-4 py-2.5 text-sm text-blue-100 hover:bg-blue-700 transition"
                   onClick={() => setDropdownOpen(false)}
                 >
@@ -652,14 +626,6 @@ export default function Sidebar({
                   <Camera className="w-4 h-4" />
                   <span>Rasmni o'zgartirish</span>
                 </button>
-                <Link
-                  href="/settings"
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm text-blue-100 hover:bg-blue-700 transition"
-                  onClick={() => setDropdownOpen(false)}
-                >
-                  <Settings className="w-4 h-4" />
-                  <span>Sozlamalar</span>
-                </Link>
                 <div className="border-t border-blue-500 my-1"></div>
                 <button
                   className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-200 hover:bg-blue-700 transition"

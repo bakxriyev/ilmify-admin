@@ -55,6 +55,7 @@ export interface GetAllStudentsParams {
   last_name?: string;
   email?: string;
   phone_number?: string;
+  search?: string;
   group_id?: number | 'notnull' | 0;
   min_age?: number;
   max_age?: number;

@@ -6,12 +6,15 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import {
   Bell, Search, Settings, LogOut, User, Calendar, ChevronDown,
-  Building, DollarSign, LogOut as LogOutIcon, X,
+  Building, DollarSign, LogOut as LogOutIcon, X, ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { notificationApi } from '@/api/notificationApi';
 import { useNotificationSocket } from '@/lib/useNotificationSocket';
@@ -34,6 +37,7 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const [selectedNotif, setSelectedNotif] = useState<any>(null);
 
   const fetchNotifs = useCallback(async () => {
     if (typeof window === 'undefined') return;
@@ -137,6 +141,12 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
     router.push('/login');
   };
 
+  const openNotifDetail = (n: any) => {
+    setSelectedNotif(n);
+    setNotifOpen(false);
+    if (!n.is_read) markAsRead(n.id);
+  };
+
   if (!mounted) return null;
 
   return (
@@ -211,10 +221,7 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
                       <div
                         key={n.id}
                         className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${!n.is_read ? 'bg-blue-50/50' : ''}`}
-                        onClick={() => {
-                          if (!n.is_read) markAsRead(n.id);
-                          if (n.link) router.push(n.link);
-                        }}
+                        onClick={() => openNotifDetail(n)}
                       >
                         <div className="flex items-start gap-3">
                           <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${!n.is_read ? 'bg-blue-500' : 'bg-transparent'}`} />
@@ -278,6 +285,40 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Notification Detail Modal */}
+      <Dialog open={!!selectedNotif} onOpenChange={(open) => { if (!open) setSelectedNotif(null); }}>
+        <DialogContent className="bg-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-lg text-gray-900">
+              {selectedNotif?.title || 'Bildirishnoma'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-400">
+              {selectedNotif?.createdAt ? new Date(selectedNotif.createdAt).toLocaleDateString('uz-UZ', {
+                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+              }) : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-3">
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+              {selectedNotif?.description || 'Tavsif mavjud emas'}
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            {selectedNotif?.link && (
+              <Button
+                onClick={() => { setSelectedNotif(null); router.push(selectedNotif.link); }}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" /> Ko'rish
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setSelectedNotif(null)}>
+              Yopish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }

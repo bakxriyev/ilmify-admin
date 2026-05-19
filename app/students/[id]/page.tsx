@@ -315,6 +315,10 @@ export default function StudentDetailPage() {
                     </p>
                   </div>
                   <div>
+                    <p className="text-xs text-gray-500 font-medium">Parol</p>
+                    <p className="text-gray-900 font-semibold mt-1 font-mono text-xs break-all">{student.password || "—"}</p>
+                  </div>
+                  <div>
                     <p className="text-xs text-gray-500 font-medium">Guruh</p>
                     <p className="text-gray-900 font-semibold mt-1">{groupInfo?.name || "Guruhsiz"}</p>
                   </div>
