@@ -29,34 +29,26 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
-    const loadData = async () => {
-      if (typeof window !== 'undefined') {
-        try {
-          const adminData = JSON.parse(localStorage.getItem('admin') || '{}');
-          if (adminData?.full_name || adminData?.role) {
-            setAdmin(adminData);
-            if (adminData.center) {
-              setCenter(adminData.center);
-            } else if (adminData.center_id) {
-              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz'}/education-centers/${adminData.center_id}`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-              });
-              if (res.ok) setCenter(await res.json());
-            }
-          } else {
-            const teacherData = JSON.parse(localStorage.getItem('teacher') || '{}');
-            if (teacherData?.first_name) {
-              setAdmin({
-                full_name: `${teacherData.first_name} ${teacherData.last_name || ''}`,
-                role: 'teacher',
-                phone_number: teacherData.phone_number,
-              });
-            }
-          }
-        } catch {}
+    if (typeof window === 'undefined') return;
+    try {
+      const adminRaw = localStorage.getItem('admin');
+      if (!adminRaw) return;
+      const adminData = JSON.parse(adminRaw);
+      if (!adminData?.full_name && !adminData?.role) return;
+      setAdmin(adminData);
+      if (adminData.center) {
+        setCenter(adminData.center);
+      } else if (adminData.center_id) {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
+        const token = localStorage.getItem('access_token');
+        fetch(`${baseUrl}/education-centers/${adminData.center_id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => { if (data) setCenter(data); })
+          .catch(() => {});
       }
-    };
-    loadData();
+    } catch {}
   }, []);
 
   useEffect(() => {

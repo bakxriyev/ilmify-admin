@@ -10,7 +10,7 @@ import {
   Users, UserPlus, Download, Grid, List, Star, TrendingUp, Activity,
   Award, Clock, MapPin, Globe, BookOpen, MessageSquare, Bell,
   Settings, BarChart3, PieChart, Zap, Shield, Target,
-  ChevronDown, ChevronUp, Link2, Unlink, UserCircle
+  ChevronDown, ChevronUp, Link2, Unlink, UserCircle, KeyRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -402,6 +402,7 @@ export default function ParentsPage() {
                           <TableHead className="w-16 text-gray-700 dark:text-gray-300">#</TableHead>
                           <TableHead className="text-gray-700 dark:text-gray-300">Parent</TableHead>
                           <TableHead className="text-gray-700 dark:text-gray-300">Telefon</TableHead>
+                          <TableHead className="text-gray-700 dark:text-gray-300">Parol</TableHead>
                           <TableHead className="text-gray-700 dark:text-gray-300">Bolalar soni</TableHead>
                           <TableHead className="text-gray-700 dark:text-gray-300">Qoʻshilgan sana</TableHead>
                           <TableHead className="text-gray-700 dark:text-gray-300 text-right">Amallar</TableHead>
@@ -444,6 +445,12 @@ export default function ParentsPage() {
                               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                                 <Phone className="h-3 w-3 text-pink-500" />
                                 <span>{formatPhone(parent.phone_number)}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                <KeyRound className="h-3 w-3 text-amber-500" />
+                                <span className="font-mono text-xs">{parent.password || '-'}</span>
                               </div>
                             </TableCell>
                             <TableCell>

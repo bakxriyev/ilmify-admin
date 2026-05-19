@@ -9,7 +9,7 @@ import {
   Phone, Mail, Calendar, Building, Loader2, Filter,
   UserPlus, Download, Grid, List, Award, Clock, MapPin, 
   BookOpen, MessageSquare, Settings, BarChart3, ChevronDown, ChevronUp,
-  GraduationCap, BookMarked, School, BadgeCheck, Users as UsersIcon
+  GraduationCap, BookMarked, School, BadgeCheck, Users as UsersIcon, KeyRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -709,6 +709,7 @@ export default function TeachersPage() {
                             <TableHead className="w-16 text-gray-700 dark:text-gray-300">#</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Oʻqituvchi</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Aloqa</TableHead>
+                            <TableHead className="text-gray-700 dark:text-gray-300">Parol</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Tajriba</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Guruhlar</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Oʻquvchilar</TableHead>
@@ -776,6 +777,12 @@ export default function TeachersPage() {
                                     <Phone className="h-3 w-3 text-indigo-500" />
                                     <span>{formatPhone(teacher.phone_number)}</span>
                                   </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                  <KeyRound className="h-3 w-3 text-amber-500" />
+                                  <span className="font-mono text-xs truncate max-w-[150px]">{teacher.password || '-'}</span>
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -950,6 +957,11 @@ export default function TeachersPage() {
                               <span className="text-gray-700 dark:text-gray-300">{formatPhone(teacher.phone_number)}</span>
                             </div>
 
+                            <div className="flex items-center gap-3 text-sm">
+                              <KeyRound className="h-4 w-4 text-amber-500" />
+                              <span className="text-gray-700 dark:text-gray-300 font-mono text-xs">{teacher.password || '-'}</span>
+                            </div>
+
                             {teacher.specialization && (
                               <div className="flex items-center gap-3 text-sm">
                                 <BookOpen className="h-4 w-4 text-cyan-500" />
@@ -1090,6 +1102,10 @@ export default function TeachersPage() {
                             <div className="flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                               <Phone className="h-4 w-4 text-indigo-500" />
                               <span>{formatPhone(teacher.phone_number)}</span>
+                            </div>
+                            <div className="flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                              <KeyRound className="h-4 w-4 text-amber-500" />
+                              <span className="font-mono text-xs">{teacher.password || '-'}</span>
                             </div>
                           </div>
                           

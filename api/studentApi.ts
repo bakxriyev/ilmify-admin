@@ -10,6 +10,7 @@ export interface Student {
   email: string | null;
   phone_number: string;
   photo: string | null;
+  password?: string;
   is_active?: boolean;
   isActive?: boolean;
   group_id: number | null;

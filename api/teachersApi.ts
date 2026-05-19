@@ -9,6 +9,7 @@ export interface Teacher {
   gmail: string;
   phone_number: string;
   photo: string | null;
+  password?: string;
   teacher_type: 'MAIN_TEACHER' | 'SUPPORT';
   age?: string;
   experience?: number;

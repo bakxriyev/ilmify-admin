@@ -10,7 +10,7 @@ import {
   UserPlus, Download, Grid, List, Star, TrendingUp, Activity,
   Award, Clock, MapPin, Globe, BookOpen, MessageSquare, Bell,
   Settings, BarChart3, PieChart, Zap, Heart, Shield, Target,
-  ChevronDown, ChevronUp, Maximize2, Minimize2
+  ChevronDown, ChevronUp, Maximize2, Minimize2, KeyRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -660,6 +660,7 @@ export default function StudentsPage() {
                             <TableHead className="w-16 text-gray-700 dark:text-gray-300">#</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Student</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Aloqa</TableHead>
+                            <TableHead className="text-gray-700 dark:text-gray-300">Parol</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Yosh</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Guruh</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Holat</TableHead>
@@ -712,6 +713,12 @@ export default function StudentsPage() {
                                       <span className="truncate max-w-[200px]">{student.email}</span>
                                     </div>
                                   )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                  <KeyRound className="h-3 w-3 text-amber-500" />
+                                  <span className="font-mono text-xs">{student.password || '-'}</span>
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -889,6 +896,11 @@ export default function StudentsPage() {
                               </div>
                             )}
 
+                            <div className="flex items-center gap-3 text-sm">
+                              <KeyRound className="h-4 w-4 text-amber-500" />
+                              <span className="text-gray-700 dark:text-gray-300 font-mono text-xs">{student.password || '-'}</span>
+                            </div>
+
                             <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
                               <div className="flex items-center gap-2">
                                 {student.group ? (
@@ -1027,6 +1039,10 @@ export default function StudentsPage() {
                                 <span className="truncate max-w-[200px]">{student.email}</span>
                               </div>
                             )}
+                            <div className="flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                              <KeyRound className="h-4 w-4 text-amber-500" />
+                              <span className="font-mono text-xs">{student.password || '-'}</span>
+                            </div>
                           </div>
                           
                           <div className="flex items-center gap-2 mb-4">
