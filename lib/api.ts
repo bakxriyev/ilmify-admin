@@ -68,6 +68,13 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    if (status === 403 && msg.includes('Talabalar soni chegarasiga yetdingiz')) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tariff-limit-error', { detail: msg }));
+      }
+      return Promise.reject(error);
+    }
+
     if (status === 401 && !originalRequest?._retry) {
       if (typeof window === 'undefined') {
         logoutAndRedirect();

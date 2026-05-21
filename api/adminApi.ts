@@ -17,8 +17,10 @@ export interface Admin {
   email?: string | null;
   photo?: string | null;
   phone_number: string;
+  role?: 'super_admin' | 'director' | 'admin';
   center_id?: number;
   center?: CenterInfo | null;
+  permissions?: Record<string, boolean> | null;
 }
 
 export interface LoginRequest {
@@ -262,5 +264,71 @@ export const adminApi = {
       console.error('Get admin stats API error:', error);
       throw error;
     }
-  }
+  },
+
+  // ========== DIRECTOR ENDPOINTS ==========
+
+  /**
+   * Director o'z markazidagi adminlar ro'yxati
+   * GET /admin/directors/admins
+   */
+  getCenterAdmins: async (): Promise<Admin[]> => {
+    const res = await api.get('/admin/directors/admins');
+    return res.data;
+  },
+
+  /**
+   * Director yangi admin yaratadi
+   * POST /admin/directors/admins
+   */
+  createCenterAdmin: async (data: {
+    full_name: string;
+    phone_number: string;
+    email: string;
+    password: string;
+  }): Promise<Admin> => {
+    const res = await api.post('/admin/directors/admins', data);
+    return res.data;
+  },
+
+  /**
+   * Director admin ruxsatlarini yangilaydi
+   * PATCH /admin/directors/admins/:id/permissions
+   */
+  updateAdminPermissions: async (id: string, permissions: Record<string, boolean>): Promise<Admin> => {
+    const res = await api.patch(`/admin/directors/admins/${id}/permissions`, { permissions });
+    return res.data;
+  },
+
+  /**
+   * Director adminni yangilaydi
+   * PATCH /admin/directors/admins/:id
+   */
+  updateCenterAdmin: async (id: string, data: {
+    full_name?: string;
+    phone_number?: string;
+    email?: string;
+    password?: string;
+  }): Promise<Admin> => {
+    const res = await api.patch(`/admin/directors/admins/${id}`, data);
+    return res.data;
+  },
+
+  /**
+   * Director adminni o'chiradi
+   * DELETE /admin/directors/admins/:id
+   */
+  deleteCenterAdmin: async (id: string): Promise<{ message: string }> => {
+    const res = await api.delete(`/admin/directors/admins/${id}`);
+    return res.data;
+  },
+
+  /**
+   * Barcha mavjud ruxsatlar ro'yxati
+   * GET /admin/directors/permissions-list
+   */
+  getPermissionsList: async (): Promise<{ key: string; label: string }[]> => {
+    const res = await api.get('/admin/directors/permissions-list');
+    return res.data;
+  },
 };

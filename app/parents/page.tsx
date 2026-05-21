@@ -59,10 +59,23 @@ export default function ParentsPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [parents, setParents] = useState<Parent[]>([]);
-  const [filteredParents, setFilteredParents] = useState<Parent[]>([]);
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // Restore search from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('parents_search');
+      if (saved) setSearchTerm(saved);
+    } catch {}
+  }, []);
 
   // Add parent modal
   const [showAddModal, setShowAddModal] = useState(false);
@@ -96,43 +109,38 @@ export default function ParentsPage() {
   const [unlinkData, setUnlinkData] = useState<{ parentId: number; studentId: number; studentName: string } | null>(null);
   const [isUnlinking, setIsUnlinking] = useState(false);
 
-  // Search
+  // Search — persist in localStorage, trigger server-side fetch
   useEffect(() => {
     const handler = setTimeout(() => {
-      const term = searchTerm.toLowerCase();
-      if (!term) {
-        setFilteredParents(parents);
-        return;
-      }
-      setFilteredParents(
-        parents.filter(
-          (p) =>
-            p.first_name.toLowerCase().includes(term) ||
-            p.last_name.toLowerCase().includes(term) ||
-            p.phone_number.includes(term)
-        )
-      );
+      const q = searchTerm.trim();
+      try { localStorage.setItem('parents_search', q); } catch {}
+      setPage(1);
     }, 300);
     return () => clearTimeout(handler);
-  }, [searchTerm, parents]);
+  }, [searchTerm]);
 
   const fetchParents = useCallback(async () => {
     try {
       setTableLoading(true);
-      const data = await parentsApi.getAll();
-      setParents(data);
-      setFilteredParents(data);
+      const params: any = { page, limit };
+      if (searchTerm.trim()) params.search = searchTerm.trim();
+      const response = await parentsApi.getAll(params);
+      setParents(response.data || []);
+      setTotal(response.total || 0);
+      setTotalPages(response.total_pages || 0);
 
-      // Fetch children for all parents
+      // Fetch children for all parents in parallel
       let linkedCount = 0;
       const childrenMap: Record<string, ParentStudent[]> = {};
-      for (const parent of data) {
-        try {
-          const children = await parentsApi.getChildren(Number(parent.id));
-          childrenMap[parent.id] = children;
-          linkedCount += children.length;
-        } catch {
-          childrenMap[parent.id] = [];
+      const results = await Promise.allSettled(
+        (response.data || []).map(parent =>
+          parentsApi.getChildren(Number(parent.id)).then(children => ({ parentId: parent.id, children }))
+        )
+      );
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          childrenMap[result.value.parentId] = result.value.children;
+          linkedCount += result.value.children.length;
         }
       }
       setChildrenData(childrenMap);
@@ -143,7 +151,7 @@ export default function ParentsPage() {
       setLoading(false);
       setTableLoading(false);
     }
-  }, []);
+  }, [page, limit, searchTerm]);
 
   useEffect(() => {
     fetchParents();
@@ -329,7 +337,7 @@ export default function ParentsPage() {
                     <Heart className="h-4 w-4 text-pink-600" />
                     <CardTitle className="text-sm font-medium text-gray-700">Ota-onalar</CardTitle>
                     <CardDescription className="text-sm text-gray-500 ml-2">
-                      {filteredParents.length} / {parents.length} ta
+                      {(page - 1) * limit + 1}-{Math.min(page * limit, total)} / {total} ta
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
@@ -366,7 +374,7 @@ export default function ParentsPage() {
                     </div>
                     <p className="mt-4 text-gray-600 dark:text-gray-400 text-lg">Parentlar yuklanmoqda...</p>
                   </div>
-                ) : filteredParents.length === 0 ? (
+                ) : parents.length === 0 ? (
                   <div className="text-center py-24 px-4">
                     <div className="inline-block p-6 bg-gradient-to-br from-pink-100 to-rose-100 dark:from-pink-900/30 dark:to-rose-900/30 rounded-full mb-6">
                       <Heart className="h-16 w-16 text-pink-600 dark:text-pink-400" />
@@ -395,132 +403,176 @@ export default function ParentsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader className="bg-gray-50 dark:bg-gray-800/50">
-                        <TableRow>
-                          <TableHead className="w-16 text-gray-700 dark:text-gray-300">#</TableHead>
-                          <TableHead className="text-gray-700 dark:text-gray-300">Parent</TableHead>
-                          <TableHead className="text-gray-700 dark:text-gray-300">Telefon</TableHead>
-                          <TableHead className="text-gray-700 dark:text-gray-300">Parol</TableHead>
-                          <TableHead className="text-gray-700 dark:text-gray-300">Bolalar soni</TableHead>
-                          <TableHead className="text-gray-700 dark:text-gray-300">Qoʻshilgan sana</TableHead>
-                          <TableHead className="text-gray-700 dark:text-gray-300 text-right">Amallar</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredParents.map((parent, index) => (
-                          <TableRow
-                            key={parent.id}
-                            className="hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 dark:hover:from-pink-900/20 dark:hover:to-rose-900/20 transition-all duration-300 cursor-pointer group"
-                            onClick={() => handleViewChildren(parent)}
-                          >
-                            <TableCell className="font-medium text-gray-800 dark:text-gray-200">
-                              {index + 1}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-4">
-                                <div className="relative">
-                                  <Avatar className="h-12 w-12 border-2 border-pink-200 dark:border-pink-800">
-                                    <AvatarImage src={parent.photo ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/parents/${parent.photo}` : ''} />
-                                    <AvatarFallback className="bg-gradient-to-br from-pink-500 to-rose-600 text-white">
-                                      {getInitials(parent.first_name, parent.last_name)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                    {parent.first_name} {parent.last_name}
-                                  </div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2">
-                                    <span className="flex items-center gap-1">
-                                      <span className="w-1.5 h-1.5 bg-pink-500 rounded-full"></span>
-                                      ID: {parent.id}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                                <Phone className="h-3 w-3 text-pink-500" />
-                                <span>{formatPhone(parent.phone_number)}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                                <KeyRound className="h-3 w-3 text-amber-500" />
-                                <span className="font-mono text-xs">{parent.password || '-'}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-gradient-to-r from-pink-500 to-rose-600 text-white border-0 px-3 py-1">
-                                <Users className="h-3 w-3 mr-1" />
-                                {getChildrenCount(parent.id)} ta
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                                <Calendar className="h-3 w-3" />
-                                <span>{new Date(parent.created_at).toLocaleDateString('uz-UZ')}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleViewChildren(parent)}
-                                  className="h-9 w-9 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all duration-300 hover:scale-110 rounded-lg"
-                                  title="Bolalarni ko'rish"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleOpenLinkModal(parent)}
-                                  className="h-9 w-9 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-all duration-300 hover:scale-110 rounded-lg"
-                                  title="Student bog'lash"
-                                >
-                                  <Link2 className="h-4 w-4" />
-                                </Button>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-9 w-9 p-0 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300 hover:scale-110 rounded-lg"
-                                    >
-                                      <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent
-                                    align="end"
-                                    className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-xl rounded-lg min-w-[160px]"
-                                  >
-                                    <DropdownMenuItem
-                                      onClick={() => handleViewChildren(parent)}
-                                      className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all duration-300"
-                                    >
-                                      <Eye className="h-4 w-4 mr-2 text-blue-600" />
-                                      Bolalarni koʻrish
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => handleOpenLinkModal(parent)}
-                                      className="cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-all duration-300"
-                                    >
-                                      <Link2 className="h-4 w-4 mr-2 text-emerald-600" />
-                                      Student bogʻlash
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </TableCell>
+                  <div>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader className="bg-gray-50 dark:bg-gray-800/50">
+                          <TableRow>
+                            <TableHead className="w-16 text-gray-700 dark:text-gray-300">#</TableHead>
+                            <TableHead className="text-gray-700 dark:text-gray-300">Parent</TableHead>
+                            <TableHead className="text-gray-700 dark:text-gray-300">Telefon</TableHead>
+                            <TableHead className="text-gray-700 dark:text-gray-300">Parol</TableHead>
+                            <TableHead className="text-gray-700 dark:text-gray-300">Bolalar soni</TableHead>
+                            <TableHead className="text-gray-700 dark:text-gray-300">Qoʻshilgan sana</TableHead>
+                            <TableHead className="text-gray-700 dark:text-gray-300 text-right">Amallar</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {parents.map((parent, index) => (
+                            <TableRow
+                              key={parent.id}
+                              className="hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 dark:hover:from-pink-900/20 dark:hover:to-rose-900/20 transition-all duration-300 cursor-pointer group"
+                              onClick={() => handleViewChildren(parent)}
+                            >
+                              <TableCell className="font-medium text-gray-800 dark:text-gray-200">
+                                {(page - 1) * limit + index + 1}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-4">
+                                  <div className="relative">
+                                    <Avatar className="h-12 w-12 border-2 border-pink-200 dark:border-pink-800">
+                                      <AvatarImage src={parent.photo ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/parents/${parent.photo}` : ''} />
+                                      <AvatarFallback className="bg-gradient-to-br from-pink-500 to-rose-600 text-white">
+                                        {getInitials(parent.first_name, parent.last_name)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                      {parent.first_name} {parent.last_name}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2">
+                                      <span className="flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 bg-pink-500 rounded-full"></span>
+                                        ID: {parent.id}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                  <Phone className="h-3 w-3 text-pink-500" />
+                                  <span>{formatPhone(parent.phone_number)}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                  <KeyRound className="h-3 w-3 text-amber-500" />
+                                  <span className="font-mono text-xs">{parent.password || '-'}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-gradient-to-r from-pink-500 to-rose-600 text-white border-0 px-3 py-1">
+                                  <Users className="h-3 w-3 mr-1" />
+                                  {getChildrenCount(parent.id)} ta
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>{new Date(parent.created_at).toLocaleDateString('uz-UZ')}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleViewChildren(parent)}
+                                    className="h-9 w-9 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all duration-300 hover:scale-110 rounded-lg"
+                                    title="Bolalarni ko'rish"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleOpenLinkModal(parent)}
+                                    className="h-9 w-9 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-all duration-300 hover:scale-110 rounded-lg"
+                                    title="Student bog'lash"
+                                  >
+                                    <Link2 className="h-4 w-4" />
+                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-9 w-9 p-0 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300 hover:scale-110 rounded-lg"
+                                      >
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent
+                                      align="end"
+                                      className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-xl rounded-lg min-w-[160px]"
+                                    >
+                                      <DropdownMenuItem
+                                        onClick={() => handleViewChildren(parent)}
+                                        className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all duration-300"
+                                      >
+                                        <Eye className="h-4 w-4 mr-2 text-blue-600" />
+                                        Bolalarni koʻrish
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => handleOpenLinkModal(parent)}
+                                        className="cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-all duration-300"
+                                      >
+                                        <Link2 className="h-4 w-4 mr-2 text-emerald-600" />
+                                        Student bogʻlash
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Pagination */}
+                    {!tableLoading && totalPages > 1 && (
+                      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500">Sahifada:</span>
+                          <select
+                            value={limit}
+                            onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                            className="text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                          >
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page <= 1}
+                            className="border-gray-300 dark:border-gray-700"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
+                            {page} / {totalPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page >= totalPages}
+                            className="border-gray-300 dark:border-gray-700"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

@@ -28,7 +28,6 @@ export default function NewStudentPage() {
 
       if (!data.first_name?.trim()) throw new Error('Ism kiritilishi shart');
       if (!data.last_name?.trim()) throw new Error('Familiya kiritilishi shart');
-      if (!data.phone_number?.trim()) throw new Error('Telefon raqam kiritilishi shart');
       if (!data.password || data.password.length < 6) {
         throw new Error('Parol kamida 6 belgidan iborat boʻlishi kerak');
       }
@@ -58,7 +57,7 @@ export default function NewStudentPage() {
       }
       if (parentPhoneNumber.trim()) {
         formData.append('parent_phone_number', parentPhoneNumber.trim());
-      } else {
+      } else if (data.phone_number?.trim()) {
         formData.append('parent_phone_number', data.phone_number.trim());
       }
 

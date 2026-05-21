@@ -465,10 +465,15 @@ export default function Layout({ children }: LayoutProps) {
         isCollapsed={sidebarCollapsed}
         onCollapsedChange={setSidebarCollapsed}
         isMobile={isMobile}
+        onLogout={() => {
+          ['access_token', 'refresh_token', 'admin', 'teacher'].forEach(k => localStorage.removeItem(k));
+          router.push('/login');
+        }}
       />
       <Header
         sidebarCollapsed={sidebarCollapsed}
         isMobile={isMobile}
+        onMenuClick={() => {}}
       />
       <main
         className="transition-all duration-300 pt-20 pb-6 px-4 sm:px-6"

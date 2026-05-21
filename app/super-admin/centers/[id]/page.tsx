@@ -48,6 +48,15 @@ export default function CenterDetailPage() {
   const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [callCenter, setCallCenter] = useState(false);
   const [tariffId, setTariffId] = useState('');
+  const [tariffDuration, setTariffDuration] = useState('');
+  const [changingTariff, setChangingTariff] = useState(false);
+
+  const DURATIONS = [
+    { value: 1, label: '1 oy' },
+    { value: 3, label: '3 oy' },
+    { value: 6, label: '6 oy' },
+    { value: 12, label: '12 oy' },
+  ];
 
   useEffect(() => {
     loadData();
@@ -67,6 +76,7 @@ export default function CenterDetailPage() {
       setFeatures(c.features || {});
       setCallCenter(c.call_center_enabled || false);
       setTariffId(c.tariff_id ? String(c.tariff_id) : '');
+      setTariffDuration(c.tariff_duration ? String(c.tariff_duration) : '');
     } catch { toast.error('Xatolik'); }
     finally { setLoading(false); }
   };
@@ -164,11 +174,11 @@ export default function CenterDetailPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-purple-50 p-3 rounded-lg">
                 <p className="text-xs text-gray-500">Joriy tarif</p>
-                <p className="font-bold">{center.tariff?.name || '—'}</p>
+                <p className="font-bold">{center.tariff?.name || 'BETA'}</p>
               </div>
               <div className="bg-blue-50 p-3 rounded-lg">
                 <p className="text-xs text-gray-500">Talaba chegarasi</p>
-                <p className="font-bold">{center.tariff ? `${center.tariff.student_min}–${center.tariff.student_max}` : '100 (sinov)'}</p>
+                <p className="font-bold">{center.tariff ? `${center.tariff.student_min}–${center.tariff.student_max}` : 'Cheksiz (BETA)'}</p>
               </div>
               {center.tariff?.name && (
                 <div className="bg-green-50 p-3 rounded-lg">
@@ -190,23 +200,61 @@ export default function CenterDetailPage() {
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 pt-2 border-t">
+            {center.tariff_id && (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-3">
+                <div className="bg-indigo-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500">To'lov</p>
+                  <p className="font-bold text-green-700">{center.tariff_price ? Number(center.tariff_price).toLocaleString() + ' so\'m' : '—'}</p>
+                </div>
+                <div className="bg-cyan-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500">Muddat</p>
+                  <p className="font-bold">{center.tariff_duration ? `${center.tariff_duration} oy` : '—'}</p>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center gap-2 pt-2 border-t flex-wrap">
               <Label className="shrink-0">Tarifni o'zgartirish:</Label>
-              <Select value={tariffId} onValueChange={async v => {
+              <Select value={tariffId} onValueChange={v => {
                 setTariffId(v);
-                try {
-                  await educationCentersApi.update(id, { tariff_id: Number(v) });
-                  toast.success('Tarif yangilandi');
-                  loadData();
-                } catch { toast.error('Xatolik'); }
+                setChangingTariff(true);
               }}>
-                <SelectTrigger className="w-64"><SelectValue placeholder="Tarifni tanlang" /></SelectTrigger>
+                <SelectTrigger className="w-52"><SelectValue placeholder="Tarifni tanlang" /></SelectTrigger>
                 <SelectContent>
                   {tariffs.map(t => (
                     <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {changingTariff && (
+                <>
+                  <Select value={tariffDuration} onValueChange={setTariffDuration}>
+                    <SelectTrigger className="w-28"><SelectValue placeholder="Muddat" /></SelectTrigger>
+                    <SelectContent>
+                      {DURATIONS.map(d => (
+                        <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white"
+                    onClick={async () => {
+                      if (!tariffDuration) { toast.error('Muddatni tanlang'); return; }
+                      try {
+                        await educationCentersApi.update(id, {
+                          tariff_id: Number(tariffId),
+                          tariff_duration: Number(tariffDuration),
+                        });
+                        toast.success('Tarif yangilandi');
+                        setChangingTariff(false);
+                        loadData();
+                      } catch { toast.error('Xatolik'); }
+                    }}>
+                    Saqlash
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setChangingTariff(false); setTariffId(String(center?.tariff_id || '')); }}>
+                    Bekor qilish
+                  </Button>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -29,9 +29,13 @@ export interface CreateStudentRequest {
   last_name: string;
   age: number;
   email?: string;
-  phone_number: string;
+  phone_number?: string;
   password: string;
-  photo?: File | string; // fayl yoki URL
+  photo?: File | string;
+  parent_first_name?: string;
+  parent_last_name?: string;
+  parent_phone_number?: string;
+  parent_password?: string;
 }
 
 export interface UpdateStudentRequest {
@@ -59,6 +63,7 @@ export interface GetAllStudentsParams {
   group_id?: number | 'notnull' | 0;
   min_age?: number;
   max_age?: number;
+  phone_number_empty?: 'true';
 }
 
 export interface StudentsResponse {
@@ -243,11 +248,12 @@ export const studentsApi = {
    * Bir nechta student yaratish (ommaviy)
    */
   bulkCreate: async (data: { students: CreateStudentRequest[] }): Promise<{
-    created: number;
-    errors: Array<{ student: any; error: string }>;
+    success_count: number;
+    error_count: number;
+    errors: Array<{ index: number; student: any; error: string }>;
   }> => {
     try {
-      const response = await api.post('/students/bulk', data);
+      const response = await api.post('/students/bulk', data, { timeout: 180000 });
       return response.data;
     } catch (error) {
       console.error('Error bulk creating students:', error);
@@ -266,5 +272,21 @@ export const studentsApi = {
       console.error(`Error fetching students for group ${groupId}:`, error);
       throw error;
     }
+  },
+
+  getStats: async (): Promise<{
+    total: number;
+    active: number;
+    inactive: number;
+    withGroup: number;
+    withoutGroup: number;
+  }> => {
+    const response = await api.get('/students/stats');
+    return response.data;
+  },
+
+  bulkToggleActive: async (isActive: boolean): Promise<{ updated: number; message: string }> => {
+    const response = await api.patch('/students/bulk/toggle-active', { isActive });
+    return response.data;
   },
 };

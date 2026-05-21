@@ -4,22 +4,27 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Loader2, Shield, BarChart3, Package, LogOut, Menu, X, RefreshCw } from 'lucide-react';
+import { Loader2, Shield, BarChart3, Package, Building2, LogOut, Menu, X } from 'lucide-react';
 
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const isLoginPage = pathname === '/super-admin/login';
+    if (isLoginPage) {
+      setLoading(false);
+      return;
+    }
     const token = localStorage.getItem('access_token');
     if (!token) {
       router.replace('/super-admin/login');
       return;
     }
     setLoading(false);
-  }, [router]);
+  }, [router, pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -30,64 +35,108 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-purple-600" />
+          <p className="text-gray-500 text-sm">Yuklanmoqda...</p>
+        </div>
       </div>
     );
   }
 
   const navLinks = [
     { href: '/super-admin', label: 'Dashboard', icon: BarChart3 },
+    { href: '/super-admin', label: "Markazlar", icon: Building2, matchFn: (p: string) => p === '/super-admin' || p.startsWith('/super-admin/centers') },
     { href: '/super-admin/tariffs', label: 'Tariflar', icon: Package },
   ];
 
+  const isActive = (link: typeof navLinks[0]) => {
+    if (link.matchFn) return link.matchFn(pathname);
+    return pathname === link.href;
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       <div className="flex h-screen overflow-hidden">
+        {/* Mobile overlay */}
         {sidebarOpen && (
-          <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
+          <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
         )}
+
+        {/* Sidebar */}
         <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-30 w-64 h-full bg-gray-900 text-white transition-all duration-300 flex flex-col`}>
-          <div className="p-5 border-b border-gray-700">
+          {/* Logo area */}
+          <div className="p-5 border-b border-gray-800">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-purple-600 rounded-xl"><Shield className="h-6 w-6" /></div>
-              <div><h2 className="font-bold text-lg">Super Admin</h2><p className="text-xs text-gray-400">Boshqaruv paneli</p></div>
+              <div className="p-2.5 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl shadow-lg">
+                <Shield className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="font-bold text-lg text-white">Super Admin</h2>
+                <p className="text-xs text-gray-500">Boshqaruv paneli</p>
+              </div>
             </div>
           </div>
-          <nav className="flex-1 p-4 space-y-1">
+
+          {/* Navigation */}
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navLinks.map(link => {
               const Icon = link.icon;
-              const isActive = pathname === link.href;
+              const active = isActive(link);
               return (
                 <Link
-                  key={link.href}
+                  key={link.label}
                   href={link.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                    isActive ? 'bg-purple-600/20 text-purple-300 font-medium' : 'text-gray-300 hover:bg-gray-800'
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                    active
+                      ? 'bg-gradient-to-r from-purple-600/30 to-purple-700/20 text-purple-300 font-medium border-l-2 border-purple-500'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60 border-l-2 border-transparent'
                   }`}
                 >
-                  <Icon className="h-5 w-5" /> {link.label}
+                  <Icon className="h-5 w-5 shrink-0" />
+                  <span>{link.label}</span>
                 </Link>
               );
             })}
           </nav>
-          <div className="p-4 border-t border-gray-700">
-            <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-red-300 hover:bg-red-500/10 transition-colors">
-              <LogOut className="h-5 w-5" /> Chiqish
+
+          {/* Logout */}
+          <div className="p-4 border-t border-gray-800">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-4 py-2.5 w-full rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 border-l-2 border-transparent hover:border-red-500"
+            >
+              <LogOut className="h-5 w-5 shrink-0" />
+              <span>Chiqish</span>
             </button>
           </div>
         </aside>
 
+        {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="bg-white shadow-sm border-b px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0">
+          {/* Header */}
+          <header className="bg-white shadow-sm border-b border-gray-200 px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 rounded-lg hover:bg-gray-100">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="md:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600"
+              >
                 {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
-              <h1 className="text-lg font-bold text-gray-900">Super Admin Panel</h1>
+              <div className="hidden md:flex items-center gap-2">
+                <Shield className="h-5 w-5 text-purple-600" />
+                <h1 className="text-lg font-bold text-gray-900">Super Admin Panel</h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-lg flex items-center justify-center">
+                <Shield className="h-4 w-4 text-white" />
+              </div>
             </div>
           </header>
 
+          {/* Page content */}
           <main className="flex-1 overflow-y-auto bg-gray-50">
             {children}
           </main>

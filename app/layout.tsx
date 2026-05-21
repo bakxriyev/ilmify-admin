@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "react-hot-toast";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -11,9 +12,20 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: 'Ilmify Edu',
-  description: 'Ilmify Edu',
+  description: 'Ilmify Education - ta\'lim boshqaruv tizimi',
   icons: {
-    icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/logo.jpg' }],
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Ilmify',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+    'theme-color': '#1d4ed8',
   },
 };
 
@@ -23,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+      <html lang="uz" suppressHydrationWarning>
       <body>
         <ThemeProvider
           attribute="class"
@@ -31,6 +43,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <ServiceWorkerRegister />
           {children}
           <Toaster
             position="top-right"

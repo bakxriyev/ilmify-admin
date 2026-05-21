@@ -39,6 +39,8 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
   const notifRef = useRef<HTMLDivElement>(null);
   const [selectedNotif, setSelectedNotif] = useState<any>(null);
 
+  useEffect(() => { setMounted(true); }, []);
+
   const fetchNotifs = useCallback(async () => {
     if (typeof window === 'undefined') return;
     try {

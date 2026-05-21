@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import TokenChecker from './TokenChecker';
@@ -9,23 +10,34 @@ interface LayoutProps {
   children: ReactNode;
 }
 
+const getAdminData = () => {
+  if (typeof window === 'undefined') return { id: undefined, role: undefined, permissions: null };
+  try {
+    const raw = localStorage.getItem('admin');
+    if (!raw) return { id: undefined, role: undefined, permissions: null };
+    const data = JSON.parse(raw);
+    return {
+      id: data.id,
+      role: data.role,
+      permissions: data.permissions || null,
+    };
+  } catch { return { id: undefined, role: undefined, permissions: null }; }
+};
+
 export default function Layout({ children }: LayoutProps) {
+  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [userId, setUserId] = useState<string | undefined>(undefined);
+
+  const handleLogout = () => {
+    ['access_token', 'refresh_token', 'admin', 'teacher'].forEach(k => localStorage.removeItem(k));
+    router.push('/login');
+  };
 
   useEffect(() => {
     setMounted(true);
-    
-    const adminRaw = localStorage.getItem('admin');
-    if (adminRaw) {
-      try {
-        const adminData = JSON.parse(adminRaw);
-        setUserId(adminData.id);
-      } catch {}
-    }
 
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -44,7 +56,7 @@ export default function Layout({ children }: LayoutProps) {
         isCollapsed={sidebarCollapsed} 
         onCollapsedChange={setSidebarCollapsed} 
         isMobile={isMobile}
-        userId={userId}
+        onLogout={handleLogout}
       />
       <Header 
         sidebarCollapsed={sidebarCollapsed} 

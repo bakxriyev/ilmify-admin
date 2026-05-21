@@ -12,7 +12,7 @@ import {
   BarChart3, Calendar, Clock, Phone, Mail as MailIcon, Globe, MapPin,
   Award, Target, TrendingUp, Activity, Zap, Heart, Star, Moon, Sun,
   Newspaper, Camera as CameraIcon, Building2, Wallet, Link as LinkIcon,
-  PhoneIcon,
+  PhoneIcon, Bot,
   SparklesIcon,
 } from 'lucide-react';
 import { adminApi } from '../api/adminApi';
@@ -25,6 +25,8 @@ interface SidebarProps {
   isMobile: boolean;
   userId?: string;
   onLogout?: () => void;
+  adminRole?: string;
+  permissions?: Record<string, boolean> | null;
 }
 
 interface NavigationItem {
@@ -35,6 +37,8 @@ interface NavigationItem {
   badgeColor?: 'blue' | 'red' | 'green' | 'yellow' | 'purple';
   children?: NavigationItem[];
   highlight?: boolean;
+  permKey?: string;
+  roleRequired?: 'director';
 }
 
 // Extend iconMap with Newspaper and Camera
@@ -75,6 +79,7 @@ const iconMap = {
   LinkIcon: LinkIcon,         // for Lead Sources
   SparklesIcon: Sparkles,     // for Trial Lessons
   PhoneIcon: Phone,           // for Call Center
+  BotIcon: Bot,               // for Telegram Bot
 };
 
 const navigationItems: NavigationItem[] = [
@@ -83,59 +88,89 @@ const navigationItems: NavigationItem[] = [
     path: '/dashboard',
     icon: 'HomeIcon',
     badge: 0,
+    permKey: 'dashboard',
   },
   {
     label: 'Studentlar',
     path: '/students',
     icon: 'AcademicCapIcon',
     badge: 0,
+    permKey: 'students',
   },
   {
     label: "O'qituvchilar",
     path: '/teachers',
     icon: 'UserGroupIcon',
     badge: 0,
+    permKey: 'teachers',
   },
   {
     label: 'Ota-onalar',
     path: '/parents',
     icon: 'HeartIcon',
     badge: 0,
+    permKey: 'parents',
   },
   {
     label: 'Guruhlar',
     path: '/groups',
     icon: 'UsersIcon',
     badge: 0,
+    permKey: 'groups',
   },
   {
     label: 'Xonalar',
     path: '/rooms',
     icon: 'Building2Icon',
     badge: 0,
+    permKey: 'rooms',
   },
   {
     label: "To'lovlar",
     path: '/payments',
     icon: 'WalletIcon',
     badge: 0,
+    permKey: 'payments',
   },
   {
     label: 'CRM',
     icon: 'LinkIcon',
     badge: 0,
+    permKey: 'crm',
     children: [
-      { label: 'Leadlar', path: '/leads', icon: 'UsersIcon' },
-      { label: 'Call Center', path: '/leads/call-center', icon: 'PhoneIcon' },
-      { label: 'Probniy darslar', path: '/leads/trial', icon: 'SparklesIcon' },
-      { label: 'Manbalar', path: '/leads/sources', icon: 'LinkIcon' },
+      { label: 'Leadlar', path: '/leads', icon: 'UsersIcon', permKey: 'crm' },
+      { label: 'Call Center', path: '/leads/call-center', icon: 'PhoneIcon', permKey: 'crm' },
+      { label: 'Probniy darslar', path: '/leads/trial', icon: 'SparklesIcon', permKey: 'crm' },
+      { label: 'Manbalar', path: '/leads/sources', icon: 'LinkIcon', permKey: 'crm' },
     ],
   },
   {
     label: 'Bildirishnomalar',
     path: '/notifications',
     icon: 'BellIcon',
+    permKey: 'notifications',
     badge: 0,
+  },
+  {
+    label: 'Telegram Bot',
+    path: '/telegram-bot',
+    icon: 'BotIcon',
+    badge: 0,
+    highlight: true,
+  },
+  {
+    label: 'Hisobotlar',
+    path: '/reports',
+    icon: 'BarChart3Icon',
+    badge: 0,
+    roleRequired: 'director',
+  },
+  {
+    label: 'Adminlar',
+    path: '/admins',
+    icon: 'UsersIcon',
+    badge: 0,
+    roleRequired: 'director',
   },
 ];
 
@@ -156,6 +191,8 @@ export default function Sidebar({
   isMobile,
   userId,
   onLogout,
+  adminRole,
+  permissions,
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -303,7 +340,7 @@ export default function Sidebar({
     if (onLogout) {
       onLogout();
     } else {
-      localStorage.removeItem('token');
+      ['access_token', 'refresh_token', 'admin', 'teacher'].forEach(k => localStorage.removeItem(k));
       router.push('/login');
     }
   };
@@ -375,12 +412,36 @@ export default function Sidebar({
     );
   };
 
+  // Sidebarni permission asosida filtrla — localStorage'dan sinxron o'qiymiz
+  const getLocalPerms = () => {
+    if (typeof window === 'undefined') return { role: undefined as string | undefined, perms: null as Record<string, boolean> | null };
+    try {
+      const raw = localStorage.getItem('admin');
+      if (!raw) return { role: undefined, perms: null };
+      const d = JSON.parse(raw);
+      return { role: d.role, perms: d.permissions || null };
+    } catch { return { role: undefined, perms: null }; }
+  };
+  const localData = getLocalPerms();
+  const effectiveRole = adminRole || localData.role;
+  const effectivePerms = permissions !== undefined ? permissions : localData.perms;
+
+  // Hydration error kelmasligi uchun: serverda hamma itemlarni ko'rsat,
+  // mount bo'lgandan keyin permission asosida filtrla
+  const visibleItems = !mounted
+    ? navigationItems
+    : navigationItems.filter(item => {
+        if (item.roleRequired && effectiveRole !== item.roleRequired) return false;
+        if (effectiveRole === 'director' || !item.permKey || !effectivePerms) return true;
+        return effectivePerms[item.permKey] === true;
+      });
+
   // Mobile bottom navigation
   if (isMobile) {
     return (
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-blue-700 text-white border-t border-blue-500">
         <div className="flex items-center justify-around h-16 px-2">
-          {navigationItems.slice(0, 5).map((item) => {
+          {visibleItems.slice(0, 5).map((item) => {
             const isActive = isItemActive(item);
             return (
               <Link
@@ -461,7 +522,7 @@ export default function Sidebar({
         {/* Navigation */}
         <nav className="flex-1 py-6 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-blue-500 scrollbar-track-transparent">
           <ul className="space-y-2 px-3">
-            {navigationItems.map((item) => {
+            {visibleItems.map((item) => {
               const isActive = isItemActive(item);
               const isExpanded = expandedItems.includes(item.label);
               const hasChildren = item.children && item.children.length > 0;

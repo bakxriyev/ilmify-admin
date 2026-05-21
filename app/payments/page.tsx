@@ -190,7 +190,7 @@ export default function PaymentsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card className="border-0 shadow-md">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2.5 bg-blue-50 rounded-lg"><Users className="h-5 w-5 text-blue-600" /></div>
@@ -199,38 +199,26 @@ export default function PaymentsPage() {
           </Card>
           <Card className="border-0 shadow-md">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2.5 bg-indigo-50 rounded-lg"><CreditCard className="h-5 w-5 text-indigo-600" /></div>
-              <div><p className="text-xs text-gray-500">Kutilgan summa</p><p className="text-lg font-bold text-indigo-600">{formatSum(totalExpectedAmount)} so'm</p></div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-md">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2.5 bg-green-50 rounded-lg"><CheckCircle className="h-5 w-5 text-green-600" /></div>
-              <div><p className="text-xs text-gray-500">To'langan</p><p className="text-lg font-bold text-green-600">{paidCount}</p></div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-md">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2.5 bg-red-50 rounded-lg"><XCircle className="h-5 w-5 text-red-600" /></div>
-              <div><p className="text-xs text-gray-500">To'lanmagan</p><p className="text-lg font-bold text-red-600">{unpaidCount}</p></div>
+              <div className="p-2.5 bg-green-50 rounded-lg"><Wallet className="h-5 w-5 text-green-600" /></div>
+              <div><p className="text-xs text-gray-500">To'lov qilgan</p><p className="text-lg font-bold text-green-600">{paidCount}</p></div>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-md">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2.5 bg-amber-50 rounded-lg"><Clock className="h-5 w-5 text-amber-600" /></div>
-              <div><p className="text-xs text-gray-500">Qisman</p><p className="text-lg font-bold text-amber-600">{partialCount}</p></div>
+              <div><p className="text-xs text-gray-500">Qisman to'lagan</p><p className="text-lg font-bold text-amber-600">{partialCount}</p></div>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-md">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2.5 bg-emerald-50 rounded-lg"><DollarSign className="h-5 w-5 text-emerald-600" /></div>
-              <div><p className="text-xs text-gray-500">Jami to'lov</p><p className="text-lg font-bold text-emerald-600">{formatSum(totalPaidAmount)} so'm</p></div>
+              <div className="p-2.5 bg-red-50 rounded-lg"><XCircle className="h-5 w-5 text-red-600" /></div>
+              <div><p className="text-xs text-gray-500">Qarzdorlar</p><p className="text-lg font-bold text-red-600">{unpaidCount}</p></div>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-md">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2.5 bg-red-50 rounded-lg"><AlertCircle className="h-5 w-5 text-red-600" /></div>
-              <div><p className="text-xs text-gray-500">Jami qarzdorlik</p><p className="text-lg font-bold text-red-600">{formatSum(totalDebt)} so'm</p></div>
+              <div><p className="text-xs text-gray-500">Jami qarz</p><p className="text-lg font-bold text-red-600">{formatSum(totalDebt)} so'm</p></div>
             </CardContent>
           </Card>
         </div>

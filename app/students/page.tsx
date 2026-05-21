@@ -10,7 +10,7 @@ import {
   UserPlus, Download, Grid, List, Star, TrendingUp, Activity,
   Award, Clock, MapPin, Globe, BookOpen, MessageSquare, Bell,
   Settings, BarChart3, PieChart, Zap, Heart, Shield, Target,
-  ChevronDown, ChevronUp, Maximize2, Minimize2, KeyRound
+  ChevronDown, ChevronUp, Maximize2, Minimize2, KeyRound, XCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +64,7 @@ interface FilterParams {
   last_name?: string;
   email?: string;
   phone_number?: string;
+  phone_number_empty?: 'true';
   group_id?: number | 'notnull' | 0;
   min_age?: number;
   max_age?: number;
@@ -106,11 +107,30 @@ export default function StudentsPage() {
     first_name: string;
     last_name: string;
     age: number;
-    email: string;
+    email?: string;
     phone_number: string;
     password: string;
   }>>([]);
   const [isBulkCreating, setIsBulkCreating] = useState(false);
+
+  // Tariff limit modal
+  const [showTariffLimitModal, setShowTariffLimitModal] = useState(false);
+  const [tariffLimitMessage, setTariffLimitMessage] = useState('');
+
+  // Bulk confirm modal
+  const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
+  const [bulkConfirmAction, setBulkConfirmAction] = useState<'activate' | 'deactivate'>('activate');
+  const [bulkResultMessage, setBulkResultMessage] = useState('');
+  const [showBulkResultModal, setShowBulkResultModal] = useState(false);
+
+  // Bulk import result modal
+  const [showImportResultModal, setShowImportResultModal] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    success: number;
+    duplicatePhones: number;
+    otherErrors: number;
+    total: number;
+  }>({ success: 0, duplicatePhones: 0, otherErrors: 0, total: 0 });
 
   // Filters
   const [filters, setFilters] = useState<FilterParams>({
@@ -122,7 +142,8 @@ export default function StudentsPage() {
   const [ageFilter, setAgeFilter] = useState<{ min?: number; max?: number }>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+  const [phoneFilterEmpty, setPhoneFilterEmpty] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -135,6 +156,20 @@ export default function StudentsPage() {
 
     return () => clearTimeout(handler);
   }, [searchTerm]);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const statsData = await studentsApi.getStats();
+      setStats(prev => ({
+        ...prev,
+        total: statsData.total,
+        active: statsData.active,
+        inactive: statsData.inactive,
+        withGroup: statsData.withGroup,
+        withoutGroup: statsData.withoutGroup,
+      }));
+    } catch {}
+  }, []);
 
   const fetchStudents = useCallback(async () => {
     try {
@@ -152,6 +187,8 @@ export default function StudentsPage() {
       if (ageFilter.min) params.min_age = ageFilter.min;
       if (ageFilter.max) params.max_age = ageFilter.max;
 
+      if (phoneFilterEmpty) params.phone_number_empty = 'true';
+
       if (activeTab === 'without-group') {
         params.group_id = 0;
       } else if (activeTab === 'with-group') {
@@ -164,32 +201,23 @@ export default function StudentsPage() {
       setTotalStudents(response.pagination?.total ?? 0);
       setTotalPages(response.pagination?.total_pages ?? 1);
 
-      const dataLength = response.data?.length || 0;
-      const activeCount = response.data?.filter((s: Student) => s.isActive).length || 0;
-      const withGroupCount = response.data?.filter((s: Student) => s.group).length || 0;
-      const avgAge = dataLength > 0
-        ? Math.round(response.data!.reduce((acc: number, s: Student) => acc + (s.age || 0), 0) / dataLength)
+      const avgAge = (response.data || []).length > 0
+        ? Math.round((response.data || []).reduce((acc: number, s: Student) => acc + (s.age || 0), 0) / (response.data || []).length)
         : 0;
 
-      setStats({
-        total: response.pagination?.total || 0,
-        active: activeCount,
-        inactive: dataLength - activeCount,
-        withGroup: withGroupCount,
-        withoutGroup: dataLength - withGroupCount,
-        averageAge: avgAge,
-      });
+      setStats(prev => ({ ...prev, averageAge: avgAge }));
     } catch (err: any) {
       toast.error(err.message || 'Studentlarni yuklashda xatolik');
     } finally {
       setLoading(false);
       setTableLoading(false);
     }
-  }, [filters, ageFilter, activeTab]);
+  }, [filters, ageFilter, activeTab, phoneFilterEmpty]);
 
   useEffect(() => {
     fetchStudents();
-  }, [fetchStudents]);
+    fetchStats();
+  }, [fetchStudents, fetchStats]);
 
   // Delete
   const handleDelete = async () => {
@@ -208,7 +236,47 @@ export default function StudentsPage() {
     }
   };
 
-  // Activate
+  // Toggle active
+  const handleToggleActive = async (student: Student, newState: boolean) => {
+    try {
+      await studentsApi.update(student.id, { isActive: newState });
+      toast.success(`${student.first_name} ${student.last_name} ${newState ? 'faollashtirildi' : 'nofaollashtirildi'}`);
+      fetchStudents();
+    } catch (err: any) {
+      toast.error(err.message || 'Xatolik');
+    }
+  };
+
+  // Bulk activate / deactivate
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const openBulkConfirm = (action: 'activate' | 'deactivate') => {
+    setBulkConfirmAction(action);
+    setShowBulkConfirmModal(true);
+  };
+  const handleBulkToggle = async () => {
+    try {
+      setBulkActionLoading(true);
+      setShowBulkConfirmModal(false);
+      const newState = bulkConfirmAction === 'activate';
+      const res = await studentsApi.bulkToggleActive(newState);
+      setBulkResultMessage(res.message);
+      setShowBulkResultModal(true);
+      fetchStudents();
+      fetchStats();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Xatolik';
+      if (msg.includes('Talabalar soni chegarasiga yetdingiz')) {
+        setTariffLimitMessage(msg);
+        setShowTariffLimitModal(true);
+        return;
+      }
+      toast.error(msg);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  // Activate (modal confirmation for old flow - keeping for backward compat)
   const handleActivate = async () => {
     if (!studentToActivate) return;
     try {
@@ -226,6 +294,31 @@ export default function StudentsPage() {
   };
 
   // Bulk import handlers
+  const normalizePhone = (phone: string): string => {
+    if (!phone) return '';
+    const cleaned = phone.trim().replace(/[\s\-]/g, '');
+    const numbers = cleaned.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    const first = numbers[0] || '';
+    if (!first) return '';
+    const digits = first.replace(/\D/g, '');
+    if (digits.length === 9) return `+998${digits}`;
+    if (!digits.startsWith('998')) return `+998${digits}`;
+    return `+${digits.replace(/^\+/, '')}`;
+  };
+
+  const findColumn = (row: any, aliases: string[]): string | undefined => {
+    const keys = Object.keys(row);
+    for (const alias of aliases) {
+      const match = keys.find(k => k.trim().toLowerCase() === alias.toLowerCase());
+      if (match) return row[match];
+    }
+    for (const alias of aliases) {
+      const match = keys.find(k => k.trim().toLowerCase().includes(alias.toLowerCase()));
+      if (match) return row[match];
+    }
+    return undefined;
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -233,22 +326,67 @@ export default function StudentsPage() {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+        if (jsonData.length === 0) {
+          toast.error('Excel faylda ma\'lumot topilmadi');
+          return;
+        }
+
+        const firstRow = jsonData[0] as any;
+        const keys = Object.keys(firstRow);
+        const hasCombinedName = keys.some(k => /familiya.*ism|ism.*familiya|f\.i\.sh|fio|full.?name|fish/i.test(k));
 
         const formattedData = jsonData
-          .map((row: any) => ({
-            first_name: row.first_name || row.firstName || row['First Name'] || '',
-            last_name: row.last_name || row.lastName || row['Last Name'] || '',
-            age: parseInt(row.age) || parseInt(row.Age) || 0,
-            email: row.email || row.Email || '',
-            phone_number: row.phone_number || row.phone || row.Phone || '',
-            password: row.password || '123456',
-          }))
-          .filter((row) => row.first_name && row.last_name && row.phone_number);
+          .map((row: any) => {
+            let first_name = '';
+            let last_name = '';
+
+            if (hasCombinedName) {
+              const fullName = findColumn(row, ['Familiya Ism', 'Familiya va Ism', 'F.I.Sh', 'FIO', 'Full Name', 'Ism Familiya', 'Name'])
+                || findColumn(row, keys.filter(k => /familiya|familya/i.test(k)).map(k => k))
+                || '';
+              if (fullName) {
+                const parts = fullName.trim().split(/\s+/);
+                last_name = parts[0] || '';
+                first_name = parts.slice(1).join(' ') || '';
+              }
+            } else {
+              first_name = findColumn(row, ['Ism', 'First Name', 'first_name', 'firstName', 'Name'])
+                || '';
+              last_name = findColumn(row, ['Familiya', 'Last Name', 'last_name', 'lastName', 'Familya'])
+                || '';
+            }
+
+            let phone_number = findColumn(row, ['Telefon', 'Phone', 'phone_number', 'phone', 'Tel', 'Telefon raqam'])
+              || '';
+            phone_number = normalizePhone(phone_number);
+
+            const email = findColumn(row, ['Email', 'email', 'E-mail', 'Elektron pochta']) || '';
+            const parentPhone = phone_number || findColumn(row, ['Ota-ona telefoni', 'Parent phone', 'parent_phone', 'ona telefoni']) || '';
+            return {
+              first_name,
+              last_name,
+              age: parseInt(findColumn(row, ['Yosh', 'Age', 'age']) || '') || 0,
+              email: email || undefined,
+              phone_number,
+              password: row.password || '123456',
+              parent_first_name: first_name,
+              parent_last_name: last_name,
+              parent_phone_number: parentPhone || undefined,
+              parent_password: '123456',
+            };
+          })
+          .filter((row) => row.first_name && row.last_name);
+
+        if (formattedData.length === 0) {
+          toast.error(`Hech qanday student topilmadi. Fayldagi ustun nomlarini tekshiring: ${keys.join(', ')}`);
+          return;
+        }
 
         setBulkData(formattedData);
         setShowBulkModal(true);
@@ -256,7 +394,7 @@ export default function StudentsPage() {
         toast.error('Excel faylni oʻqishda xatolik');
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleBulkCreate = async () => {
@@ -264,13 +402,35 @@ export default function StudentsPage() {
     try {
       setIsBulkCreating(true);
       const response = await studentsApi.bulkCreate({ students: bulkData });
+      const tariffError = response.errors?.find(e =>
+        e.error?.includes('Talabalar soni chegarasiga yetdingiz')
+      );
+      if (tariffError) {
+        setTariffLimitMessage(tariffError.error);
+        setShowTariffLimitModal(true);
+        return;
+      }
       setShowBulkModal(false);
       setBulkData([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
       fetchStudents();
-      toast.success(`${response.created} ta student qoʻshildi, ${response.errors.length} ta xatolik.`);
+      fetchStats();
+      const dupPhones = response.errors?.filter(e => e.error?.includes('Bu telefon nomer bilan student allaqachon mavjud')).length || 0;
+      setImportResult({
+        success: response.success_count || 0,
+        duplicatePhones: dupPhones,
+        otherErrors: (response.error_count || 0) - dupPhones,
+        total: (response.success_count || 0) + (response.error_count || 0),
+      });
+      setShowImportResultModal(true);
     } catch (err: any) {
-      toast.error(err.message || 'Import qilishda xatolik');
+      const msg = err?.response?.data?.message || err?.message || '';
+      if (msg.includes('Talabalar soni chegarasiga yetdingiz')) {
+        setTariffLimitMessage(msg);
+        setShowTariffLimitModal(true);
+        return;
+      }
+      toast.error('Import qilishda xatolik. Server juda ko\'p so\'rovni qayta ishlay olmadi. Kamroq student bilan urinib ko\'ring.');
     } finally {
       setIsBulkCreating(false);
     }
@@ -307,6 +467,7 @@ export default function StudentsPage() {
     setSearchTerm('');
     setAgeFilter({});
     setActiveTab('all');
+    setPhoneFilterEmpty(false);
     setFilters({
       page: 1,
       limit: 10,
@@ -319,7 +480,20 @@ export default function StudentsPage() {
     }
   };
 
-  const formatPhone = (phone: string) => {
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        setTariffLimitMessage(detail);
+        setShowTariffLimitModal(true);
+      }
+    };
+    window.addEventListener('tariff-limit-error', handler);
+    return () => window.removeEventListener('tariff-limit-error', handler);
+  }, []);
+
+  const formatPhone = (phone: string | null | undefined) => {
+    if (!phone) return '—';
     const digits = phone.replace(/\D/g, '');
     if (digits.length === 12 && digits.startsWith('998')) {
       return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
@@ -362,6 +536,12 @@ export default function StudentsPage() {
               </div>
               <div className="flex gap-2">
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.xls" className="hidden" />
+                <Button variant="outline" size="sm" onClick={() => openBulkConfirm('activate')} disabled={bulkActionLoading} className="text-xs" title="Barchasini faollashtirish">
+                  <CheckCircle className="h-3.5 w-3.5 mr-1 text-green-600" /> Barchasini Faol
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => openBulkConfirm('deactivate')} disabled={bulkActionLoading} className="text-xs" title="Barchasini nofaollashtirish">
+                  <XCircle className="h-3.5 w-3.5 mr-1 text-red-500" /> Barchasini Nofaol
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="text-xs">
                   <Upload className="h-3.5 w-3.5 mr-1" /> Excel Import
                 </Button>
@@ -507,6 +687,16 @@ export default function StudentsPage() {
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
+                      </div>
+
+                      {/* Phone filter */}
+                      <div className="flex items-center gap-3">
+                        <Label className="text-gray-700 dark:text-gray-300 cursor-pointer flex items-center gap-2" onClick={() => { setPhoneFilterEmpty(!phoneFilterEmpty); }}>
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${phoneFilterEmpty ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                            {phoneFilterEmpty && <CheckCircle className="h-4 w-4 text-white" />}
+                          </div>
+                          Telefon raqami yoʻq
+                        </Label>
                       </div>
 
                       {/* Items per page */}
@@ -739,14 +929,21 @@ export default function StudentsPage() {
                               </TableCell>
                               <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-end gap-2">
-                                  {!student.isActive && (
+                                  {student.isActive ? (
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => {
-                                        setStudentToActivate(student);
-                                        setShowActivateModal(true);
-                                      }}
+                                      onClick={() => handleToggleActive(student, false)}
+                                      className="h-9 w-9 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all duration-300 hover:scale-110 rounded-lg"
+                                      title="Nofaollashtirish"
+                                    >
+                                      <Power className="h-4 w-4" />
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleToggleActive(student, true)}
                                       className="h-9 w-9 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30 transition-all duration-300 hover:scale-110 rounded-lg"
                                       title="Faollashtirish"
                                     >
@@ -910,20 +1107,33 @@ export default function StudentsPage() {
                                 </Badge>
                               </div>
                               
-                              {!student.isActive && (
-                                <Button
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setStudentToActivate(student);
-                                    setShowActivateModal(true);
-                                  }}
-                                  className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 h-auto transition-all duration-300 hover:scale-105"
-                                >
-                                  <Power className="h-3 w-3 mr-1" />
-                                  Faollashtirish
-                                </Button>
-                              )}
+                              <div className="flex gap-1">
+                                {student.isActive ? (
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleActive(student, false);
+                                    }}
+                                    className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2 py-1 h-auto transition-all duration-300 hover:scale-105"
+                                    title="Nofaollashtirish"
+                                  >
+                                    <Power className="h-3 w-3" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleActive(student, true);
+                                    }}
+                                    className="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-1 h-auto transition-all duration-300 hover:scale-105"
+                                    title="Faollashtirish"
+                                  >
+                                    <Power className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1054,13 +1264,19 @@ export default function StudentsPage() {
                           </div>
                           
                           <div className="flex items-center gap-2 w-full" onClick={(e) => e.stopPropagation()}>
-                            {!student.isActive && (
+                            {student.isActive ? (
                               <Button
                                 size="sm"
-                                onClick={() => {
-                                  setStudentToActivate(student);
-                                  setShowActivateModal(true);
-                                }}
+                                onClick={() => handleToggleActive(student, false)}
+                                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white transition-all duration-300 hover:scale-105"
+                              >
+                                <Power className="h-4 w-4 mr-1" />
+                                Nofaollashtirish
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => handleToggleActive(student, true)}
                                 className="flex-1 bg-green-500 hover:bg-green-600 text-white transition-all duration-300 hover:scale-105"
                               >
                                 <Power className="h-4 w-4 mr-1" />
@@ -1308,6 +1524,144 @@ export default function StudentsPage() {
                 ) : (
                   `${bulkData.length} ta Studentni Import Qilish`
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Tariff limit modal */}
+        <Dialog open={showTariffLimitModal} onOpenChange={setShowTariffLimitModal}>
+          <DialogContent className="sm:max-w-[450px] bg-white rounded-2xl shadow-2xl border-0 p-0 overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 text-white text-center">
+              <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-3">
+                <AlertCircle className="h-8 w-8" />
+              </div>
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold text-white">Cheklov mavjud</DialogTitle>
+              </DialogHeader>
+            </div>
+            <div className="p-6 text-center">
+              <p className="text-gray-700 text-lg mb-2">
+                {tariffLimitMessage}
+              </p>
+              <p className="text-gray-500 text-sm">
+                Ko'proq student qo'shish uchun tarifingizni yangilang.
+              </p>
+            </div>
+            <DialogFooter className="p-4 border-t border-gray-100 flex justify-center">
+              <Button
+                onClick={() => setShowTariffLimitModal(false)}
+                className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-8"
+              >
+                Tushunarli
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk confirm modal */}
+        <Dialog open={showBulkConfirmModal} onOpenChange={setShowBulkConfirmModal}>
+          <DialogContent className="sm:max-w-[420px] bg-white rounded-2xl shadow-2xl border-0 p-0 overflow-hidden">
+            <div className={`p-6 text-center ${bulkConfirmAction === 'activate' ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-amber-500 to-red-500'} text-white`}>
+              <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-3">
+                {bulkConfirmAction === 'activate' ? <CheckCircle className="h-8 w-8" /> : <XCircle className="h-8 w-8" />}
+              </div>
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold text-white">
+                  {bulkConfirmAction === 'activate' ? 'Barchasini faollashtirish' : 'Barchasini nofaollashtirish'}
+                </DialogTitle>
+              </DialogHeader>
+            </div>
+            <div className="p-6 text-center">
+              <p className="text-gray-700 text-lg">
+                {bulkConfirmAction === 'activate'
+                  ? `Markazdagi barcha nofaol studentlarni faollashtirishni tasdiqlaysizmi?`
+                  : `Markazdagi barcha faol studentlarni nofaollashtirishni tasdiqlaysizmi?`}
+              </p>
+            </div>
+            <DialogFooter className="p-4 border-t border-gray-100 gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowBulkConfirmModal(false)}
+                className="flex-1"
+              >
+                Bekor qilish
+              </Button>
+              <Button
+                onClick={handleBulkToggle}
+                disabled={bulkActionLoading}
+                className={`flex-1 ${bulkConfirmAction === 'activate' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-500 hover:bg-red-600'} text-white`}
+              >
+                {bulkActionLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Bajarilmoqda...</>
+                ) : (
+                  'Tasdiqlash'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk result modal */}
+        <Dialog open={showBulkResultModal} onOpenChange={setShowBulkResultModal}>
+          <DialogContent className="sm:max-w-[420px] bg-white rounded-2xl shadow-2xl border-0 p-0 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
+              <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-3">
+                <CheckCircle className="h-8 w-8" />
+              </div>
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold text-white">Amal bajarildi</DialogTitle>
+              </DialogHeader>
+            </div>
+            <div className="p-6 text-center">
+              <p className="text-gray-700 text-lg">{bulkResultMessage}</p>
+            </div>
+            <DialogFooter className="p-4 border-t border-gray-100 flex justify-center">
+              <Button
+                onClick={() => setShowBulkResultModal(false)}
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-8"
+              >
+               Tushunarli
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Import result modal */}
+        <Dialog open={showImportResultModal} onOpenChange={setShowImportResultModal}>
+          <DialogContent className="sm:max-w-[460px] bg-white rounded-2xl shadow-2xl border-0 p-0 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
+              <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-3">
+                <CheckCircle className="h-8 w-8" />
+              </div>
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold text-white">Import natijasi</DialogTitle>
+              </DialogHeader>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl">
+                <span className="text-green-800 font-medium">Muvaffaqiyatli qo'shildi</span>
+                <span className="text-2xl font-bold text-green-600">{importResult.success}</span>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl">
+                <span className="text-amber-800 font-medium">Telefon raqam dublikat</span>
+                <span className="text-2xl font-bold text-amber-600">{importResult.duplicatePhones}</span>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl">
+                <span className="text-red-800 font-medium">Boshqa xatoliklar</span>
+                <span className="text-2xl font-bold text-red-600">{importResult.otherErrors}</span>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-gray-100 rounded-xl">
+                <span className="text-gray-800 font-medium">Jami</span>
+                <span className="text-2xl font-bold text-gray-700">{importResult.total}</span>
+              </div>
+            </div>
+            <DialogFooter className="p-4 border-t border-gray-100 flex justify-center">
+              <Button
+                onClick={() => setShowImportResultModal(false)}
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-8"
+              >
+               Tushunarli
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -29,11 +29,24 @@ export interface ParentStudent {
   };
 }
 
+export interface ParentsResponse {
+  data: Parent[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
 export const parentsApi = {
-  getAll: async (search?: string): Promise<Parent[]> => {
-    const params = search ? { search } : {};
+  getAll: async (params?: { search?: string; page?: number; limit?: number }): Promise<ParentsResponse> => {
     const response = await api.get('/parents', { params });
-    return Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []);
+    if (response.data?.data && Array.isArray(response.data.data)) {
+      return response.data;
+    }
+    if (Array.isArray(response.data)) {
+      return { data: response.data, total: response.data.length, page: 1, limit: response.data.length, total_pages: 1 };
+    }
+    return { data: [], total: 0, page: 1, limit: 20, total_pages: 0 };
   },
 
   getById: async (id: string): Promise<Parent> => {

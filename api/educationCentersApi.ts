@@ -47,6 +47,10 @@ export interface CenterStats {
   total_teachers: number;
   total_parents: number;
   total_groups: number;
+  total_income: number;
+  server_cost: number;
+  net_profit: number;
+  tariff_income: Record<string, number>;
   centers: Array<{
     id: number;
     name: string;
@@ -57,6 +61,7 @@ export interface CenterStats {
     tariff?: { id: number; name: string } | null;
     trial_ends_at?: string | null;
     tariff_ends_at?: string | null;
+    tariff_price?: number | null;
   }>;
 }
 
@@ -65,6 +70,7 @@ export interface CreateCenterRequest {
   location?: string;
   phone?: string;
   tariff_id?: number;
+  tariff_duration?: number;
   admin?: {
     first_name: string;
     last_name: string;
@@ -80,8 +86,13 @@ export interface UpdateCenterRequest {
   phone?: string;
   is_active?: boolean;
   tariff_id?: number;
+  tariff_duration?: number;
   call_center_enabled?: boolean;
   features?: Record<string, boolean>;
+  director_password?: string;
+  director_full_name?: string;
+  director_email?: string;
+  director_phone?: string;
 }
 
 export const educationCentersApi = {
@@ -99,6 +110,8 @@ export const educationCentersApi = {
     api.delete(`/education-centers/branches/${branchId}`).then(r => r.data),
   getMyPublicToken: () =>
     api.get<{ token: string }>('/education-centers/my-public-token').then(r => r.data),
+  updateServerCost: (id: number, cost: number) =>
+    api.patch(`/education-centers/${id}/server-cost`, { cost }).then(r => r.data),
   uploadLogo: async (id: number, file: File) => {
     // Rasmni compress qilish (katta fayllarni server qabul qilmasligi mumkin)
     let uploadFile = file;

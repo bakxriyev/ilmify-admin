@@ -58,6 +58,11 @@ export default function StudentDetailPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
+  // Inline edit
+  const [editingField, setEditingField] = useState<'phone' | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [isSavingField, setIsSavingField] = useState(false);
+
   useEffect(() => {
     Promise.all([
       studentsApi.getById(id),
@@ -115,7 +120,8 @@ export default function StudentDetailPage() {
     return d.toLocaleDateString('uz-UZ', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
-  const formatPhone = (phone: string) => {
+  const formatPhone = (phone: string | null | undefined) => {
+    if (!phone) return '—';
     const digits = phone.replace(/\D/g, '');
     if (digits.length === 12 && digits.startsWith('998'))
       return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
@@ -148,6 +154,23 @@ export default function StudentDetailPage() {
       setConfirmPassword('');
     } catch (err: any) { setError(err.message || 'Xatolik'); }
     finally { setIsUpdatingPassword(false); }
+  };
+
+  const savePhone = async () => {
+    if (!student) return;
+    try {
+      setIsSavingField(true);
+      const fd = new FormData();
+      fd.append('phone_number', editValue.trim());
+      await studentsApi.update(student.id, fd);
+      setStudent((prev: any) => ({ ...prev, phone_number: editValue.trim() || null }));
+      setEditingField(null);
+      setSuccess('Telefon raqam yangilandi');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err.message || 'Xatolik');
+    } finally {
+      setIsSavingField(false);
+    }
   };
 
   if (loading) return (
@@ -310,13 +333,42 @@ export default function StudentDetailPage() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 font-medium">Telefon</p>
-                    <p className="text-gray-900 font-semibold mt-1 flex items-center gap-1">
-                      <Phone className="h-3.5 w-3.5 text-gray-400" /> {formatPhone(student.phone_number)}
+                    <p className="text-gray-900 font-semibold mt-1 flex items-center gap-2">
+                      <Phone className="h-3.5 w-3.5 text-gray-400" />
+                      {editingField === 'phone' ? (
+                        <Input
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          className="h-8 w-48 text-sm"
+                          autoFocus
+                          onKeyDown={e => { if (e.key === 'Enter') savePhone(); if (e.key === 'Escape') setEditingField(null); }}
+                        />
+                      ) : (
+                        <span className="cursor-pointer hover:text-blue-600" onClick={() => { setEditingField('phone'); setEditValue(student.phone_number || ''); }}>
+                          {formatPhone(student.phone_number)}
+                        </span>
+                      )}
+                      {editingField === 'phone' ? (
+                        <>
+                          <button onClick={savePhone} className="text-green-600 hover:text-green-800 text-xs font-medium">Saqlash</button>
+                          <button onClick={() => setEditingField(null)} className="text-gray-400 hover:text-gray-600 text-xs">Bekor</button>
+                        </>
+                      ) : (
+                        <button onClick={() => { setEditingField('phone'); setEditValue(student.phone_number || ''); }} className="text-blue-500 hover:text-blue-700">
+                          <Edit className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 font-medium">Parol</p>
-                    <p className="text-gray-900 font-semibold mt-1 font-mono text-xs break-all">{student.password || "—"}</p>
+                    <p className="text-gray-900 font-semibold mt-1 flex items-center gap-2">
+                      <Key className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="font-mono text-xs break-all">{student.password || "—"}</span>
+                      <button onClick={() => setShowPasswordModal(true)} className="text-blue-500 hover:text-blue-700">
+                        <Edit className="h-3.5 w-3.5" />
+                      </button>
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 font-medium">Guruh</p>

@@ -101,7 +101,7 @@ export default function StudentForm({
     if (!formData.last_name.trim()) {
       errors.last_name = 'Familiya kiritilishi shart';
     }
-    if (!formData.phone_number.trim()) {
+    if (formData.phone_number && !formData.phone_number.trim()) {
       errors.phone_number = 'Telefon raqami kiritilishi shart';
     }
     if (requirePassword && !formData.password?.trim()) {
