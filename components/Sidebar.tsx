@@ -80,6 +80,7 @@ const iconMap = {
   SparklesIcon: Sparkles,     // for Trial Lessons
   PhoneIcon: Phone,           // for Call Center
   BotIcon: Bot,               // for Telegram Bot
+  AutoBellIcon: Bell,         // for Auto Notification
 };
 
 const navigationItems: NavigationItem[] = [
@@ -146,17 +147,25 @@ const navigationItems: NavigationItem[] = [
   },
   {
     label: 'Bildirishnomalar',
-    path: '/notifications',
     icon: 'BellIcon',
     permKey: 'notifications',
-    badge: 0,
+    children: [
+      { label: 'Bildirishnomalar', path: '/notifications', icon: 'BellIcon', permKey: 'notifications' },
+      { label: 'Avto bildirishnoma', path: '/auto-notification', icon: 'AutoBellIcon', permKey: 'notifications', highlight: true },
+    ],
   },
   {
     label: 'Telegram Bot',
-    path: '/telegram-bot',
     icon: 'BotIcon',
-    badge: 0,
-    highlight: true,
+    permKey: 'telegram',
+    children: [
+      { label: 'Bot ulash', path: '/telegram-bot', icon: 'BotIcon', permKey: 'telegram' },
+      { label: 'Foydalanuvchilar', path: '/telegram-bot/users', icon: 'UsersIcon', permKey: 'telegram' },
+      { label: 'Xabar yuborish', path: '/telegram-bot/send', icon: 'MailIcon', permKey: 'telegram' },
+      { label: 'Shablonlar', path: '/telegram-bot/templates', icon: 'PencilSquareIcon', permKey: 'telegram' },
+      { label: 'Xabarlar', path: '/telegram-bot/inbox', icon: 'ChatBubbleLeftRightIcon', permKey: 'telegram' },
+      { label: 'Tarix', path: '/telegram-bot/history', icon: 'ClockIcon', permKey: 'telegram' },
+    ],
   },
   {
     label: 'Hisobotlar',
@@ -197,7 +206,7 @@ export default function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(isCollapsed);
-  const [expandedItems, setExpandedItems] = useState<string[]>(['CRM', 'Darslar']);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['CRM', 'Darslar', 'Bildirishnomalar']);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isDark, setIsDark] = useState(false);

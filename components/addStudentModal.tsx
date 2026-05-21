@@ -65,12 +65,12 @@ export default function AddStudentsModal({
   };
 
   const filteredStudents = students.filter((student) => {
-    const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
+    const fullName = `${student.first_name || ''} ${student.last_name || ''}`.toLowerCase();
     const search = searchTerm.toLowerCase();
     return (
       fullName.includes(search) ||
       student.email?.toLowerCase().includes(search) ||
-      student.phone_number.includes(search)
+      (student.phone_number || '').includes(search)
     );
   });
 
@@ -223,7 +223,7 @@ export default function AddStudentsModal({
                         {student.email && (
                           <span className="truncate max-w-[200px]">{student.email}</span>
                         )}
-                        <span>{student.phone_number}</span>
+                        <span>{student.phone_number || 'Kiritilmagan'}</span>
                       </div>
                     </div>
                   </div>
