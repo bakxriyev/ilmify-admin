@@ -17,6 +17,8 @@ export interface EducationCenter {
   admin_count?: number;
   tariff_id?: number | null;
   tariff?: TariffInfo | null;
+  tariff_duration?: number | null;
+  tariff_price?: number | null;
   trial_ends_at?: string | null;
   tariff_started_at?: string | null;
   tariff_ends_at?: string | null;

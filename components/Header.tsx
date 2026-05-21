@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import {
   Bell, Search, Settings, LogOut, User, Calendar, ChevronDown,
-  Building, DollarSign, LogOut as LogOutIcon, X, ExternalLink,
+  Building, DollarSign, LogOut as LogOutIcon, X, ExternalLink, Clock, AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -149,6 +149,17 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
     if (!n.is_read) markAsRead(n.id);
   };
 
+  const tariffStatus = (() => {
+    if (!center) return null;
+    const isTrial = !center.tariff_id;
+    const endsAt: string | null | undefined = center.tariff_ends_at || center.trial_ends_at;
+    if (!endsAt) return null;
+    const diff = new Date(endsAt).getTime() - Date.now();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    const tariffName = isTrial ? 'BETA' : (center.tariff?.name || 'Tarif');
+    return { tariffName, days, isExpired: days <= 0 };
+  })();
+
   if (!mounted) return null;
 
   return (
@@ -177,6 +188,15 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
                 <p className="text-xs text-gray-500">
                   <DollarSign className="h-3 w-3 inline" /> {Number(center.balance).toLocaleString()} so'm
                 </p>
+                {tariffStatus && (
+                  <p className={`text-xs font-medium ${tariffStatus.isExpired ? 'text-red-500' : tariffStatus.days <= 5 ? 'text-amber-500' : 'text-green-500'}`}>
+                    {tariffStatus.isExpired ? (
+                      <><AlertTriangle className="h-3 w-3 inline mr-0.5" />{tariffStatus.tariffName}: muddat tugagan</>
+                    ) : (
+                      <>{tariffStatus.tariffName}: {tariffStatus.days} kun qoldi</>
+                    )}
+                  </p>
+                )}
               </div>
             </div>
           )}

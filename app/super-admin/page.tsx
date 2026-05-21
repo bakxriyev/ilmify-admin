@@ -56,6 +56,7 @@ interface EditFormState {
   director_email: string;
   director_phone: string;
   director_password: string;
+  logoPreview?: string;
 }
 
 const emptyForm: FormState = {
