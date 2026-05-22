@@ -406,14 +406,14 @@ export default function AutoNotificationPage() {
                             {new Date(log.createdAt).toLocaleString('uz-UZ')}
                           </span>
                           {log.telegram_sent ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" title="Yetkazildi" />
+                            <span title="Yetkazildi"><CheckCircle className="h-4 w-4 text-green-500" /></span>
                           ) : log.telegram_chat_id ? (
                             <div className="flex items-center gap-1">
-                              <XCircle className="h-4 w-4 text-red-500" title="Xatolik" />
-                              <Info className="h-3 w-3 text-red-400" title={log.telegram_error || 'Noma\'lum xatolik'} />
+                              <span title="Xatolik"><XCircle className="h-4 w-4 text-red-500" /></span>
+                              <span title={log.telegram_error || 'Noma\'lum xatolik'}><Info className="h-3 w-3 text-red-400" /></span>
                             </div>
                           ) : (
-                            <PhoneOff className="h-4 w-4 text-gray-400" title="Telegram bog'lanmagan" />
+                            <span title="Telegram bog'lanmagan"><PhoneOff className="h-4 w-4 text-gray-400" /></span>
                           )}
                         </div>
                       </div>
