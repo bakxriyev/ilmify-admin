@@ -23,7 +23,7 @@ export default function GenerateLessonsModal({ open, onOpenChange, groupId, onSu
   const [time, setTime] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  const [parity, setParity] = useState<'odd' | 'even'>('odd');
+  const [parity, setParity] = useState<'odd' | 'even' | 'both'>('odd');
   const [saving, setSaving] = useState(false);
 
   const handleGenerate = async () => {
@@ -82,6 +82,7 @@ export default function GenerateLessonsModal({ open, onOpenChange, groupId, onSu
               <SelectContent>
                 <SelectItem value="odd">Toq kunlar (Dush, Chor, Juma)</SelectItem>
                 <SelectItem value="even">Juft kunlar (Sesh, Pay, Shanba)</SelectItem>
+                <SelectItem value="both">Har kuni (Dush-Shanba)</SelectItem>
               </SelectContent>
             </Select>
           </div>

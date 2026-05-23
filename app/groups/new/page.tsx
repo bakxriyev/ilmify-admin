@@ -397,7 +397,7 @@ export default function CreateGroupPage() {
                   <Label htmlFor="parity" className="text-muted-foreground">Hafta juftligi</Label>
                   <Select
                     value={formData.parity || ''}
-                    onValueChange={(value: 'odd' | 'even') => setFormData({ ...formData, parity: value })}
+                    onValueChange={(value: 'odd' | 'even' | 'both') => setFormData({ ...formData, parity: value })}
                   >
                     <SelectTrigger className="transition-all duration-300">
                       <SelectValue placeholder="Juftlikni tanlang" />
@@ -405,6 +405,7 @@ export default function CreateGroupPage() {
                     <SelectContent>
                       <SelectItem value="odd">Toq haftalar</SelectItem>
                       <SelectItem value="even">Juft haftalar</SelectItem>
+                      <SelectItem value="both">Har kuni (Dush-Shanba)</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">

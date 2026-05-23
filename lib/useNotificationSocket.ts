@@ -30,7 +30,11 @@ export function useNotificationSocket(onNotification: (data: any) => void) {
         token,
         centerId: centerId ? String(centerId) : '',
       },
-      transports: ['websocket', 'polling'],
+      transports: ['polling'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 3000,
+      reconnectionDelayMax: 10000,
     });
 
     socket.on('connect', () => {
@@ -41,13 +45,13 @@ export function useNotificationSocket(onNotification: (data: any) => void) {
       onNotification(data);
     });
 
-    socket.on('disconnect', () => {
-      console.log('[NotificationSocket] Disconnected');
+    socket.on('disconnect', (reason) => {
+      if (reason !== 'io client disconnect') {
+        console.warn('[NotificationSocket] Disconnected:', reason);
+      }
     });
 
-    socket.on('connect_error', (err) => {
-      console.error('[NotificationSocket] Error:', err.message);
-    });
+    socket.on('connect_error', () => {});
 
     socketRef.current = socket;
 

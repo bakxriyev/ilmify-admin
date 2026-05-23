@@ -67,7 +67,7 @@ export interface CreateGroupRequest {
   time?: string;
   start_time?: string;
   end_time?: string;
-  parity?: 'odd' | 'even';
+  parity?: 'odd' | 'even' | 'both';
 }
 
 export interface UpdateGroupRequest {
@@ -83,7 +83,7 @@ export interface UpdateGroupRequest {
   time?: string;
   start_time?: string;
   end_time?: string;
-  parity?: 'odd' | 'even';
+  parity?: 'odd' | 'even' | 'both';
 }
 
 export interface GetAllGroupsParams {
