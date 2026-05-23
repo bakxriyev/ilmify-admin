@@ -51,6 +51,7 @@ const iconMap = {
   ClipboardDocumentListIcon: FileText,
   LanguageIcon: Library,
   ChatBubbleLeftRightIcon: MessageSquare,
+  MessageSquareIcon: MessageSquare,
   BellIcon: Bell,
   ChartPieIcon: ChartPie,
   Cog6ToothIcon: Cog,
@@ -152,6 +153,7 @@ const navigationItems: NavigationItem[] = [
     children: [
       { label: 'Bildirishnomalar', path: '/notifications', icon: 'BellIcon', permKey: 'notifications' },
       { label: 'Avto bildirishnoma', path: '/auto-notification', icon: 'AutoBellIcon', permKey: 'notifications', highlight: true },
+      { label: 'SMS xabarnoma', path: '/sms', icon: 'MessageSquareIcon', permKey: 'notifications' },
     ],
   },
   {
