@@ -26,6 +26,7 @@ import { groupStudentsApi, type GroupStudent } from '@/api/groupStudentApi';
 import { attendanceApi, type MonthlyStats, type AttendanceCell } from '@/api/attendanceApi';
 import { paymentsApi, type GroupPaymentSummary } from '@/api/paymentsApi';
 import AddStudentsModal from '@/components/addStudentModal';
+import GenerateLessonsModal from '@/components/generateLessonsModal';
 import toast from 'react-hot-toast';
 
 export default function GroupDetailPage() {
@@ -45,6 +46,7 @@ export default function GroupDetailPage() {
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showGenerateLessons, setShowGenerateLessons] = useState(false);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
@@ -61,6 +63,7 @@ export default function GroupDetailPage() {
   const [gridMonth, setGridMonth] = useState(now.getMonth());
   const [gridLessons, setGridLessons] = useState<Array<{ id: number; date: string; start_time: string }>>([]);
   const [gridAttendance, setGridAttendance] = useState<Record<number, Record<number, AttendanceCell>>>({});
+  const [studentJoinDates, setStudentJoinDates] = useState<Record<number, string>>({});
   const [gridLoading, setGridLoading] = useState(false);
   const [activeCell, setActiveCell] = useState<{ lessonId: number; studentId: number } | null>(null);
   const [cellReason, setCellReason] = useState('');
@@ -113,9 +116,11 @@ export default function GroupDetailPage() {
       const data = await attendanceApi.getMonthlyGrid(groupId, gridYear, gridMonth + 1);
       setGridLessons(data.lessons);
       setGridAttendance(data.attendance);
+      setStudentJoinDates(data.student_join_dates || {});
     } catch {
       setGridLessons([]);
       setGridAttendance({});
+      setStudentJoinDates({});
     } finally {
       setGridLoading(false);
     }
@@ -786,9 +791,14 @@ export default function GroupDetailPage() {
             <TabsContent value="lessons" className="space-y-6">
               <Card className="border-0 rounded-xl shadow-lg bg-white overflow-hidden">
                 <div className="bg-gradient-to-r from-amber-600 to-orange-700 px-6 py-4">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Calendar className="h-5 w-5" /> Darslar jadvali ({sortedLessons.length})
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <Calendar className="h-5 w-5" /> Darslar jadvali ({sortedLessons.length})
+                    </h3>
+                    <Button onClick={() => setShowGenerateLessons(true)} size="sm" className="bg-white text-amber-700 hover:bg-amber-50">
+                      <Calendar className="h-4 w-4 mr-1" /> Darslar yaratish
+                    </Button>
+                  </div>
                 </div>
                 <CardContent className="p-6">
                   {sortedLessons.length > 0 ? (
@@ -962,8 +972,10 @@ export default function GroupDetailPage() {
                                   </div>
                                 </TableCell>
                                 {gridLessons.map(lesson => {
-                                  const lessonDate = lesson.date.split('T')[0];
-                                  const isFuture = lessonDate > todayStr;
+                                  const lessonDateStr = lesson.date.split('T')[0];
+                                  const isFuture = lessonDateStr > todayStr;
+                                  const joinDate = studentJoinDates[student.id];
+                                  const beforeJoin = joinDate ? lessonDateStr < joinDate : false;
                                   const lessonAtt = gridAttendance[lesson.id];
                                   const cell = lessonAtt ? lessonAtt[student.id] : undefined;
                                   const isPresent = cell?.is_present === true;
@@ -975,7 +987,9 @@ export default function GroupDetailPage() {
                                   const cellKey = `${lesson.id}-${student.id}`;
                                   return (
                                     <TableCell key={cellKey} className="text-center p-0.5 relative">
-                                      {isActive ? (
+                                      {beforeJoin ? (
+                                        <span className="text-gray-200 text-xs mx-auto block w-8 h-8 flex items-center justify-center" title="Student hali qo'shilmagan">—</span>
+                                      ) : isActive ? (
                                         <div className="flex flex-col items-center gap-0.5">
                                           <div className="flex items-center gap-0.5">
                                             <button
@@ -1027,8 +1041,7 @@ export default function GroupDetailPage() {
                                           {isFuture ? '∼' : isPresent ? '✓' : isAbsent ? '✗' : '-'}
                                         </button>
                                       )}
-                                    </TableCell>
-                                  );
+                                    </TableCell>                                  );
                                 })}
                                 <TableCell className="text-center">
                                   <span className={`text-sm font-semibold ${totalCount > 0 ? (presentCount / totalCount >= 0.7 ? 'text-green-600' : presentCount / totalCount >= 0.4 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}`}>
@@ -1140,6 +1153,12 @@ export default function GroupDetailPage() {
         groupId={groupId}
         groupName={group.name}
         onSuccess={fetchGroupStudents}
+      />
+      <GenerateLessonsModal
+        open={showGenerateLessons}
+        onOpenChange={setShowGenerateLessons}
+        groupId={groupId}
+        onSuccess={fetchGroupData}
       />
     </Layout>
   );

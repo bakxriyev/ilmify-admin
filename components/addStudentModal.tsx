@@ -41,6 +41,7 @@ export default function AddStudentsModal({
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [joinDate, setJoinDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     if (open) {
@@ -48,6 +49,7 @@ export default function AddStudentsModal({
     } else {
       setSelectedStudents(new Set());
       setSearchTerm('');
+      setJoinDate(new Date().toISOString().split('T')[0]);
     }
   }, [open]);
 
@@ -101,13 +103,11 @@ export default function AddStudentsModal({
     try {
       setSubmitting(true);
 
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
       const studentIds = Array.from(selectedStudents).map((id) => Number(id));
 
-      // ✅ to‘g‘ri nom: studentIds
       await groupStudentsApi.bulkAddStudents(groupId, {
         student_ids: studentIds,
-        joined_date: today,
+        joined_date: joinDate,
       });
 
       toast.success(`${selectedStudents.size} ta student guruhga qo'shildi`);
@@ -170,6 +170,10 @@ export default function AddStudentsModal({
               <span className="text-sm font-medium text-gray-700">
                 Hammasini tanlash ({filteredStudents.length})
               </span>
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-sm text-gray-500">Qo'shilgan sana:</span>
+                <Input type="date" value={joinDate} onChange={e => setJoinDate(e.target.value)} className="w-40 h-8 text-sm" />
+              </div>
             </div>
             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1 text-sm">
               <Users className="h-3 w-3 mr-1 inline" />

@@ -37,6 +37,7 @@ export interface MonthlyGridResponse {
     end_time: string;
   }>;
   attendance: Record<number, Record<number, AttendanceCell>>;
+  student_join_dates: Record<number, string>;
 }
 
 export interface MonthlyStats {

@@ -201,5 +201,10 @@ export const groupsApi = {
       console.error(`Error fetching lessons for group ${id}:`, error);
       throw error;
     }
+  },
+
+  generateLessons: async (groupId: number, data: { start_date: string; duration_months: number; time: string; parity: string; start_time?: string; end_time?: string; room_id?: number }): Promise<{ created: number }> => {
+    const response = await api.post(`/groups/${groupId}/generate-lessons`, data);
+    return response.data;
   }
 };

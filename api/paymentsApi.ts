@@ -24,9 +24,11 @@ export interface GroupPaymentSummary {
   month: number;
   year: number;
   monthly_price: number;
+  effective_price?: number;
   paid_amount: number;
   debt: number;
   overdue_days: number;
+  joined_date?: string;
 }
 
 export interface PaymentStats {
