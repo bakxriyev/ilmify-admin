@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Loader2, Shield, BarChart3, Package, Building2, LogOut, Menu, X } from 'lucide-react';
+import { Loader2, Shield, BarChart3, Package, Building2, LogOut, Menu, X, MessageSquare } from 'lucide-react';
 
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -48,6 +48,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     { href: '/super-admin', label: 'Dashboard', icon: BarChart3 },
     { href: '/super-admin', label: "Markazlar", icon: Building2, matchFn: (p: string) => p === '/super-admin' || p.startsWith('/super-admin/centers') },
     { href: '/super-admin/tariffs', label: 'Tariflar', icon: Package },
+    { href: '/super-admin/applications', label: 'Zayafkalar', icon: MessageSquare },
   ];
 
   const isActive = (link: typeof navLinks[0]) => {
