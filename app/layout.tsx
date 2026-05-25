@@ -17,16 +17,6 @@ export const metadata: Metadata = {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
     apple: [{ url: '/logo.jpg' }],
   },
-  manifest: '/manifest.json',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'Ilmify',
-  },
-  other: {
-    'mobile-web-app-capable': 'yes',
-    'theme-color': '#1d4ed8',
-  },
 };
 
 export default function RootLayout({
