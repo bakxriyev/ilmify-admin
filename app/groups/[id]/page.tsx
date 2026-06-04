@@ -154,8 +154,9 @@ export default function GroupDetailPage() {
         next[lessonId] = { ...next[lessonId], [studentId]: { is_present: isPresent, reason: reason || undefined } };
         return next;
       });
-    } catch {
-      toast.error('Xatolik');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Xatolik yuz berdi';
+      toast.error(msg);
     }
   };
 
@@ -573,7 +574,7 @@ export default function GroupDetailPage() {
                 <Wallet className="h-5 w-5 text-amber-600" />
                 <span className="text-sm text-amber-800 flex-1">
                   {group?.monthly_price ? `Guruh narxi: ${group.monthly_price.toLocaleString()} so'm` : 'Guruh narxi belgilanmagan'}
-                  {group?.kp ? ` | O'quvchi narxi: ${Number(group.kp).toLocaleString()} so'm` : ''}
+                  {paymentData.some(p => p.effective_price && p.effective_price !== p.monthly_price) ? ' | Proratsiya faol' : ''}
                   {paymentData.length > 0 && ` | ${paymentData.filter(p => p.status === 'paid').length}/${paymentData.length} to'ladi`}
                 </span>
                 <div className="flex items-center gap-1">
@@ -663,16 +664,28 @@ export default function GroupDetailPage() {
                                   {paymentLoading ? (
                                     <Loader2 className="h-4 w-4 animate-spin text-gray-400 mx-auto" />
                                   ) : payStatus === 'paid' ? (
-                                    <Badge className="bg-green-100 text-green-700 border-green-200">
-                                      <CheckCircle className="h-3 w-3 mr-1" /> To'lagan
-                                    </Badge>
+                                    <div className="flex flex-col items-center gap-0.5">
+                                      <Badge className="bg-green-100 text-green-700 border-green-200">
+                                        <CheckCircle className="h-3 w-3 mr-1" /> To'lagan
+                                      </Badge>
+                                      {payItem.effective_price && payItem.effective_price !== payItem.monthly_price && (
+                                        <span className="text-[10px] text-gray-500">
+                                          {payItem.effective_price.toLocaleString()} so'm
+                                        </span>
+                                      )}
+                                    </div>
                                   ) : payStatus === 'partial' ? (
                                     <div className="flex flex-col items-center gap-0.5">
                                       <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">
                                         <Clock className="h-3 w-3 mr-1" /> Qisman
                                       </Badge>
-                                      <span className="text-xs text-amber-600 font-medium">
-                                        {Number(debt).toLocaleString()} so'm qarz
+                                      <span className="text-xs font-medium">
+                                        <span className="text-gray-500">
+                                          {payItem.effective_price && payItem.effective_price !== payItem.monthly_price
+                                            ? `${payItem.effective_price.toLocaleString()} so'mdan `
+                                            : ''}
+                                        </span>
+                                        <span className="text-amber-600">{Number(debt).toLocaleString()} so'm qarz</span>
                                       </span>
                                       {overdueDays > 0 && (
                                         <span className="text-[10px] text-orange-500 flex items-center gap-0.5">
@@ -685,8 +698,16 @@ export default function GroupDetailPage() {
                                       <Badge className="bg-red-100 text-red-700 border-red-200">
                                         <XCircle className="h-3 w-3 mr-1" /> To'lamagan
                                       </Badge>
-                                      <span className="text-xs text-red-500 font-medium">
-                                        {Number(debt).toLocaleString()} so'm qarz
+                                      <span className="text-xs font-medium">
+                                        {payItem.effective_price && payItem.effective_price !== payItem.monthly_price ? (
+                                          <>
+                                            <span className="text-gray-500 line-through">{payItem.monthly_price.toLocaleString()} so'm</span>
+                                            <br />
+                                            <span className="text-red-500">{payItem.effective_price.toLocaleString()} so'm to'lov</span>
+                                          </>
+                                        ) : (
+                                          <span className="text-red-500">{Number(debt).toLocaleString()} so'm qarz</span>
+                                        )}
                                       </span>
                                       {overdueDays > 0 && (
                                         <span className="text-[10px] text-orange-500 flex items-center gap-0.5">
