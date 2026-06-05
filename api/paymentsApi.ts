@@ -67,6 +67,35 @@ export const paymentsApi = {
   getMonthlyIncome: (year: number) =>
     api.get<{ month: number; year: number; total: number }[]>('/payments/monthly-income', { params: { year } }).then(r => r.data),
 
+  getStudentDebts: (studentId: number) =>
+    api.get<{
+      student: { id: number; first_name: string; last_name: string; phone_number: string };
+      debts: Array<{
+        id?: number;
+        month: number;
+        month_name: string;
+        year: number;
+        group_id: number;
+        group_name: string;
+        amount: number;
+        status: 'paid' | 'unpaid' | 'partial';
+        is_auto_generated?: boolean;
+      }>;
+      paid_payments: Array<{
+        id: number;
+        month: number;
+        month_name: string;
+        year: number;
+        group_id: number;
+        group_name: string;
+        amount: number;
+        status: 'paid';
+        paid_at: string;
+      }>;
+      total_debt: number;
+      paid_total: number;
+    }>(`/payments/debts/${studentId}`).then(r => r.data),
+
   create: (data: { student_id: number; group_id: number; amount: number; month: number; year: number; status?: string; note?: string; paid_at?: string }) =>
     api.post<Payment>('/payments', data).then(r => r.data),
 

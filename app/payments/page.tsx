@@ -39,6 +39,12 @@ export default function PaymentsPage() {
   const [createForm, setCreateForm] = useState({ student_id: '', group_id: '', amount: '', month: String(new Date().getMonth() + 1), year: String(new Date().getFullYear()), note: '' });
   const [students, setStudents] = useState<Student[]>([]);
   const [studentSearch, setStudentSearch] = useState('');
+  
+  // Yangi to'lovlar uchun state-lar
+  const [selectedStudentDebts, setSelectedStudentDebts] = useState<any>(null);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
 
   // Year overview for monthly grid
   const [yearOverview, setYearOverview] = useState<{ month: number; total: number; paid: number; unpaid: number; partial: number }[]>([]);
@@ -92,25 +98,50 @@ export default function PaymentsPage() {
       const s = await studentsApi.getAll({ limit: 500 });
       setStudents(s.data);
       setStudentSearch('');
-      setCreateForm({ student_id: '', group_id: '', amount: '', month: String(new Date().getMonth() + 1), year: String(new Date().getFullYear()), note: '' });
+      setSelectedStudentDebts(null);
+      setSelectedPaymentId(null);
+      setPaymentAmount('');
+      setPaymentNote('');
       setShowCreateModal(true);
     } catch { toast.error("Studentlarni yuklashda xatolik"); }
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!createForm.student_id || !createForm.group_id || !createForm.amount) {
-      toast.error('Barcha maydonlarni to\'ldiring');
+  const handleSelectStudent = async (studentId: string) => {
+    try {
+      const debts = await paymentsApi.getStudentDebts(Number(studentId));
+      setSelectedStudentDebts(debts);
+      setSelectedPaymentId(null);
+      setPaymentAmount('');
+      setPaymentNote('');
+    } catch { toast.error("Qarzdorliklarni yuklashda xatolik"); }
+  };
+
+  const handlePayDebt = async () => {
+    if (!selectedPaymentId || !paymentAmount || Number(paymentAmount) <= 0) {
+      toast.error('To\'lov summasini kiriting');
       return;
     }
+
     try {
-      await paymentsApi.create({
-        student_id: Number(createForm.student_id),
-        group_id: Number(createForm.group_id),
-        amount: Number(createForm.amount),
-        month: Number(createForm.month),
-        year: Number(createForm.year),
-        note: createForm.note || undefined,
+      const debt = selectedStudentDebts.debts.find((d: any) => d.id === selectedPaymentId);
+      if (!debt) {
+        toast.error('Qarzdorlik topilmadi');
+        return;
+      }
+
+      // To'lovni yangilash
+      await paymentsApi.update(selectedPaymentId, {
+        status: 'paid',
+        paid_at: new Date().toISOString().split('T')[0],
+        note: paymentNote || undefined,
+      });
+
+      toast.success("To'lov qabul qilindi");
+      setShowCreateModal(false);
+      loadData();
+      loadYearOverview();
+    } catch (err: any) { toast.error(err.message || 'Xatolik'); }
+  };
       });
       toast.success("To'lov qo'shildi");
       setShowCreateModal(false);
@@ -186,9 +217,9 @@ export default function PaymentsPage() {
              <Button onClick={() => paymentsApi.exportToExcel(Number(filterMonth), Number(filterYear))} className="bg-blue-600 hover:bg-blue-700 text-white">
                <Download className="h-4 w-4 mr-2" /> Excel
              </Button>
-             <Button onClick={openCreateModal} className="bg-green-600 hover:bg-green-700 text-white">
-               <Plus className="h-4 w-4 mr-2" /> Yangi to'lov
-             </Button>
+            <Button onClick={openCreateModal} className="bg-green-600 hover:bg-green-700 text-white">
+              <Plus className="h-4 w-4 mr-2" /> Qarzdorlikni to'lash
+            </Button>
            </div>
         </div>
 
@@ -430,102 +461,176 @@ export default function PaymentsPage() {
           </CardContent>
         </Card>
 
-        {/* Create Payment Dialog */}
+        {/* Create Payment Dialog - YANGI SISTEMA */}
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogContent className="bg-white max-w-lg">
+          <DialogContent className="bg-white max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Yangi to'lov qo'shish</DialogTitle>
-              <DialogDescription>To'lov ma'lumotlarini kiriting</DialogDescription>
+              <DialogTitle>
+                {selectedStudentDebts ? `${selectedStudentDebts.student.first_name} ${selectedStudentDebts.student.last_name} - Qarzdorliklarni to'lash` : "Studentni tanlang"}
+              </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Student</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Ism yoki familiya bilan qidirish..."
-                    value={studentSearch}
-                    onChange={e => setStudentSearch(e.target.value)}
-                    className="pl-9 mb-1"
-                  />
+
+            {!selectedStudentDebts ? (
+              // Step 1: Student qidirish
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Student ism/familiyasini qidiring</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Ism yoki familiya bilan qidirish..."
+                      value={studentSearch}
+                      onChange={e => setStudentSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
                 </div>
-                <Select value={createForm.student_id} onValueChange={v => setCreateForm({ ...createForm, student_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Studentni tanlang" /></SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {studentSearch.trim()
-                      ? students.filter(s => {
-                          const q = studentSearch.toLowerCase();
-                          return s.first_name.toLowerCase().includes(q) || s.last_name.toLowerCase().includes(q);
-                        }).map(s => (
-                          <SelectItem key={s.id} value={String(s.id)}>{s.first_name} {s.last_name}</SelectItem>
-                        ))
-                      : students.map(s => (
-                          <SelectItem key={s.id} value={String(s.id)}>{s.first_name} {s.last_name}</SelectItem>
-                        ))
-                    }
-                    {studentSearch.trim() && students.filter(s => {
+
+                <div className="max-h-96 overflow-y-auto border rounded-lg divide-y">
+                  {students
+                    .filter(s => {
                       const q = studentSearch.toLowerCase();
                       return s.first_name.toLowerCase().includes(q) || s.last_name.toLowerCase().includes(q);
-                    }).length === 0 && (
-                      <div className="px-2 py-4 text-center text-sm text-gray-400">Student topilmadi</div>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Guruh</Label>
-                <Select value={createForm.group_id} onValueChange={v => {
-                  const g = groups.find(gr => gr.id === v);
-                  if (g?.created_at) {
-                    const d = new Date(g.created_at);
-                    setCreateForm({
-                      ...createForm, group_id: v,
-                      amount: g?.monthly_price ? String(g.monthly_price) : '',
-                      month: String(d.getMonth() + 1),
-                      year: String(d.getFullYear()),
-                    });
-                  } else {
-                    setCreateForm({ ...createForm, group_id: v, amount: g?.monthly_price ? String(g.monthly_price) : '' });
-                  }
-                }}>
-                  <SelectTrigger><SelectValue placeholder="Guruhni tanlang" /></SelectTrigger>
-                  <SelectContent>
-                    {groups.map(g => (
-                      <SelectItem key={g.id} value={g.id}>{g.name} - {g.monthly_price ? `${formatSum(g.monthly_price)} so'm` : 'Narx yo\'q'}</SelectItem>
+                    })
+                    .map(s => (
+                      <div
+                        key={s.id}
+                        onClick={() => handleSelectStudent(String(s.id))}
+                        className="p-3 hover:bg-blue-50 cursor-pointer flex justify-between items-center"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-900">{s.first_name} {s.last_name}</p>
+                          <p className="text-xs text-gray-500">{s.phone_number || '-'}</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
+                </div>
               </div>
-               <div className="grid grid-cols-3 gap-3">
-                 <div className="space-y-2">
-                   <Label>Summa</Label>
-                   <Input type="number" value={createForm.amount} onChange={e => setCreateForm({ ...createForm, amount: e.target.value })} required />
-                 </div>
-                 <div className="space-y-2">
-                   <Label>Oy</Label>
-                   <Select value={createForm.month} onValueChange={v => setCreateForm({ ...createForm, month: v })}>
-                     <SelectTrigger><SelectValue /></SelectTrigger>
-                     <SelectContent>
-                       {monthNames.map((name, i) => (
-                         <SelectItem key={i + 1} value={String(i + 1)}>{name}</SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
-                 </div>
-                 <div className="space-y-2">
-                   <Label>Yil</Label>
-                   <Input type="number" value={createForm.year} onChange={e => setCreateForm({ ...createForm, year: e.target.value })} required />
-                 </div>
-               </div>
-              <div className="space-y-2">
-                <Label>Izoh</Label>
-                <Input value={createForm.note} onChange={e => setCreateForm({ ...createForm, note: e.target.value })} placeholder="To'lov haqida izoh" />
+            ) : (
+              // Step 2: Qarzdorliklar va to'lovlar
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                    <p className="text-xs text-red-600">Jami qarzdorlik</p>
+                    <p className="text-2xl font-bold text-red-700">{formatSum(selectedStudentDebts.total_debt)} so'm</p>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                    <p className="text-xs text-green-600">To'lagan summa</p>
+                    <p className="text-2xl font-bold text-green-700">{formatSum(selectedStudentDebts.paid_total)} so'm</p>
+                  </div>
+                </div>
+
+                {/* Qarzdorliklar */}
+                {selectedStudentDebts.debts && selectedStudentDebts.debts.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-gray-900">Qarzdorliklar</h3>
+                    <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-2">
+                      {selectedStudentDebts.debts.map((debt: any) => (
+                        <div
+                          key={`${debt.month}-${debt.year}-${debt.group_id}`}
+                          onClick={() => {
+                            setSelectedPaymentId(debt.id || null);
+                            setPaymentAmount(debt.amount.toString());
+                            setPaymentNote('');
+                          }}
+                          className={`p-3 rounded-lg border-2 cursor-pointer transition ${
+                            selectedPaymentId === (debt.id || null)
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {debt.month_name} {debt.year} - {debt.group_name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {debt.is_auto_generated ? 'Avtomatik yaratilgan' : 'To\'lov qo\'shilgan'}
+                              </p>
+                            </div>
+                            <p className="font-bold text-red-600">{formatSum(debt.amount)} so'm</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* To'langan oylar */}
+                {selectedStudentDebts.paid_payments && selectedStudentDebts.paid_payments.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-gray-900">To'langan oylar</h3>
+                    <div className="space-y-2 max-h-40 overflow-y-auto border rounded-lg p-2 bg-green-50">
+                      {selectedStudentDebts.paid_payments.map((payment: any) => (
+                        <div key={payment.id} className="p-2 rounded bg-white border border-green-200">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-gray-900">{payment.month_name} {payment.year}</p>
+                              <p className="text-xs text-gray-500">{payment.group_name}</p>
+                            </div>
+                            <p className="font-bold text-green-600">{formatSum(payment.amount)} so'm</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* To'lov qilish qismi */}
+                {selectedPaymentId && (
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-3">
+                    <div className="space-y-2">
+                      <Label>To'lov summas (som)</Label>
+                      <Input
+                        type="number"
+                        value={paymentAmount}
+                        onChange={e => setPaymentAmount(e.target.value)}
+                        className="text-lg font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Izoh (ixtiyoriy)</Label>
+                      <Input
+                        placeholder="To'lov haqida izoh..."
+                        value={paymentNote}
+                        onChange={e => setPaymentNote(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedStudentDebts(null);
+                      setSelectedPaymentId(null);
+                    }}
+                    className="flex-1"
+                  >
+                    Boshqa student
+                  </Button>
+                  <Button
+                    onClick={() => setShowCreateModal(false)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Bekor qilish
+                  </Button>
+                  {selectedPaymentId && (
+                    <Button
+                      onClick={handlePayDebt}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      To'lovni qabul qilish
+                    </Button>
+                  )}
+                </div>
               </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>Bekor qilish</Button>
-                <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white">Saqlash</Button>
-              </DialogFooter>
-            </form>
+            )}
           </DialogContent>
         </Dialog>
       </div>
