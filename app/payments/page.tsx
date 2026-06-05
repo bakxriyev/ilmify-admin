@@ -563,6 +563,24 @@ export default function PaymentsPage() {
                   </div>
                 )}
 
+                {selectedStudentDebts.orphaned_payments && selectedStudentDebts.orphaned_payments.length > 0 && (
+                  <div className="space-y-2 mt-3 pt-3 border-t border-gray-200">
+                    <h3 className="font-medium text-gray-400 text-sm">Guruhi o'chirilgan to'lovlar</h3>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {selectedStudentDebts.orphaned_payments.map((p: any) => (
+                        <div key={p.id} className="p-2 rounded bg-gray-50 border border-gray-200 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">{p.month_name} {p.year}</span>
+                            <span className={p.status === 'paid' ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                              {formatSum(p.amount)} so'm {p.status === 'paid' ? "(To'langan)" : "(To'lanmagan)"}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {selectedPaymentId && (
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-3">
                     <div className="space-y-2">

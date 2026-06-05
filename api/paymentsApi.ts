@@ -80,6 +80,8 @@ export const paymentsApi = {
         amount: number;
         status: 'paid' | 'unpaid' | 'partial';
         is_auto_generated?: boolean;
+        full_amount?: number;
+        paid_amount?: number;
       }>;
       paid_payments: Array<{
         id: number;
@@ -89,8 +91,19 @@ export const paymentsApi = {
         group_id: number;
         group_name: string;
         amount: number;
-        status: 'paid';
+        status: 'paid' | 'partial';
         paid_at: string;
+      }>;
+      orphaned_payments: Array<{
+        id: number;
+        month: number;
+        month_name: string;
+        year: number;
+        amount: number;
+        status: string;
+        paid_at: string | null;
+        created_at: string;
+        note: string | null;
       }>;
       total_debt: number;
       paid_total: number;

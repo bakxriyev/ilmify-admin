@@ -654,6 +654,46 @@ export default function StudentDetailPage() {
               </Card>
             )}
 
+            {/* ORPHANED TO'LOVLAR (guruhi o'chirilgan) */}
+            {debtData?.orphaned_payments && debtData.orphaned_payments.length > 0 && (
+              <Card className="border-0 shadow-md border-l-4 border-l-gray-400">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-gray-500">
+                    <AlertCircle className="h-5 w-5 text-gray-400" /> 
+                    Guruhi o'chirilgan to'lovlar ({debtData.orphaned_payments.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-gray-100">
+                        <TableRow>
+                          <TableHead>Oy</TableHead>
+                          <TableHead className="text-right">Summa</TableHead>
+                          <TableHead className="text-center">Holat</TableHead>
+                          <TableHead className="text-center">Sana</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {debtData.orphaned_payments.map((p: any) => (
+                          <TableRow key={p.id} className="hover:bg-gray-50">
+                            <TableCell className="font-medium">{p.month_name} {p.year}</TableCell>
+                            <TableCell className="text-right font-bold">{(p.amount).toLocaleString()} so'm</TableCell>
+                            <TableCell className="text-center">
+                              <Badge className={p.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                                {p.status === 'paid' ? "To'langan" : "To'lanmagan"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center text-gray-500">{p.paid_at || '-'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* ESKI TO'LOVLAR JADVAL (tarixiy) */}
             {payments.length > 0 && (
               <Card className="border-0 shadow-md">
