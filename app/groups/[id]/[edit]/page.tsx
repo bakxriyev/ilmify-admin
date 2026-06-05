@@ -9,8 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, ArrowLeft, Save, Plus, Trash2, DoorOpen } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Save, Plus, Trash2, DoorOpen, Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { groupsApi, type Group, type UpdateGroupRequest } from '@/api/groupsApi';
 import { lessonsApi, type Lesson, type CreateLessonRequest } from '@/api/lessonsApi';
 import { teachersApi, type Teacher } from '@/api/teachersApi';
@@ -38,6 +41,10 @@ export default function EditGroupPage() {
   const [supportTeachers, setSupportTeachers] = useState<Teacher[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [fetchingMeta, setFetchingMeta] = useState(true);
+  const [mainTeacherOpen, setMainTeacherOpen] = useState(false);
+  const [supportTeacherOpen, setSupportTeacherOpen] = useState(false);
+  const [mainTeacherSearch, setMainTeacherSearch] = useState('');
+  const [supportTeacherSearch, setSupportTeacherSearch] = useState('');
 
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonsLoading, setLessonsLoading] = useState(false);
@@ -248,58 +255,141 @@ export default function EditGroupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="teacher_id" className="text-gray-900 font-medium">
+                <Label className="text-gray-900 font-medium">
                   Asosiy o'qituvchi <span className="text-destructive">*</span>
                 </Label>
-                <Select
-                  value={formData.teacher_id}
-                  onValueChange={(value) => setFormData({ ...formData, teacher_id: value })}
-                >
-                  <SelectTrigger className="transition-all duration-300">
-                    <SelectValue placeholder="Asosiy o'qituvchini tanlang" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mainTeachers.length === 0 ? (
-                      <SelectItem value="no-main" disabled>
-                        Asosiy o'qituvchilar mavjud emas
-                      </SelectItem>
-                    ) : (
-                      mainTeachers.map((teacher) => (
-                        <SelectItem key={teacher.id} value={String(teacher.id)}>
-                          {teacher.first_name} {teacher.last_name} ({teacher.gmail})
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <Popover open={mainTeacherOpen} onOpenChange={setMainTeacherOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={mainTeacherOpen}
+                      className="w-full justify-between"
+                    >
+                      {formData.teacher_id
+                        ? (() => {
+                            const t = mainTeachers.find(t => t.id.toString() === formData.teacher_id);
+                            return t ? `${t.first_name} ${t.last_name}` : "Asosiy o'qituvchini tanlang";
+                          })()
+                        : "Asosiy o'qituvchini tanlang"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput
+                        placeholder="O'qituvchi qidirish..."
+                        value={mainTeacherSearch}
+                        onValueChange={setMainTeacherSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>O'qituvchi topilmadi</CommandEmpty>
+                        <CommandGroup className="max-h-48 overflow-y-auto">
+                          {mainTeachers
+                            .filter(t =>
+                              t.first_name.toLowerCase().includes(mainTeacherSearch.toLowerCase()) ||
+                              t.last_name.toLowerCase().includes(mainTeacherSearch.toLowerCase()) ||
+                              (t.gmail || '').toLowerCase().includes(mainTeacherSearch.toLowerCase())
+                            )
+                            .map((teacher) => (
+                              <CommandItem
+                                key={teacher.id}
+                                value={`${teacher.first_name} ${teacher.last_name} ${teacher.gmail || ''}`}
+                                onSelect={() => {
+                                  setFormData({ ...formData, teacher_id: teacher.id.toString() });
+                                  setMainTeacherOpen(false);
+                                  setMainTeacherSearch('');
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.teacher_id === teacher.id.toString() ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {teacher.first_name} {teacher.last_name}
+                                <span className="ml-2 text-xs text-gray-400">{teacher.gmail}</span>
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="support_teacher_id" className="text-gray-900 font-medium">
+                <Label className="text-gray-900 font-medium">
                   Yordamchi o'qituvchi
                 </Label>
-                <Select
-                  value={formData.support_teacher_id || 'none'}
-                  onValueChange={(value) => setFormData({ ...formData, support_teacher_id: value === 'none' ? '' : value })}
-                >
-                  <SelectTrigger className="transition-all duration-300">
-                    <SelectValue placeholder="Yordamchi o'qituvchini tanlang (ixtiyoriy)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Yo'q</SelectItem>
-                    {supportTeachers.length === 0 ? (
-                      <SelectItem value="no-support" disabled>
-                        Yordamchi o'qituvchilar mavjud emas
-                      </SelectItem>
-                    ) : (
-                      supportTeachers.map((teacher) => (
-                        <SelectItem key={teacher.id} value={String(teacher.id)}>
-                          {teacher.first_name} {teacher.last_name} ({teacher.gmail})
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <Popover open={supportTeacherOpen} onOpenChange={setSupportTeacherOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={supportTeacherOpen}
+                      className="w-full justify-between"
+                    >
+                      {formData.support_teacher_id
+                        ? (() => {
+                            const t = supportTeachers.find(t => t.id.toString() === formData.support_teacher_id);
+                            return t ? `${t.first_name} ${t.last_name}` : "Yordamchi o'qituvchini tanlang";
+                          })()
+                        : "Yordamchi o'qituvchini tanlang (ixtiyoriy)"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput
+                        placeholder="O'qituvchi qidirish..."
+                        value={supportTeacherSearch}
+                        onValueChange={setSupportTeacherSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>O'qituvchi topilmadi</CommandEmpty>
+                        <CommandGroup className="max-h-48 overflow-y-auto">
+                          <CommandItem
+                            onSelect={() => {
+                              setFormData({ ...formData, support_teacher_id: '' });
+                              setSupportTeacherOpen(false);
+                              setSupportTeacherSearch('');
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", !formData.support_teacher_id ? "opacity-100" : "opacity-0")} />
+                            Yo'q
+                          </CommandItem>
+                          {supportTeachers
+                            .filter(t =>
+                              t.first_name.toLowerCase().includes(supportTeacherSearch.toLowerCase()) ||
+                              t.last_name.toLowerCase().includes(supportTeacherSearch.toLowerCase()) ||
+                              (t.gmail || '').toLowerCase().includes(supportTeacherSearch.toLowerCase())
+                            )
+                            .map((teacher) => (
+                              <CommandItem
+                                key={teacher.id}
+                                value={`${teacher.first_name} ${teacher.last_name} ${teacher.gmail || ''}`}
+                                onSelect={() => {
+                                  setFormData({ ...formData, support_teacher_id: teacher.id.toString() });
+                                  setSupportTeacherOpen(false);
+                                  setSupportTeacherSearch('');
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.support_teacher_id === teacher.id.toString() ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {teacher.first_name} {teacher.last_name}
+                                <span className="ml-2 text-xs text-gray-400">{teacher.gmail}</span>
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">

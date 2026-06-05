@@ -71,10 +71,17 @@ export const lessonsApi = {
     }
   },
 
-  // Update is NOT available in the provided endpoints.
-  // If your backend supports PATCH /lessons/{id}, you can add:
-  // update: async (id: string, data: UpdateLessonRequest): Promise<Lesson> => {
-  //   const response = await api.patch(`/lessons/${id}`, data);
-  //   return response.data;
-  // },
+  /**
+   * Delete ALL lessons for a group
+   * DELETE /lessons/group/{groupId}
+   */
+  deleteAllByGroup: async (groupId: number): Promise<{ message: string; deleted_count: number }> => {
+    try {
+      const response = await api.delete(`/lessons/group/${groupId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting all lessons for group ${groupId}:`, error);
+      throw error;
+    }
+  },
 };

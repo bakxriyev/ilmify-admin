@@ -21,10 +21,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { groupsApi, type Group } from '@/api/groupsApi';
 import { groupStudentsApi, type GroupStudent } from '@/api/groupStudentApi';
 import { attendanceApi, type MonthlyStats, type AttendanceCell } from '@/api/attendanceApi';
 import { paymentsApi, type GroupPaymentSummary } from '@/api/paymentsApi';
+import { lessonsApi } from '@/api/lessonsApi';
 import AddStudentsModal from '@/components/addStudentModal';
 import GenerateLessonsModal from '@/components/generateLessonsModal';
 import toast from 'react-hot-toast';
@@ -47,6 +52,8 @@ export default function GroupDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showGenerateLessons, setShowGenerateLessons] = useState(false);
+  const [showDeleteLessons, setShowDeleteLessons] = useState(false);
+  const [deletingLessons, setDeletingLessons] = useState(false);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
@@ -98,6 +105,20 @@ export default function GroupDetailPage() {
       toast.error('Studentlarni yuklashda xatolik');
     } finally {
       setStudentsLoading(false);
+    }
+  };
+
+  const handleDeleteAllLessons = async () => {
+    try {
+      setDeletingLessons(true);
+      const res = await lessonsApi.deleteAllByGroup(groupId);
+      toast.success(res.message);
+      loadGroup();
+    } catch {
+      toast.error('Darslarni o\'chirishda xatolik');
+    } finally {
+      setDeletingLessons(false);
+      setShowDeleteLessons(false);
     }
   };
 
@@ -816,9 +837,16 @@ export default function GroupDetailPage() {
                     <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                       <Calendar className="h-5 w-5" /> Darslar jadvali ({sortedLessons.length})
                     </h3>
-                    <Button onClick={() => setShowGenerateLessons(true)} size="sm" className="bg-white text-amber-700 hover:bg-amber-50">
-                      <Calendar className="h-4 w-4 mr-1" /> Darslar yaratish
-                    </Button>
+                    <div className="flex gap-2">
+                      {sortedLessons.length > 0 && (
+                        <Button onClick={() => setShowDeleteLessons(true)} size="sm" variant="outline" className="bg-red-500 text-white border-red-400 hover:bg-red-600 hover:text-white">
+                          <Trash2 className="h-4 w-4 mr-1" /> Darslarni o'chirish
+                        </Button>
+                      )}
+                      <Button onClick={() => setShowGenerateLessons(true)} size="sm" className="bg-white text-amber-700 hover:bg-amber-50">
+                        <Calendar className="h-4 w-4 mr-1" /> Darslar yaratish
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <CardContent className="p-6">
@@ -1181,6 +1209,30 @@ export default function GroupDetailPage() {
         groupId={groupId}
         onSuccess={fetchGroupData}
       />
+      <AlertDialog open={showDeleteLessons} onOpenChange={setShowDeleteLessons}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Darslarni o'chirish</AlertDialogTitle>
+            <AlertDialogDescription>
+              Guruhdagi barcha <strong>{sortedLessons.length} ta</strong> dars o'chiriladi. Bu amalni ortga qaytarib bo'lmaydi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingLessons}>Bekor qilish</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAllLessons}
+              disabled={deletingLessons}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deletingLessons ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> O'chirilmoqda...</>
+              ) : (
+                <><Trash2 className="h-4 w-4 mr-2" /> Ha, o'chirish</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }

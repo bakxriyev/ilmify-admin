@@ -42,6 +42,7 @@ export default function PaymentsPage() {
   // Yangi to'lovlar uchun state-lar
   const [selectedStudentDebts, setSelectedStudentDebts] = useState<any>(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null);
+  const [selectedDebt, setSelectedDebt] = useState<any>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
 
@@ -122,13 +123,33 @@ export default function PaymentsPage() {
     }
 
     try {
-      const debt = selectedStudentDebts.debts.find((d: any) => d.id === selectedPaymentId);
-      if (!debt) {
-        toast.error('Qarzdorlik topilmadi');
-        return;
-      }
-
       await paymentsApi.update(selectedPaymentId, {
+        amount: Number(paymentAmount),
+        status: 'paid',
+        paid_at: new Date().toISOString().split('T')[0],
+        note: paymentNote || undefined,
+      });
+
+      toast.success("To'lov qabul qilindi");
+      setShowCreateModal(false);
+      loadData();
+      loadYearOverview();
+    } catch (err: any) { toast.error(err.message || 'Xatolik'); }
+  };
+
+  const handleCreatePayment = async () => {
+    if (!selectedDebt || !paymentAmount || Number(paymentAmount) <= 0) {
+      toast.error('To\'lov summasini kiriting');
+      return;
+    }
+
+    try {
+      await paymentsApi.create({
+        student_id: selectedStudentDebts.student.id,
+        group_id: selectedDebt.group_id,
+        amount: Number(paymentAmount),
+        month: selectedDebt.month,
+        year: selectedDebt.year,
         status: 'paid',
         paid_at: new Date().toISOString().split('T')[0],
         note: paymentNote || undefined,
@@ -518,11 +539,12 @@ export default function PaymentsPage() {
                           key={`${debt.month}-${debt.year}-${debt.group_id}`}
                           onClick={() => {
                             setSelectedPaymentId(debt.id || null);
+                            setSelectedDebt(debt);
                             setPaymentAmount(debt.amount.toString());
                             setPaymentNote('');
                           }}
                           className={`p-3 rounded-lg border-2 cursor-pointer transition ${
-                            selectedPaymentId === (debt.id || null)
+                            selectedDebt === debt
                               ? 'border-blue-500 bg-blue-50'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
@@ -581,7 +603,7 @@ export default function PaymentsPage() {
                   </div>
                 )}
 
-                {selectedPaymentId && (
+                {selectedDebt && (
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-3">
                     <div className="space-y-2">
                       <Label>To'lov summas (som)</Label>
@@ -610,6 +632,7 @@ export default function PaymentsPage() {
                     onClick={() => {
                       setSelectedStudentDebts(null);
                       setSelectedPaymentId(null);
+                      setSelectedDebt(null);
                     }}
                     className="flex-1"
                   >
@@ -622,9 +645,18 @@ export default function PaymentsPage() {
                   >
                     Bekor qilish
                   </Button>
-                  {selectedPaymentId && (
+                  {selectedDebt && selectedPaymentId && (
                     <Button
                       onClick={handlePayDebt}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      To'lovni qabul qilish
+                    </Button>
+                  )}
+                  {selectedDebt && !selectedPaymentId && (
+                    <Button
+                      onClick={handleCreatePayment}
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                     >
                       <CheckCircle className="h-4 w-4 mr-2" />
