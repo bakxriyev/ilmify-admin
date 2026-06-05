@@ -47,7 +47,7 @@ export default function CreateGroupPage() {
       try {
         setFetching(true);
         const [teachersRes, roomsRes] = await Promise.all([
-          teachersApi.getAll(),
+          teachersApi.getAll({ limit: 1000 }),
           roomsApi.getAll(),
         ]);
 

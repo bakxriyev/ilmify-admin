@@ -65,7 +65,7 @@ export default function EditGroupPage() {
         setLoading(true);
         const [groupData, teachersRes, roomsRes] = await Promise.all([
           groupsApi.getById(groupId),
-          teachersApi.getAll(),
+          teachersApi.getAll({ limit: 1000 }),
           roomsApi.getAll(),
         ]);
 

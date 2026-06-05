@@ -26,10 +26,10 @@
     --color-background: 255 255 255;
     --color-foreground: 31 41 55;
 
-    /* Surface - semi-transparent white */
-    --color-card: 255 255 255 0.95;
+    /* Surface */
+    --color-card: 255 255 255;
     --color-card-foreground: 55 65 81;
-    --color-popover: 255 255 255 0.95;
+    --color-popover: 255 255 255;
     --color-popover-foreground: 55 65 81;
 
     /* Muted - light gray */
@@ -79,10 +79,10 @@
     --color-background: 0 0 0;
     --color-foreground: 226 232 240;
 
-    /* Surface - semi-transparent dark */
-    --color-card: 30 41 59 0.95;
+    /* Surface */
+    --color-card: 30 41 59;
     --color-card-foreground: 226 232 240;
-    --color-popover: 30 41 59 0.95;
+    --color-popover: 30 41 59;
     --color-popover-foreground: 226 232 240;
 
     /* Muted */
