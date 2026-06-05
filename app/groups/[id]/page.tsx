@@ -10,7 +10,7 @@ import {
   CheckCircle, XCircle, AlertCircle, UserCheck, School, BarChart3,
   Clock3, CalendarDays, Layers, MapPin, ChevronDown,
   ChevronUp, Download, RefreshCw, Loader2, ChevronLeft, ChevronRight,
-  Wallet, Bell,
+  Wallet, Bell, Pencil,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,11 @@ export default function GroupDetailPage() {
   const [payMonth, setPayMonth] = useState(now.getMonth() + 1);
   const [payYear, setPayYear] = useState(now.getFullYear());
 
+  // Edit joined date state
+  const [editingDateStudentId, setEditingDateStudentId] = useState<number | null>(null);
+  const [editingDateValue, setEditingDateValue] = useState('');
+  const [savingDate, setSavingDate] = useState(false);
+
   // Attendance grid state
   const [gridYear, setGridYear] = useState(now.getFullYear());
   const [gridMonth, setGridMonth] = useState(now.getMonth());
@@ -105,6 +110,20 @@ export default function GroupDetailPage() {
       toast.error('Studentlarni yuklashda xatolik');
     } finally {
       setStudentsLoading(false);
+    }
+  };
+
+  const handleSaveJoinedDate = async (relationId: number, studentId: number) => {
+    try {
+      setSavingDate(true);
+      await groupStudentsApi.update(relationId, { joined_date: editingDateValue });
+      toast.success('Qo\'shilgan sana yangilandi');
+      setEditingDateStudentId(null);
+      await fetchGroupStudents();
+    } catch {
+      toast.error('Xatolik yuz berdi');
+    } finally {
+      setSavingDate(false);
     }
   };
 
@@ -662,7 +681,7 @@ export default function GroupDetailPage() {
                             const debt = payItem.debt;
                             const overdueDays = payItem.overdue_days;
                             return (
-                              <TableRow key={student.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <TableRow key={student.id} className="border-b border-gray-100 hover:bg-gray-50 group">
                                 <TableCell className="text-gray-500 font-medium">{idx + 1}</TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-3">
@@ -739,7 +758,35 @@ export default function GroupDetailPage() {
                                   )}
                                 </TableCell>
                                 <TableCell className="text-gray-600">
-                                  {relation ? formatDate(relation.joined_date) : '-'}
+                                  {editingDateStudentId === Number(student.id) ? (
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        type="date"
+                                        value={editingDateValue}
+                                        onChange={e => setEditingDateValue(e.target.value)}
+                                        className="h-8 w-36 text-xs"
+                                      />
+                                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-green-600" onClick={() => handleSaveJoinedDate(relation!.id, Number(student.id))} disabled={savingDate}>
+                                        {savingDate ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                                      </Button>
+                                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-400" onClick={() => setEditingDateStudentId(null)}>
+                                        <XCircle className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      className="hover:text-blue-600 hover:underline cursor-pointer text-xs flex items-center gap-1"
+                                      onClick={() => {
+                                        if (relation) {
+                                          setEditingDateValue(relation.joined_date ? new Date(relation.joined_date).toISOString().split('T')[0] : '');
+                                          setEditingDateStudentId(Number(student.id));
+                                        }
+                                      }}
+                                    >
+                                      {relation ? formatDate(relation.joined_date) : '-'}
+                                      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </button>
+                                  )}
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <Button

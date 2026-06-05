@@ -183,6 +183,13 @@ const navigationItems: NavigationItem[] = [
     badge: 0,
     roleRequired: 'director',
   },
+  {
+    label: 'Monitoring',
+    path: '/monitoring',
+    icon: 'ActivityIcon',
+    badge: 0,
+    roleRequired: 'director',
+  },
 ];
 
 const getBadgeColor = (color?: string) => {
