@@ -21,7 +21,7 @@ import { groupsApi, type Group } from '@/api/groupsApi';
 import { studentsApi, type Student } from '@/api/studentApi';
 import {
   Wallet, CheckCircle, XCircle, Clock, Plus, Search,
-  RefreshCw, ChevronRight, Filter, AlertCircle, Users, CalendarDays, Download,
+  RefreshCw, ChevronRight, Filter, AlertCircle, Users, CalendarDays, Download, Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -45,6 +45,19 @@ export default function PaymentsPage() {
   const [selectedDebt, setSelectedDebt] = useState<any>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
+
+  // Yangi to'lov qo'shish (prepayment)
+  const [showNewPayment, setShowNewPayment] = useState(false);
+  const [newPaymentGroupId, setNewPaymentGroupId] = useState<number>(0);
+  const [newPaymentMonth, setNewPaymentMonth] = useState(String(new Date().getMonth() + 1));
+  const [newPaymentYear, setNewPaymentYear] = useState(String(new Date().getFullYear()));
+  const [newPaymentAmount, setNewPaymentAmount] = useState('');
+  const [newPaymentNote, setNewPaymentNote] = useState('');
+  const [submittingNewPayment, setSubmittingNewPayment] = useState(false);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
   // Year overview for monthly grid
   const [yearOverview, setYearOverview] = useState<{ month: number; total: number; paid: number; unpaid: number; partial: number }[]>([]);
@@ -86,6 +99,9 @@ export default function PaymentsPage() {
     });
   }, [items, filterGroup, filterStatus]);
 
+  const totalPages = Math.ceil(filteredItems.length / pageSize);
+  const paginatedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
+
   const paidCount = items.filter(i => i.status === 'paid').length;
   const unpaidCount = items.filter(i => i.status === 'unpaid').length;
   const partialCount = items.filter(i => i.status === 'partial').length;
@@ -102,6 +118,10 @@ export default function PaymentsPage() {
       setSelectedPaymentId(null);
       setPaymentAmount('');
       setPaymentNote('');
+      setShowNewPayment(false);
+      setNewPaymentGroupId(0);
+      setNewPaymentAmount('');
+      setNewPaymentNote('');
       setShowCreateModal(true);
     } catch { toast.error("Studentlarni yuklashda xatolik"); }
   };
@@ -160,6 +180,33 @@ export default function PaymentsPage() {
       loadData();
       loadYearOverview();
     } catch (err: any) { toast.error(err.message || 'Xatolik'); }
+  };
+
+  const handleSubmitNewPayment = async () => {
+    if (!newPaymentGroupId || !newPaymentAmount || Number(newPaymentAmount) <= 0 || !selectedStudentDebts) {
+      toast.error('Barcha maydonlarni to\'ldiring');
+      return;
+    }
+
+    try {
+      setSubmittingNewPayment(true);
+      await paymentsApi.create({
+        student_id: selectedStudentDebts.student.id,
+        group_id: newPaymentGroupId,
+        amount: Number(newPaymentAmount),
+        month: Number(newPaymentMonth),
+        year: Number(newPaymentYear),
+        status: 'paid',
+        paid_at: new Date().toISOString().split('T')[0],
+        note: newPaymentNote || undefined,
+      });
+
+      toast.success("Yangi to'lov yaratildi");
+      setShowCreateModal(false);
+      loadData();
+      loadYearOverview();
+    } catch (err: any) { toast.error(err.message || 'Xatolik'); }
+    finally { setSubmittingNewPayment(false); }
   };
 
   const handleMarkPaid = async (item: GroupPaymentSummary) => {
@@ -387,6 +434,7 @@ export default function PaymentsPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="text-left p-3 text-gray-600 font-medium w-10">#</th>
                       <th className="text-left p-3 text-gray-600 font-medium">Student</th>
                       <th className="text-left p-3 text-gray-600 font-medium">Guruh</th>
                       <th className="text-center p-3 text-gray-600 font-medium">Oy</th>
@@ -400,8 +448,9 @@ export default function PaymentsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredItems.map((item, idx) => (
+                    {paginatedItems.map((item, idx) => (
                       <tr key={`${item.student.id}-${item.group?.id || idx}`} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="p-3 text-center text-gray-400 text-xs font-mono">{(page - 1) * pageSize + idx + 1}</td>
                         <td className="p-3">
                           <Link href={`/students/${item.student.id}`} className="font-medium text-gray-900 hover:text-blue-600">
                             {item.student.first_name} {item.student.last_name}
@@ -435,9 +484,9 @@ export default function PaymentsPage() {
                           {item.payment?.paid_at ? formatDate(item.payment.paid_at) : '-'}
                         </td>
                         <td className="p-3 text-center">
-                          {item.overdue_days > 0 ? (
+                          {item.overdue_lessons > 0 ? (
                             <span className="inline-flex items-center gap-1 text-orange-600 font-medium text-xs">
-                              <CalendarDays className="h-3 w-3" /> {item.overdue_days} kun
+                              <CalendarDays className="h-3 w-3" /> {item.overdue_lessons} ta dars
                             </span>
                           ) : (
                             <span className="text-gray-400">-</span>
@@ -468,37 +517,69 @@ export default function PaymentsPage() {
                   </tbody>
                 </table>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Create Payment Dialog - YANGI SISTEMA */}
-        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogContent className="bg-white max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {selectedStudentDebts ? `${selectedStudentDebts.student.first_name} ${selectedStudentDebts.student.last_name} - Qarzdorliklarni to'lash` : "Studentni tanlang"}
-              </DialogTitle>
-            </DialogHeader>
-
-            {!selectedStudentDebts ? (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Student ism/familiyasini qidiring</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Ism yoki familiya bilan qidirish..."
-                      value={studentSearch}
-                      onChange={e => setStudentSearch(e.target.value)}
-                      className="pl-9"
-                    />
+              )}
+              {filteredItems.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                  <p className="text-sm text-gray-500">
+                    {filteredItems.length} tadan {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, filteredItems.length)} ko'rsatilmoqda
+                  </p>
+                  <div className="flex gap-1 flex-wrap justify-center">
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                      Oldingi
+                    </Button>
+                    {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                      let p: number;
+                      if (totalPages <= 7) {
+                        p = i + 1;
+                      } else if (page <= 4) {
+                        p = i + 1;
+                      } else if (page >= totalPages - 3) {
+                        p = totalPages - 6 + i;
+                      } else {
+                        p = page - 3 + i;
+                      }
+                      return (
+                        <Button key={p} variant={page === p ? 'default' : 'outline'} size="sm" onClick={() => setPage(p)}>
+                          {p}
+                        </Button>
+                      );
+                    })}
+                    <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                      Keyingi
+                    </Button>
                   </div>
                 </div>
+              )}
+            </CardContent>
+          </Card>
 
-                <div className="max-h-96 overflow-y-auto border rounded-lg divide-y">
-                  {students
-                    .filter(s => {
+          {/* Create Payment Dialog - YANGI SISTEMA */}
+          <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+            <DialogContent className="bg-white max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedStudentDebts ? `${selectedStudentDebts.student.first_name} ${selectedStudentDebts.student.last_name} - Qarzdorliklarni to'lash` : "Studentni tanlang"}
+                </DialogTitle>
+              </DialogHeader>
+
+              {!selectedStudentDebts ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Student ism/familiyasini qidiring</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Ism yoki familiya bilan qidirish..."
+                        value={studentSearch}
+                        onChange={e => setStudentSearch(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="max-h-96 overflow-y-auto border rounded-lg divide-y">
+                    {students
+                      .filter(s => {
                       const q = studentSearch.toLowerCase();
                       return s.first_name.toLowerCase().includes(q) || s.last_name.toLowerCase().includes(q);
                     })
@@ -602,6 +683,90 @@ export default function PaymentsPage() {
                     </div>
                   </div>
                 )}
+
+                <div className="pt-3 border-t border-gray-200">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewPayment(!showNewPayment)}
+                    className="w-full text-blue-600 border-blue-300 hover:bg-blue-50"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {showNewPayment ? 'Yopish' : 'Yangi to\'lov qo\'shish (avans)'}
+                  </Button>
+
+                  {showNewPayment && (
+                    <div className="mt-3 p-4 bg-purple-50 rounded-lg border border-purple-200 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Oy</Label>
+                          <Select value={newPaymentMonth} onValueChange={setNewPaymentMonth}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {monthNames.map((name, i) => (
+                                <SelectItem key={i + 1} value={String(i + 1)}>{name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Yil</Label>
+                          <Select value={newPaymentYear} onValueChange={setNewPaymentYear}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {[2024, 2025, 2026, 2027].map(y => (
+                                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Guruh</Label>
+                        <Select value={String(newPaymentGroupId)} onValueChange={v => setNewPaymentGroupId(Number(v))}>
+                          <SelectTrigger><SelectValue placeholder="Guruhni tanlang" /></SelectTrigger>
+                          <SelectContent>
+                            {groups.filter(g => {
+                              const rel = selectedStudentDebts?.debts?.find((d: any) => d.group_id === g.id);
+                              return rel || selectedStudentDebts?.paid_payments?.find((p: any) => p.group_id === g.id);
+                            }).map(g => (
+                              <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Summa (so'm)</Label>
+                        <Input
+                          type="number"
+                          value={newPaymentAmount}
+                          onChange={e => setNewPaymentAmount(e.target.value)}
+                          placeholder="To'lov summasini kiriting"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Izoh (ixtiyoriy)</Label>
+                        <Input
+                          placeholder="To'lov haqida izoh..."
+                          value={newPaymentNote}
+                          onChange={e => setNewPaymentNote(e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        onClick={handleSubmitNewPayment}
+                        disabled={submittingNewPayment}
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                      >
+                        {submittingNewPayment ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Yaratilmoqda...</>
+                        ) : (
+                          <><Plus className="h-4 w-4 mr-2" /> Yangi to'lov yaratish</>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
 
                 {selectedDebt && (
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-3">

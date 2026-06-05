@@ -27,7 +27,7 @@ export interface GroupPaymentSummary {
   effective_price?: number;
   paid_amount: number;
   debt: number;
-  overdue_days: number;
+  overdue_lessons: number;
   joined_date?: string;
 }
 
