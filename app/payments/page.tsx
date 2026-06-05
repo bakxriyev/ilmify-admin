@@ -21,7 +21,7 @@ import { groupsApi, type Group } from '@/api/groupsApi';
 import { studentsApi, type Student } from '@/api/studentApi';
 import {
   Wallet, DollarSign, CheckCircle, XCircle, Clock, Plus, Search,
-  RefreshCw, ChevronRight, Filter, AlertCircle, Users, CalendarDays, CreditCard,
+  RefreshCw, ChevronRight, Filter, AlertCircle, Users, CalendarDays, CreditCard, Download,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -179,14 +179,17 @@ export default function PaymentsPage() {
             </h1>
             <p className="text-gray-500">{monthNames[Number(filterMonth) - 1]} {filterYear} — oyi uchun to'lov holati</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => { loadData(); loadYearOverview(); }} className="border-gray-300">
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Yangilash
-            </Button>
-            <Button onClick={openCreateModal} className="bg-green-600 hover:bg-green-700 text-white">
-              <Plus className="h-4 w-4 mr-2" /> Yangi to'lov
-            </Button>
-          </div>
+           <div className="flex gap-2">
+             <Button variant="outline" onClick={() => { loadData(); loadYearOverview(); }} className="border-gray-300">
+               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Yangilash
+             </Button>
+             <Button onClick={() => paymentsApi.exportToExcel(Number(filterMonth), Number(filterYear))} className="bg-blue-600 hover:bg-blue-700 text-white">
+               <Download className="h-4 w-4 mr-2" /> Excel
+             </Button>
+             <Button onClick={openCreateModal} className="bg-green-600 hover:bg-green-700 text-white">
+               <Plus className="h-4 w-4 mr-2" /> Yangi to'lov
+             </Button>
+           </div>
         </div>
 
         {/* Stats Cards */}
@@ -340,62 +343,64 @@ export default function PaymentsPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left p-3 text-gray-600 font-medium">Student</th>
-                      <th className="text-left p-3 text-gray-600 font-medium">Guruh</th>
-                      <th className="text-right p-3 text-gray-600 font-medium">Summa</th>
-                      <th className="text-right p-3 text-gray-600 font-medium">To'lagan</th>
-                      <th className="text-right p-3 text-gray-600 font-medium">Qarzdorlik</th>
-                      <th className="text-center p-3 text-gray-600 font-medium">Holat</th>
-                      <th className="text-center p-3 text-gray-600 font-medium">To'lov sanasi</th>
-                      <th className="text-center p-3 text-gray-600 font-medium">Kechikish</th>
-                      <th className="text-right p-3 text-gray-600 font-medium">Amallar</th>
-                    </tr>
-                  </thead>
+                   <thead className="bg-gray-50">
+                     <tr>
+                       <th className="text-left p-3 text-gray-600 font-medium">Student</th>
+                       <th className="text-left p-3 text-gray-600 font-medium">Guruh</th>
+                       <th className="text-center p-3 text-gray-600 font-medium">Oy</th>
+                       <th className="text-right p-3 text-gray-600 font-medium">Summa</th>
+                       <th className="text-right p-3 text-gray-600 font-medium">To'lagan</th>
+                       <th className="text-right p-3 text-gray-600 font-medium">Qarzdorlik</th>
+                       <th className="text-center p-3 text-gray-600 font-medium">Holat</th>
+                       <th className="text-center p-3 text-gray-600 font-medium">To'lov sanasi</th>
+                       <th className="text-center p-3 text-gray-600 font-medium">Kechikish</th>
+                       <th className="text-right p-3 text-gray-600 font-medium">Amallar</th>
+                     </tr>
+                   </thead>
                   <tbody>
                     {filteredItems.map((item, idx) => (
-                      <tr key={`${item.student.id}-${item.group?.id || idx}`} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="p-3">
-                          <Link href={`/students/${item.student.id}`} className="font-medium text-gray-900 hover:text-blue-600">
-                            {item.student.first_name} {item.student.last_name}
-                          </Link>
-                          <div className="text-xs text-gray-400">{item.student.phone_number}</div>
-                        </td>
-                        <td className="p-3 text-gray-600">
-                          <Link href={`/groups/${item.group?.id}`} className="hover:text-blue-600">
-                            {item.group?.name || '-'}
-                          </Link>
-                        </td>
-                        <td className="p-3 text-right font-medium text-gray-900">{formatSum(item.monthly_price)} so'm</td>
-                        <td className="p-3 text-right text-gray-700">
-                          {item.status === 'paid'
-                            ? <span className="text-green-600 font-medium">{formatSum(item.paid_amount)} so'm</span>
-                            : item.status === 'partial'
-                              ? <span className="text-amber-600 font-medium">{formatSum(item.paid_amount)} so'm</span>
-                              : <span className="text-gray-400">0 so'm</span>
-                          }
-                        </td>
-                        <td className="p-3 text-right">
-                          {item.debt > 0 ? (
-                            <span className="font-medium text-red-600">{formatSum(item.debt)} so'm</span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="p-3 text-center">{statusBadge(item.status)}</td>
-                        <td className="p-3 text-center text-xs text-gray-500">
-                          {item.payment?.paid_at ? formatDate(item.payment.paid_at) : '-'}
-                        </td>
-                        <td className="p-3 text-center">
-                          {item.overdue_days > 0 ? (
-                            <span className="inline-flex items-center gap-1 text-orange-600 font-medium text-xs">
-                              <CalendarDays className="h-3 w-3" /> {item.overdue_days} kun
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
+                       <tr key={`${item.student.id}-${item.group?.id || idx}`} className="border-b border-gray-100 hover:bg-gray-50">
+                         <td className="p-3">
+                           <Link href={`/students/${item.student.id}`} className="font-medium text-gray-900 hover:text-blue-600">
+                             {item.student.first_name} {item.student.last_name}
+                           </Link>
+                           <div className="text-xs text-gray-400">{item.student.phone_number}</div>
+                         </td>
+                         <td className="p-3 text-gray-600">
+                           <Link href={`/groups/${item.group?.id}`} className="hover:text-blue-600">
+                             {item.group?.name || '-'}
+                           </Link>
+                         </td>
+                         <td className="p-3 text-center text-gray-600 text-sm">{monthNames[item.month - 1]} {item.year}</td>
+                         <td className="p-3 text-right font-medium text-gray-900">{formatSum(item.monthly_price)} so'm</td>
+                         <td className="p-3 text-right text-gray-700">
+                           {item.status === 'paid'
+                             ? <span className="text-green-600 font-medium">{formatSum(item.paid_amount)} so'm</span>
+                             : item.status === 'partial'
+                               ? <span className="text-amber-600 font-medium">{formatSum(item.paid_amount)} so'm</span>
+                               : <span className="text-gray-400">0 so'm</span>
+                           }
+                         </td>
+                         <td className="p-3 text-right">
+                           {item.debt > 0 ? (
+                             <span className="font-medium text-red-600">{formatSum(item.debt)} so'm</span>
+                           ) : (
+                             <span className="text-gray-400">-</span>
+                           )}
+                         </td>
+                         <td className="p-3 text-center">{statusBadge(item.status)}</td>
+                         <td className="p-3 text-center text-xs text-gray-500">
+                           {item.payment?.paid_at ? formatDate(item.payment.paid_at) : '-'}
+                         </td>
+                         <td className="p-3 text-center">
+                           {item.overdue_days > 0 ? (
+                             <span className="inline-flex items-center gap-1 text-orange-600 font-medium text-xs">
+                               <CalendarDays className="h-3 w-3" /> {item.overdue_days} kun
+                             </span>
+                           ) : (
+                             <span className="text-gray-400">-</span>
+                           )}
+                         </td>
                         <td className="p-3 text-right">
                           <div className="flex justify-end gap-1">
                             {item.status !== 'paid' && (
@@ -491,20 +496,27 @@ export default function PaymentsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-2">
-                  <Label>Summa</Label>
-                  <Input type="number" value={createForm.amount} onChange={e => setCreateForm({ ...createForm, amount: e.target.value })} required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Oy</Label>
-                  <Input type="number" min={1} max={12} value={createForm.month} onChange={e => setCreateForm({ ...createForm, month: e.target.value })} required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Yil</Label>
-                  <Input type="number" value={createForm.year} onChange={e => setCreateForm({ ...createForm, year: e.target.value })} required />
-                </div>
-              </div>
+               <div className="grid grid-cols-3 gap-3">
+                 <div className="space-y-2">
+                   <Label>Summa</Label>
+                   <Input type="number" value={createForm.amount} onChange={e => setCreateForm({ ...createForm, amount: e.target.value })} required />
+                 </div>
+                 <div className="space-y-2">
+                   <Label>Oy</Label>
+                   <Select value={createForm.month} onValueChange={v => setCreateForm({ ...createForm, month: v })}>
+                     <SelectTrigger><SelectValue /></SelectTrigger>
+                     <SelectContent>
+                       {monthNames.map((name, i) => (
+                         <SelectItem key={i + 1} value={String(i + 1)}>{name}</SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 </div>
+                 <div className="space-y-2">
+                   <Label>Yil</Label>
+                   <Input type="number" value={createForm.year} onChange={e => setCreateForm({ ...createForm, year: e.target.value })} required />
+                 </div>
+               </div>
               <div className="space-y-2">
                 <Label>Izoh</Label>
                 <Input value={createForm.note} onChange={e => setCreateForm({ ...createForm, note: e.target.value })} placeholder="To'lov haqida izoh" />

@@ -67,7 +67,7 @@ export const paymentsApi = {
   getMonthlyIncome: (year: number) =>
     api.get<{ month: number; year: number; total: number }[]>('/payments/monthly-income', { params: { year } }).then(r => r.data),
 
-  create: (data: { student_id: number; group_id: number; amount: number; month: number; year: number; status?: string; note?: string }) =>
+  create: (data: { student_id: number; group_id: number; amount: number; month: number; year: number; status?: string; note?: string; paid_at?: string }) =>
     api.post<Payment>('/payments', data).then(r => r.data),
 
   update: (id: number, data: { amount?: number; status?: string; paid_at?: string; note?: string }) =>
@@ -87,4 +87,34 @@ export const paymentsApi = {
 
   checkReminders: (groupId: number) =>
     api.post<{ sent: number; total_unpaid: number }>('/payments/check-reminders', { group_id: groupId }).then(r => r.data),
+
+  exportToExcel: (month: number, year: number) => {
+    const baseURL = api.defaults.baseURL || 'https://api.ilmify-edu.uz';
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : '';
+    const url = `${baseURL}/payments/export?month=${month}&year=${year}`;
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Tovlovlar_${month}_${year}.xlsx`;
+    
+    // Add token to headers if available
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+    xhr.responseType = 'blob';
+    xhr.onload = () => {
+      const urlObj = window.URL.createObjectURL(xhr.response);
+      const link = document.createElement('a');
+      link.href = urlObj;
+      link.download = `Tovlovlar_${month}_${year}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(urlObj);
+    };
+    xhr.onerror = () => console.error('Excel yuklab olishda xatolik');
+    xhr.send();
+  },
 };
