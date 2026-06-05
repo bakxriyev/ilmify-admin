@@ -20,8 +20,8 @@ import { paymentsApi, type GroupPaymentSummary, type PaymentStats } from '@/api/
 import { groupsApi, type Group } from '@/api/groupsApi';
 import { studentsApi, type Student } from '@/api/studentApi';
 import {
-  Wallet, DollarSign, CheckCircle, XCircle, Clock, Plus, Search,
-  RefreshCw, ChevronRight, Filter, AlertCircle, Users, CalendarDays, CreditCard, Download,
+  Wallet, CheckCircle, XCircle, Clock, Plus, Search,
+  RefreshCw, ChevronRight, Filter, AlertCircle, Users, CalendarDays, Download,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -36,7 +36,6 @@ export default function PaymentsPage() {
   const [filterMonth, setFilterMonth] = useState(String(new Date().getMonth() + 1));
   const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()));
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState({ student_id: '', group_id: '', amount: '', month: String(new Date().getMonth() + 1), year: String(new Date().getFullYear()), note: '' });
   const [students, setStudents] = useState<Student[]>([]);
   const [studentSearch, setStudentSearch] = useState('');
   
@@ -129,7 +128,6 @@ export default function PaymentsPage() {
         return;
       }
 
-      // To'lovni yangilash
       await paymentsApi.update(selectedPaymentId, {
         status: 'paid',
         paid_at: new Date().toISOString().split('T')[0],
@@ -138,14 +136,6 @@ export default function PaymentsPage() {
 
       toast.success("To'lov qabul qilindi");
       setShowCreateModal(false);
-      loadData();
-      loadYearOverview();
-    } catch (err: any) { toast.error(err.message || 'Xatolik'); }
-  };
-      });
-      toast.success("To'lov qo'shildi");
-      setShowCreateModal(false);
-      setCreateForm({ student_id: '', group_id: '', amount: '', month: filterMonth, year: filterYear, note: '' });
       loadData();
       loadYearOverview();
     } catch (err: any) { toast.error(err.message || 'Xatolik'); }
@@ -210,17 +200,17 @@ export default function PaymentsPage() {
             </h1>
             <p className="text-gray-500">{monthNames[Number(filterMonth) - 1]} {filterYear} — oyi uchun to'lov holati</p>
           </div>
-           <div className="flex gap-2">
-             <Button variant="outline" onClick={() => { loadData(); loadYearOverview(); }} className="border-gray-300">
-               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Yangilash
-             </Button>
-             <Button onClick={() => paymentsApi.exportToExcel(Number(filterMonth), Number(filterYear))} className="bg-blue-600 hover:bg-blue-700 text-white">
-               <Download className="h-4 w-4 mr-2" /> Excel
-             </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => { loadData(); loadYearOverview(); }} className="border-gray-300">
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Yangilash
+            </Button>
+            <Button onClick={() => paymentsApi.exportToExcel(Number(filterMonth), Number(filterYear))} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Download className="h-4 w-4 mr-2" /> Excel
+            </Button>
             <Button onClick={openCreateModal} className="bg-green-600 hover:bg-green-700 text-white">
               <Plus className="h-4 w-4 mr-2" /> Qarzdorlikni to'lash
             </Button>
-           </div>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -331,22 +321,22 @@ export default function PaymentsPage() {
                 <Select value={filterYear} onValueChange={v => setFilterYear(v)}>
                   <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {[2024,2025,2026].map(y => (
+                    {[2024, 2025, 2026, 2027].map(y => (
                       <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={filterGroup} onValueChange={setFilterGroup}>
-                  <SelectTrigger className="w-40"><SelectValue placeholder="Guruh" /></SelectTrigger>
+                <Select value={filterGroup} onValueChange={v => setFilterGroup(v)}>
+                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Barcha guruhlar</SelectItem>
                     {groups.map(g => (
-                      <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                      <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-36"><SelectValue placeholder="Holat" /></SelectTrigger>
+                <Select value={filterStatus} onValueChange={v => setFilterStatus(v)}>
+                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Barcha holatlar</SelectItem>
                     <SelectItem value="paid">To'langan</SelectItem>
@@ -374,64 +364,64 @@ export default function PaymentsPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                   <thead className="bg-gray-50">
-                     <tr>
-                       <th className="text-left p-3 text-gray-600 font-medium">Student</th>
-                       <th className="text-left p-3 text-gray-600 font-medium">Guruh</th>
-                       <th className="text-center p-3 text-gray-600 font-medium">Oy</th>
-                       <th className="text-right p-3 text-gray-600 font-medium">Summa</th>
-                       <th className="text-right p-3 text-gray-600 font-medium">To'lagan</th>
-                       <th className="text-right p-3 text-gray-600 font-medium">Qarzdorlik</th>
-                       <th className="text-center p-3 text-gray-600 font-medium">Holat</th>
-                       <th className="text-center p-3 text-gray-600 font-medium">To'lov sanasi</th>
-                       <th className="text-center p-3 text-gray-600 font-medium">Kechikish</th>
-                       <th className="text-right p-3 text-gray-600 font-medium">Amallar</th>
-                     </tr>
-                   </thead>
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left p-3 text-gray-600 font-medium">Student</th>
+                      <th className="text-left p-3 text-gray-600 font-medium">Guruh</th>
+                      <th className="text-center p-3 text-gray-600 font-medium">Oy</th>
+                      <th className="text-right p-3 text-gray-600 font-medium">Summa</th>
+                      <th className="text-right p-3 text-gray-600 font-medium">To'lagan</th>
+                      <th className="text-right p-3 text-gray-600 font-medium">Qarzdorlik</th>
+                      <th className="text-center p-3 text-gray-600 font-medium">Holat</th>
+                      <th className="text-center p-3 text-gray-600 font-medium">To'lov sanasi</th>
+                      <th className="text-center p-3 text-gray-600 font-medium">Kechikish</th>
+                      <th className="text-right p-3 text-gray-600 font-medium">Amallar</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {filteredItems.map((item, idx) => (
-                       <tr key={`${item.student.id}-${item.group?.id || idx}`} className="border-b border-gray-100 hover:bg-gray-50">
-                         <td className="p-3">
-                           <Link href={`/students/${item.student.id}`} className="font-medium text-gray-900 hover:text-blue-600">
-                             {item.student.first_name} {item.student.last_name}
-                           </Link>
-                           <div className="text-xs text-gray-400">{item.student.phone_number}</div>
-                         </td>
-                         <td className="p-3 text-gray-600">
-                           <Link href={`/groups/${item.group?.id}`} className="hover:text-blue-600">
-                             {item.group?.name || '-'}
-                           </Link>
-                         </td>
-                         <td className="p-3 text-center text-gray-600 text-sm">{monthNames[item.month - 1]} {item.year}</td>
-                         <td className="p-3 text-right font-medium text-gray-900">{formatSum(item.monthly_price)} so'm</td>
-                         <td className="p-3 text-right text-gray-700">
-                           {item.status === 'paid'
-                             ? <span className="text-green-600 font-medium">{formatSum(item.paid_amount)} so'm</span>
-                             : item.status === 'partial'
-                               ? <span className="text-amber-600 font-medium">{formatSum(item.paid_amount)} so'm</span>
-                               : <span className="text-gray-400">0 so'm</span>
-                           }
-                         </td>
-                         <td className="p-3 text-right">
-                           {item.debt > 0 ? (
-                             <span className="font-medium text-red-600">{formatSum(item.debt)} so'm</span>
-                           ) : (
-                             <span className="text-gray-400">-</span>
-                           )}
-                         </td>
-                         <td className="p-3 text-center">{statusBadge(item.status)}</td>
-                         <td className="p-3 text-center text-xs text-gray-500">
-                           {item.payment?.paid_at ? formatDate(item.payment.paid_at) : '-'}
-                         </td>
-                         <td className="p-3 text-center">
-                           {item.overdue_days > 0 ? (
-                             <span className="inline-flex items-center gap-1 text-orange-600 font-medium text-xs">
-                               <CalendarDays className="h-3 w-3" /> {item.overdue_days} kun
-                             </span>
-                           ) : (
-                             <span className="text-gray-400">-</span>
-                           )}
-                         </td>
+                      <tr key={`${item.student.id}-${item.group?.id || idx}`} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="p-3">
+                          <Link href={`/students/${item.student.id}`} className="font-medium text-gray-900 hover:text-blue-600">
+                            {item.student.first_name} {item.student.last_name}
+                          </Link>
+                          <div className="text-xs text-gray-400">{item.student.phone_number}</div>
+                        </td>
+                        <td className="p-3 text-gray-600">
+                          <Link href={`/groups/${item.group?.id}`} className="hover:text-blue-600">
+                            {item.group?.name || '-'}
+                          </Link>
+                        </td>
+                        <td className="p-3 text-center text-gray-600 text-sm">{monthNames[item.month - 1]} {item.year}</td>
+                        <td className="p-3 text-right font-medium text-gray-900">{formatSum(item.monthly_price)} so'm</td>
+                        <td className="p-3 text-right text-gray-700">
+                          {item.status === 'paid'
+                            ? <span className="text-green-600 font-medium">{formatSum(item.paid_amount)} so'm</span>
+                            : item.status === 'partial'
+                              ? <span className="text-amber-600 font-medium">{formatSum(item.paid_amount)} so'm</span>
+                              : <span className="text-gray-400">0 so'm</span>
+                          }
+                        </td>
+                        <td className="p-3 text-right">
+                          {item.debt > 0 ? (
+                            <span className="font-medium text-red-600">{formatSum(item.debt)} so'm</span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">{statusBadge(item.status)}</td>
+                        <td className="p-3 text-center text-xs text-gray-500">
+                          {item.payment?.paid_at ? formatDate(item.payment.paid_at) : '-'}
+                        </td>
+                        <td className="p-3 text-center">
+                          {item.overdue_days > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-orange-600 font-medium text-xs">
+                              <CalendarDays className="h-3 w-3" /> {item.overdue_days} kun
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
                         <td className="p-3 text-right">
                           <div className="flex justify-end gap-1">
                             {item.status !== 'paid' && (
@@ -471,7 +461,6 @@ export default function PaymentsPage() {
             </DialogHeader>
 
             {!selectedStudentDebts ? (
-              // Step 1: Student qidirish
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Student ism/familiyasini qidiring</Label>
@@ -508,7 +497,6 @@ export default function PaymentsPage() {
                 </div>
               </div>
             ) : (
-              // Step 2: Qarzdorliklar va to'lovlar
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-red-50 p-3 rounded-lg border border-red-200">
@@ -521,7 +509,6 @@ export default function PaymentsPage() {
                   </div>
                 </div>
 
-                {/* Qarzdorliklar */}
                 {selectedStudentDebts.debts && selectedStudentDebts.debts.length > 0 && (
                   <div className="space-y-2">
                     <h3 className="font-medium text-gray-900">Qarzdorliklar</h3>
@@ -557,7 +544,6 @@ export default function PaymentsPage() {
                   </div>
                 )}
 
-                {/* To'langan oylar */}
                 {selectedStudentDebts.paid_payments && selectedStudentDebts.paid_payments.length > 0 && (
                   <div className="space-y-2">
                     <h3 className="font-medium text-gray-900">To'langan oylar</h3>
@@ -577,7 +563,6 @@ export default function PaymentsPage() {
                   </div>
                 )}
 
-                {/* To'lov qilish qismi */}
                 {selectedPaymentId && (
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-3">
                     <div className="space-y-2">
