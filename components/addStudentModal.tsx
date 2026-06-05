@@ -136,7 +136,7 @@ export default function AddStudentsModal({
         <DialogHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             <UserPlus className="h-6 w-6" />
-            Guruhga student qo'shish
+            Guruhga studentlarni qo'shish
           </DialogTitle>
           <DialogDescription className="text-blue-100 text-base">
             Guruh: <span className="font-semibold text-white">{groupName}</span>
