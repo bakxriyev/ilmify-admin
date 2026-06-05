@@ -51,7 +51,7 @@ export default function SmsLogTable() {
               <Download className="h-4 w-4 mr-1" /> CSV
             </Button>
             <Button variant="outline" size="sm" onClick={refetch} disabled={loading}>
-              <Loader2 className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Yangilashh
+              <Loader2 className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Yangilash
             </Button>
           </div>
         </div>
