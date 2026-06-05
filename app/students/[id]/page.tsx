@@ -9,7 +9,7 @@ import {
   Edit, Trash2, BarChart3, X, AlertCircle, CheckCircle, Loader2,
   Eye, EyeOff, GraduationCap, BookOpen, Clock, DollarSign, Wallet,
   Heart, Shield, School, MapPin, Hash, UserCheck, CreditCard,
-  ChevronDown, ChevronUp, RefreshCw, XCircle,
+  ChevronDown, ChevronUp, RefreshCw, XCircle, Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -63,13 +63,25 @@ export default function StudentDetailPage() {
   const [editValue, setEditValue] = useState('');
   const [isSavingField, setIsSavingField] = useState(false);
 
+  // YANGI TO'LOV UCHUN STATLAR
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [debtData, setDebtData] = useState<any>(null);
+  const [paymentStep, setPaymentStep] = useState(1); // 1: Jadval, 2: Oyni tanlash, 3: To'lovni kiritish
+  const [selectedDebtId, setSelectedDebtId] = useState<number | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+
   useEffect(() => {
     Promise.all([
       studentsApi.getById(id),
       paymentsApi.findByStudent(Number(id)),
-    ]).then(([s, p]) => {
+      paymentsApi.getStudentDebts(Number(id)),
+    ]).then(([s, p, d]) => {
       setStudent(s);
       setPayments(p);
+      setDebtData(d);
     }).catch(err => setError(err.message || 'Xatolik')).finally(() => setLoading(false));
   }, [id]);
 
@@ -549,17 +561,104 @@ export default function StudentDetailPage() {
               <Card className="border-0 shadow-md">
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="p-2.5 bg-red-50 rounded-lg"><DollarSign className="h-5 w-5 text-red-600" /></div>
-                  <div><p className="text-xs text-gray-500">Qarzdorlik</p><p className="text-lg font-bold text-red-600">{totalUnpaid.toLocaleString()} so'm</p></div>
+                  <div><p className="text-xs text-gray-500">Jami qarzdorlik</p><p className="text-lg font-bold text-red-600">{(debtData?.total_debt || 0).toLocaleString()} so'm</p></div>
                 </CardContent>
               </Card>
             </div>
 
-            <Card className="border-0 shadow-md">
-              <CardHeader><CardTitle>To'lov tarixi</CardTitle></CardHeader>
-              <CardContent className="p-0">
-                {payments.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500"><Wallet className="h-12 w-12 mx-auto text-gray-300 mb-3" /><p>To'lovlar mavjud emas</p></div>
-                ) : (
+            {/* QARZDORLikLAR JA DVAL */}
+            {debtData?.debts && debtData.debts.length > 0 && (
+              <Card className="border-0 shadow-md border-l-4 border-l-red-500">
+                <CardHeader className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-red-600" /> 
+                    Qarzdorliklar ({debtData.debts.length})
+                  </CardTitle>
+                  <Button onClick={() => { setPaymentStep(1); setShowPaymentDialog(true); }} className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="h-4 w-4 mr-2" /> To'lov qilish
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-red-50">
+                        <TableRow>
+                          <TableHead>Oy</TableHead>
+                          <TableHead>Guruh</TableHead>
+                          <TableHead className="text-right">Summa</TableHead>
+                          <TableHead className="text-center">Holat</TableHead>
+                          <TableHead className="text-center">Amal</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {debtData.debts.map((d: any) => (
+                          <TableRow key={`${d.year}-${d.month}`} className="hover:bg-red-50">
+                            <TableCell className="font-medium">{d.month_name} {d.year}</TableCell>
+                            <TableCell>{d.group_name}</TableCell>
+                            <TableCell className="text-right font-bold text-red-600">{(d.amount).toLocaleString()} so'm</TableCell>
+                            <TableCell className="text-center">
+                              <Badge className="bg-red-100 text-red-700 border-0">Qarzdorlik</Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                onClick={() => { setSelectedDebtId(d.id || 0); setPaymentAmount(d.amount.toString()); setPaymentStep(3); setShowPaymentDialog(true); }}
+                                className="text-blue-600 hover:text-blue-800 h-7"
+                              >
+                                To'lash
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* TO'LANGAN TO'LOVLAR JA DVAL */}
+            {debtData?.paid_payments && debtData.paid_payments.length > 0 && (
+              <Card className="border-0 shadow-md border-l-4 border-l-green-500">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" /> 
+                    To'langan To'lovlar ({debtData.paid_payments.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-green-50">
+                        <TableRow>
+                          <TableHead>Oy</TableHead>
+                          <TableHead>Guruh</TableHead>
+                          <TableHead className="text-right">Summa</TableHead>
+                          <TableHead>To'landi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {debtData.paid_payments.map((p: any) => (
+                          <TableRow key={p.id} className="hover:bg-green-50">
+                            <TableCell className="font-medium">{p.month_name} {p.year}</TableCell>
+                            <TableCell>{p.group_name}</TableCell>
+                            <TableCell className="text-right font-bold text-green-600">{(p.amount).toLocaleString()} so'm</TableCell>
+                            <TableCell className="text-sm text-gray-500">{p.paid_at}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ESKI TO'LOVLAR JADVAL (tarixiy) */}
+            {payments.length > 0 && (
+              <Card className="border-0 shadow-md">
+                <CardHeader><CardTitle>To'lov tarixi</CardTitle></CardHeader>
+                <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader className="bg-gray-50">
@@ -590,9 +689,123 @@ export default function StudentDetailPage() {
                       </TableBody>
                     </Table>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* QARZDORLik BO'LSA DIALOG */}
+            <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+              <DialogContent className="max-w-2xl bg-white">
+                {paymentStep === 1 && (
+                  <>
+                    <DialogHeader>
+                      <DialogTitle className="text-lg">Qarzdorlikni to'lash</DialogTitle>
+                      <DialogDescription>O'quvchi {student?.first_name} {student?.last_name} uchun qarzdorliklar</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                      {debtData?.debts?.length > 0 ? (
+                        debtData.debts.map((d: any) => (
+                          <div
+                            key={`${d.year}-${d.month}`}
+                            onClick={() => { setSelectedDebtId(d.id || 0); setPaymentAmount(d.amount.toString()); setPaymentStep(3); }}
+                            className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-gray-900">{d.month_name} {d.year}</p>
+                                <p className="text-sm text-gray-500">{d.group_name}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-red-600">{(d.amount).toLocaleString()} so'm</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <CheckCircle className="h-12 w-12 mx-auto text-green-500 mb-3" />
+                          <p className="font-medium">Qarzdorlik yo'q!</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
-              </CardContent>
-            </Card>
+
+                {paymentStep === 3 && (
+                  <>
+                    <DialogHeader>
+                      <DialogTitle className="text-lg">To'lov qilish</DialogTitle>
+                      <DialogDescription>To'lov miqdorini va izohni kiriting</DialogDescription>
+                    </DialogHeader>
+                    {paymentError && (
+                      <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{paymentError}</AlertDescription></Alert>
+                    )}
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-gray-700 font-medium">To'lov miqdori (so'm)</Label>
+                        <Input
+                          type="number"
+                          value={paymentAmount}
+                          onChange={e => { setPaymentAmount(e.target.value); setPaymentError(''); }}
+                          placeholder="Miqdorni kiriting"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-700 font-medium">Izoh (ixtiyoriy)</Label>
+                        <Input
+                          value={paymentNote}
+                          onChange={e => setPaymentNote(e.target.value)}
+                          placeholder="To'lov izohini kiriting"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter className="gap-2">
+                      <Button variant="outline" onClick={() => { setPaymentStep(1); setPaymentError(''); }}>Boshqa</Button>
+                      <Button variant="outline" onClick={() => { setShowPaymentDialog(false); setPaymentAmount(''); setPaymentNote(''); setPaymentStep(1); }}>Bekor</Button>
+                      <Button 
+                        onClick={async () => {
+                          if (!paymentAmount || Number(paymentAmount) <= 0) {
+                            setPaymentError('To\'lov miqdori 0 dan katta bo\'lishi kerak');
+                            return;
+                          }
+                          try {
+                            setIsPaymentLoading(true);
+                            await paymentsApi.update(selectedDebtId || 0, {
+                              status: 'paid',
+                              paid_at: new Date().toISOString().split('T')[0],
+                              note: paymentNote,
+                            });
+                            toast.success('To\'lov muvaffaqiyatli qabul qilindi!');
+                            setShowPaymentDialog(false);
+                            setPaymentAmount('');
+                            setPaymentNote('');
+                            setPaymentStep(1);
+                            // Qayta yuklash
+                            const [p, d] = await Promise.all([
+                              paymentsApi.findByStudent(Number(id)),
+                              paymentsApi.getStudentDebts(Number(id)),
+                            ]);
+                            setPayments(p);
+                            setDebtData(d);
+                          } catch (err: any) {
+                            setPaymentError(err.message || 'To\'lovda xatolik');
+                          } finally {
+                            setIsPaymentLoading(false);
+                          }
+                        }}
+                        disabled={isPaymentLoading}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {isPaymentLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                        ✓ To'lovni qabul qilish
+                      </Button>
+                    </DialogFooter>
+                  </>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           <TabsContent value="parents" className="space-y-6">
