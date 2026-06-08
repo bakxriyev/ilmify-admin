@@ -105,7 +105,7 @@ export default function StudentForm({
       errors.phone_number = 'Telefon raqami kiritilishi shart';
     }
     if (requirePassword && !formData.password?.trim()) {
-      errors.password = 'Parol kiritilishi shart';
+      errors.password = 'Parol kiritilishi shartli';
     }
 
     setValidationErrors(errors);
