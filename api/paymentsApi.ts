@@ -133,24 +133,29 @@ export const paymentsApi = {
   exportToExcel: (month: number, year: number) => {
     const baseURL = api.defaults.baseURL || 'https://api.ilmify-edu.uz';
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : '';
-    const url = `${baseURL}/payments/export?month=${month}&year=${year}`;
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Tovlovlar_${month}_${year}.xlsx`;
-    
-    // Add token to headers if available
+    const adminRaw = typeof window !== 'undefined' ? localStorage.getItem('admin') : '';
+    let centerId = '';
+    try { const a = JSON.parse(adminRaw || '{}'); centerId = a.center_id || ''; } catch {}
+
     const xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    if (token) {
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    }
+    xhr.open('GET', `${baseURL}/payments/export?month=${month}&year=${year}`, true);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    if (centerId) xhr.setRequestHeader('x-center-id', String(centerId));
     xhr.responseType = 'blob';
     xhr.onload = () => {
+      if (xhr.status !== 200) {
+        console.error('Excel yuklab olishda xatolik:', xhr.status);
+        return;
+      }
+      const disposition = xhr.getResponseHeader('Content-Disposition') || '';
+      let fileName = `Tolovlar_${month}_${year}.xlsx`;
+      const match = disposition.match(/filename\*=UTF-8''([^;]+)/);
+      if (match) fileName = decodeURIComponent(match[1]);
+
       const urlObj = window.URL.createObjectURL(xhr.response);
       const link = document.createElement('a');
       link.href = urlObj;
-      link.download = `Tovlovlar_${month}_${year}.xlsx`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
