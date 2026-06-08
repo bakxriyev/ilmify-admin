@@ -5,7 +5,10 @@ import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
 
-export function useNotificationSocket(onNotification: (data: any) => void) {
+export function useNotificationSocket(
+  onNotification: (data: any) => void,
+  onAudit?: (data: any) => void,
+) {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -30,7 +33,7 @@ export function useNotificationSocket(onNotification: (data: any) => void) {
         token,
         centerId: centerId ? String(centerId) : '',
       },
-      transports: ['polling'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 3000,
@@ -43,6 +46,10 @@ export function useNotificationSocket(onNotification: (data: any) => void) {
 
     socket.on('notification', (data: any) => {
       onNotification(data);
+    });
+
+    socket.on('audit', (data: any) => {
+      if (onAudit) onAudit(data);
     });
 
     socket.on('disconnect', (reason) => {
@@ -59,7 +66,7 @@ export function useNotificationSocket(onNotification: (data: any) => void) {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [onNotification]);
+  }, [onNotification, onAudit]);
 
   return socketRef;
 }

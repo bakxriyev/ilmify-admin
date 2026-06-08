@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '@/components/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,8 +12,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { auditApi, type AuditLog, type AuditLogResponse } from '@/api/auditApi';
+import { useNotificationSocket } from '@/lib/useNotificationSocket';
 import {
-  Activity, Search, RefreshCw, ChevronLeft, ChevronRight, Filter, Clock, User, Hash, X,
+  Activity, Search, RefreshCw, ChevronLeft, ChevronRight, Clock, User, Hash, X, Radio,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -37,6 +38,9 @@ export default function MonitoringPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [liveCount, setLiveCount] = useState(0);
+  const [highlightedIds, setHighlightedIds] = useState<Set<number>>(new Set());
+  const tableRef = useRef<HTMLDivElement>(null);
 
   // Filters
   const [actions, setActions] = useState<string[]>([]);
@@ -62,6 +66,7 @@ export default function MonitoringPage() {
   const loadData = async (p: number) => {
     try {
       setLoading(true);
+      setLiveCount(0);
       const res = await auditApi.getAll({
         page: p,
         limit: PAGE_SIZE,
@@ -83,6 +88,50 @@ export default function MonitoringPage() {
     }
   };
 
+  // Real-time audit events
+  const onAudit = useCallback((log: AuditLog) => {
+    setData(prev => [log, ...prev].slice(0, PAGE_SIZE));
+    setTotal(prev => prev + 1);
+    setLiveCount(prev => prev + 1);
+    setHighlightedIds(prev => new Set(prev).add(log.id));
+
+    // Remove highlight after 3 seconds
+    setTimeout(() => {
+      setHighlightedIds(prev => {
+        const next = new Set(prev);
+        next.delete(log.id);
+        return next;
+      });
+    }, 3000);
+
+    const actionLabel = ACTION_LABELS[log.action] || log.action;
+    const msg = log.description || `${actionLabel}: ${log.entity_type}`;
+    toast.custom(
+      (t) => (
+        <div
+          onClick={() => toast.dismiss(t.id)}
+          className={`px-4 py-3 rounded-xl shadow-lg border cursor-pointer transition-all
+            ${log.action === 'create' ? 'bg-green-50 border-green-200' :
+              log.action === 'delete' ? 'bg-red-50 border-red-200' :
+              'bg-blue-50 border-blue-200'}`}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">
+              {log.action === 'create' ? '✅' : log.action === 'delete' ? '🗑️' : '✏️'}
+            </span>
+            <div>
+              <p className="text-sm font-medium text-gray-900">{log.admin_name}</p>
+              <p className="text-xs text-gray-600">{msg}</p>
+            </div>
+          </div>
+        </div>
+      ),
+      { duration: 3000, position: 'top-right' }
+    );
+  }, []);
+
+  useNotificationSocket(() => {}, onAudit);
+
   useEffect(() => { loadFilters(); }, []);
 
   useEffect(() => {
@@ -102,6 +151,13 @@ export default function MonitoringPage() {
     setToDate('');
     setSortOrder('desc');
     setPage(1);
+    setLiveCount(0);
+    loadData(1);
+  };
+
+  const handleRefresh = () => {
+    setPage(1);
+    setLiveCount(0);
     loadData(1);
   };
 
@@ -111,6 +167,16 @@ export default function MonitoringPage() {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
     });
+  };
+
+  const formatTimeAgo = (d: string) => {
+    const diff = Date.now() - new Date(d).getTime();
+    const sec = Math.floor(diff / 1000);
+    if (sec < 10) return 'hozir';
+    if (sec < 60) return `${sec} soniya oldin`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min} daqiqa oldin`;
+    return formatDateTime(d);
   };
 
   const hasFilters = filterAction !== 'all' || filterEntity !== 'all' || search || fromDate || toDate;
@@ -145,7 +211,17 @@ export default function MonitoringPage() {
             <p className="text-gray-500">Tizimdagi barcha amallar kuzatuvi</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => { setPage(1); loadData(1); }} className="border-gray-300">
+            {liveCount > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => { setPage(1); setLiveCount(0); }}
+                className="border-green-300 bg-green-50 text-green-700 animate-pulse hover:bg-green-100"
+              >
+                <Radio className="h-4 w-4 mr-2" />
+                {liveCount} ta yangi
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleRefresh} className="border-gray-300">
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Yangilash
             </Button>
           </div>
@@ -217,7 +293,7 @@ export default function MonitoringPage() {
 
         {/* Table */}
         <Card className="border-0 shadow-md">
-          <CardContent className="p-0">
+          <CardContent className="p-0" ref={tableRef}>
             {loading ? (
               <div className="p-6 space-y-3">
                 {Array.from({ length: 8 }).map((_, i) => (
@@ -257,9 +333,32 @@ export default function MonitoringPage() {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {data.map((log) => (
-                        <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{log.id}</td>
-                          <td className="px-4 py-3 text-gray-900">{log.admin_name}</td>
+                        <tr
+                          key={log.id}
+                          className={`transition-all duration-1000 ${
+                            highlightedIds.has(log.id)
+                              ? 'bg-blue-50/70 shadow-inner scale-[1.002]'
+                              : 'hover:bg-gray-50/50'
+                          }`}
+                        >
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {highlightedIds.has(log.id) && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                              )}
+                              <span className="text-gray-400 font-mono text-xs">{log.id}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-900">{log.admin_name}</span>
+                              {highlightedIds.has(log.id) && (
+                                <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0">
+                                  LIVE
+                                </Badge>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-4 py-3">
                             <Badge variant="outline" className={`text-xs font-medium ${ACTION_COLORS[log.action] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
                               {ACTION_LABELS[log.action] || log.action}
@@ -273,9 +372,9 @@ export default function MonitoringPage() {
                           </td>
                           <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{log.description || '-'}</td>
                           <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1" title={formatDateTime(log.created_at)}>
                               <Clock className="h-3 w-3" />
-                              {formatDateTime(log.created_at)}
+                              {formatTimeAgo(log.created_at)}
                             </div>
                           </td>
                         </tr>
