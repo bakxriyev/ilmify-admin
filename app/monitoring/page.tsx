@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { auditApi, type AuditLog, type AuditLogResponse } from '@/api/auditApi';
+import { auditApi, type AuditLog } from '@/api/auditApi';
 import { useNotificationSocket } from '@/lib/useNotificationSocket';
 import {
   Activity, Search, RefreshCw, ChevronLeft, ChevronRight, Clock, User, Hash, X, Radio,
@@ -130,7 +130,8 @@ export default function MonitoringPage() {
     );
   }, []);
 
-  useNotificationSocket(() => {}, onAudit);
+  const onNotif = useCallback(() => {}, []);
+  useNotificationSocket(onNotif, onAudit);
 
   useEffect(() => { loadFilters(); }, []);
 
