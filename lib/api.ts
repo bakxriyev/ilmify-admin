@@ -2,7 +2,7 @@ import axios from 'axios';
 import { setLastActivity } from './activityTracker';
 import { logoutAndRedirect, tryRefreshToken } from './tokenUtils';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
 
 let isRefreshing = false;
 let refreshQueue: Array<{
