@@ -17,6 +17,7 @@ export default function StudentPaymentsPage() {
   const studentId = Number(params.id);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 
   useEffect(() => {
     paymentsApi.findByStudent(studentId).then(setPayments).catch(() => {}).finally(() => setLoading(false));
@@ -79,7 +80,7 @@ export default function StudentPaymentsPage() {
                     {payments.map(p => (
                       <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="p-3 text-gray-900 font-medium">{p.group?.name}</td>
-                        <td className="p-3 text-gray-600">{p.month}-oy / {p.year}</td>
+                        <td className="p-3 text-gray-600">{monthNames[p.month - 1]} {p.year}</td>
                         <td className="p-3 text-right text-gray-900 font-medium">{p.amount.toLocaleString()} so'm</td>
                         <td className="p-3 text-center">
                           <Badge className={p.status === 'paid' ? 'bg-green-100 text-green-700' : p.status === 'partial' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}>

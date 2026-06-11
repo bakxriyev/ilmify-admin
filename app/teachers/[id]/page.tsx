@@ -60,6 +60,16 @@ export default function TeacherDetailPage() {
     fetchData();
   }, [id]);
 
+  const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+  const formatLessonDate = (dateString: string) => {
+    const d = new Date(dateString);
+    return `${d.getDate()} ${monthNames[d.getMonth()]}`;
+  };
+  const formatLessonDateFull = (dateString: string) => {
+    const d = new Date(dateString);
+    const weekdays = ['Yak','Du','Se','Cho','Pay','Ju','Sha'];
+    return `${weekdays[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]}`;
+  };
   const formatPhone = (phone: string) => {
     const digits = phone.replace(/\D/g, '');
     if (digits.length === 12 && digits.startsWith('998'))
@@ -234,7 +244,7 @@ export default function TeacherDetailPage() {
                               )}
                             </td>
                             <td className="p-2 text-center text-xs font-medium">{g.kp ? `${Number(g.kp).toLocaleString()} so'm` : '-'}</td>
-                            <td className="p-2 text-xs text-gray-500">{nextLesson ? `${new Date(nextLesson.date).toLocaleDateString('uz-UZ', { weekday: 'short', day: 'numeric', month: 'short' })} ${nextLesson.time?.slice(0,5)}` : '-'}</td>
+                            <td className="p-2 text-xs text-gray-500">{nextLesson ? `${formatLessonDateFull(nextLesson.date)} ${nextLesson.time?.slice(0,5)}` : '-'}</td>
                           </tr>
                           );
                         })}
@@ -280,7 +290,7 @@ export default function TeacherDetailPage() {
                               {g.lessons.slice(0, 3).map((l: any) => (
                                 <div key={l.id} className="flex items-center gap-2 text-gray-500">
                                   <Clock className="h-3 w-3" />
-                                  <span>{new Date(l.date).toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short' })} {l.time?.slice(0,5)}</span>
+                                  <span>{formatLessonDate(l.date)} {l.time?.slice(0,5)}</span>
                                   <Badge className="text-[10px] px-1 py-0">{l.parity === 'odd' ? 'Toq' : 'Juft'}</Badge>
                                 </div>
                               ))}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
@@ -109,10 +109,29 @@ export default function PaymentsPage() {
   const totalPaidAmount = items.reduce((sum, i) => sum + i.paid_amount, 0);
   const totalDebt = items.reduce((sum, i) => sum + i.debt, 0);
 
+  const loadStudents = useCallback(async (search?: string) => {
+    try {
+      const params: any = { limit: 50 };
+      if (search && search.trim().length >= 1) params.search = search.trim();
+      const s = await studentsApi.getAll(params);
+      setStudents(s.data);
+    } catch { toast.error("Studentlarni yuklashda xatolik"); }
+  }, []);
+
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!showCreateModal) return;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      loadStudents(studentSearch || undefined);
+    }, 300);
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [studentSearch, showCreateModal, loadStudents]);
+
   const openCreateModal = async () => {
     try {
-      const s = await studentsApi.getAll({ limit: 500 });
-      setStudents(s.data);
       setStudentSearch('');
       setSelectedStudentDebts(null);
       setSelectedPaymentId(null);
@@ -123,6 +142,7 @@ export default function PaymentsPage() {
       setNewPaymentAmount('');
       setNewPaymentNote('');
       setShowCreateModal(true);
+      await loadStudents();
     } catch { toast.error("Studentlarni yuklashda xatolik"); }
   };
 
@@ -254,7 +274,7 @@ export default function PaymentsPage() {
 
   const formatDate = (d: string | null | undefined) => {
     if (!d) return '-';
-    try { return new Date(d).toLocaleDateString('uz-UZ', { year: 'numeric', month: 'short', day: 'numeric' }); }
+    try { const dt = new Date(d); return `${dt.getDate()} ${monthNames[dt.getMonth()]} ${dt.getFullYear()}`; }
     catch { return d; }
   };
 
@@ -578,12 +598,11 @@ export default function PaymentsPage() {
                   </div>
 
                   <div className="max-h-96 overflow-y-auto border rounded-lg divide-y">
-                    {students
-                      .filter(s => {
-                      const q = studentSearch.toLowerCase();
-                      return s.first_name.toLowerCase().includes(q) || s.last_name.toLowerCase().includes(q);
-                    })
-                    .map(s => (
+                    {students.length === 0 && studentSearch ? (
+                      <div className="p-6 text-center text-gray-400">Student topilmadi</div>
+                    ) : students.length === 0 ? (
+                      <div className="p-6 text-center text-gray-400">Yuklanmoqda...</div>
+                    ) : students.map(s => (
                       <div
                         key={s.id}
                         onClick={() => handleSelectStudent(String(s.id))}

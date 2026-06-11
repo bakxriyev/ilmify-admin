@@ -57,6 +57,7 @@ export default function EditGroupPage() {
   });
   const [lessonsOpen, setLessonsOpen] = useState(true);
 
+  const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
   const selectedRoom = rooms.find(r => r.id === formData.room_id);
 
   useEffect(() => {
@@ -131,11 +132,7 @@ export default function EditGroupPage() {
       } else {
         payload.support_teacher_id = null;
       }
-      delete payload.room_id;
-
-      if (formData.room_id) {
-        payload.room_id = Number(formData.room_id);
-      }
+      payload.room_id = formData.room_id ? Number(formData.room_id) : null;
 
       await groupsApi.update(groupId, payload);
       toast.success('Guruh muvaffaqiyatli yangilandi!');
@@ -563,7 +560,7 @@ export default function EditGroupPage() {
                     ) : (
                       lessons.map((lesson) => {
                         const lessonDate = new Date(lesson.date);
-                        const formattedDate = lessonDate.toLocaleDateString('en-CA');
+                        const formattedDate = `${lessonDate.getDate()} ${monthNames[lessonDate.getMonth()]} ${lessonDate.getFullYear()}`;
                         return (
                           <div
                             key={lesson.id}

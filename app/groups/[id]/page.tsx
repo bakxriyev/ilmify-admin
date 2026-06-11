@@ -231,9 +231,7 @@ export default function GroupDetailPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('uz-UZ', {
-      year: 'numeric', month: 'short', day: 'numeric',
-    });
+    return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
   };
 
   const getInitials = (firstName: string, lastName: string) =>
@@ -950,7 +948,12 @@ export default function GroupDetailPage() {
                                   {lesson.end_time ? ` - ${lesson.end_time.slice(0, 5)}` : ''}
                                 </TableCell>
                                 <TableCell>
-                                  {lesson.room_id ? (
+                                  {lesson.room ? (
+                                    <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
+                                      <DoorOpen className="h-3 w-3 mr-1" />
+                                      {lesson.room.name}
+                                    </Badge>
+                                  ) : lesson.room_id ? (
                                     <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
                                       Xona #{lesson.room_id}
                                     </Badge>

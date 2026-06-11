@@ -93,7 +93,7 @@ export default function GroupsListPage() {
   const [filters, setFilters] = useState<GetAllGroupsParams>({
     page: 1,
     limit: 10,
-    include: 'mainTeacher,supportTeacher,level,lessons',
+    include: 'mainTeacher,supportTeacher,lessons,room',
   });
 
   const [searchText, setSearchText] = useState('');
@@ -170,18 +170,15 @@ export default function GroupsListPage() {
     setFilters({
       page: 1,
       limit: 10,
-      include: 'mainTeacher,supportTeacher,level,lessons',
+      include: 'mainTeacher,supportTeacher,lessons,room',
     });
     setSearchText('');
   };
 
+  const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('uz-UZ', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
   };
 
   // Loading skeleton
@@ -383,23 +380,27 @@ export default function GroupsListPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50">
-                        <TableHead className="w-[250px] text-gray-700 font-semibold">Guruh nomi</TableHead>
+                        <TableHead className="w-12 text-center text-gray-700 font-semibold">#</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Guruh nomi</TableHead>
                         <TableHead className="text-gray-700 font-semibold">Asosiy o'qituvchi</TableHead>
                         <TableHead className="text-gray-700 font-semibold">Yordamchi o'qituvchi</TableHead>
-                        <TableHead className="text-gray-700 font-semibold">Daraja</TableHead>
-                        <TableHead className="text-gray-700 font-semibold">Xona</TableHead>
-                        <TableHead className="text-gray-700 font-semibold">Studentlar</TableHead>
-                        <TableHead className="text-gray-700 font-semibold">O'rinlar</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Xonasi</TableHead>
+                        <TableHead className="text-center text-gray-700 font-semibold">Studentlar</TableHead>
+                        <TableHead className="text-center text-gray-700 font-semibold">Bo'sh/Jami</TableHead>
+                        <TableHead className="text-center text-gray-700 font-semibold">Darslar</TableHead>
                         <TableHead className="text-right w-[180px] text-gray-700 font-semibold">Amallar</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {groups.map((group) => (
+                      {groups.map((group, index) => (
                         <TableRow
                           key={group.id}
-                          className="hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                          className="hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors"
                           onClick={() => router.push(`/groups/${group.id}`)}
                         >
+                          <TableCell className="text-center text-gray-400 text-sm font-mono">
+                            {(pagination.page - 1) * pagination.limit + index + 1}
+                          </TableCell>
                           <TableCell>
                             <div className="font-medium text-gray-900">{group.name}</div>
                             <div className="text-sm text-gray-500">ID: {group.id}</div>
@@ -410,10 +411,10 @@ export default function GroupsListPage() {
                                 <div className="font-medium text-gray-900">
                                   {group.mainTeacher.first_name} {group.mainTeacher.last_name}
                                 </div>
-                                <div className="text-sm text-gray-500">{group.mainTeacher.gmail}</div>
+                                <div className="text-sm text-gray-500 truncate max-w-[160px]">{group.mainTeacher.gmail || group.mainTeacher.phone_number}</div>
                               </div>
                             ) : (
-                              <span className="text-gray-500">Biriktirilmagan</span>
+                              <span className="text-gray-400">-</span>
                             )}
                           </TableCell>
                           <TableCell>
@@ -422,49 +423,54 @@ export default function GroupsListPage() {
                                 <div className="font-medium text-gray-900">
                                   {group.supportTeacher.first_name} {group.supportTeacher.last_name}
                                 </div>
-                                <div className="text-sm text-gray-500">{group.supportTeacher.gmail}</div>
+                                <div className="text-sm text-gray-500 truncate max-w-[160px]">{group.supportTeacher.gmail || group.supportTeacher.phone_number}</div>
                               </div>
                             ) : (
-                              <span className="text-gray-500">Biriktirilmagan</span>
+                              <span className="text-gray-400">-</span>
                             )}
                           </TableCell>
                           <TableCell>
                             {group.room ? (
-                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                <DoorOpen className="h-3 w-3 mr-1" />
-                                {group.room.name}
-                              </Badge>
+                              <div className="flex flex-col gap-1">
+                                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 w-fit">
+                                  <DoorOpen className="h-3 w-3 mr-1" />
+                                  {group.room.name}
+                                </Badge>
+                                <span className="text-xs text-gray-500">
+                                  {group.room.occupied_seats ?? group.student_count ?? 0}/{group.room.capacity} o'rin
+                                </span>
+                              </div>
                             ) : (
                               <span className="text-gray-400 text-sm">-</span>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             <span className="font-semibold text-gray-900">{group.student_count || 0}</span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             {group.room ? (
-                              <span className={`text-sm font-medium ${(group.room.available_seats || 0) <= 0 ? 'text-red-600' : (group.room.available_seats || 0) <= 5 ? 'text-yellow-600' : 'text-green-600'}`}>
-                                {(group.room.available_seats || 0)}/{group.room.capacity}
+                              <span className={`text-sm font-medium ${(group.room.available_seats ?? group.room.capacity - (group.student_count || 0)) <= 0 ? 'text-red-600' : (group.room.available_seats ?? group.room.capacity - (group.student_count || 0)) <= 5 ? 'text-yellow-600' : 'text-green-600'}`}>
+                                {group.room.available_seats ?? group.room.capacity - (group.student_count || 0)}/{group.room.capacity}
                               </span>
                             ) : (
                               <span className="text-gray-400 text-sm">-</span>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             <div className="text-sm">
-                              <div className="flex items-center gap-1 text-gray-700">
-                                <Calendar className="h-3 w-3" />
-                                <span>{group.lessons?.length || 0} ta dars</span>
+                              <div className="flex items-center justify-center gap-1 text-gray-700">
+                                <BookOpen className="h-3 w-3" />
+                                <span className="font-medium">{group.lessons?.length || 0}</span>
                               </div>
                               {group.lessons && group.lessons.length > 0 && (
                                 <div className="text-xs text-gray-500 mt-1">
-                                  Next: {formatDate(group.lessons[0].date)} soat {group.lessons[0].time}
+                                  {formatDate(group.lessons[0].date)}
                                 </div>
                               )}
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -533,101 +539,111 @@ export default function GroupsListPage() {
                   </Table>
                 </div>
 
-                {/* Mobile Cards – butun karta bosiladigan */}
-                <div className="md:hidden space-y-4">
-                  {groups.map((group) => (
+                {/* Mobile Cards */}
+                <div className="md:hidden space-y-3">
+                  {groups.map((group, index) => (
                     <Card
                       key={group.id}
                       className="border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
                       onClick={() => router.push(`/groups/${group.id}`)}
                     >
-                      <CardContent className="pt-6">
-                        <div className="space-y-4">
-                          <div className="flex items-start justify-between">
+                      <CardContent className="pt-4 pb-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400 font-mono">#{(pagination.page - 1) * pagination.limit + index + 1}</span>
                             <div>
                               <h3 className="font-semibold text-gray-900">{group.name}</h3>
-                              <p className="text-sm text-gray-500">ID: {group.id}</p>
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-gray-600 hover:text-gray-800"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="border border-gray-200">
-                                <DropdownMenuItem asChild className="text-gray-700">
-                                  <Link href={`/groups/${group.id}`}>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Ko'rish
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild className="text-gray-700">
-                                  <Link href={`/groups/${group.id}/edit`}>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Tahrirlash
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setGroupToDelete(group);
-                                    setShowDeleteModal(true);
-                                    setDeleteError(null);
-                                  }}
-                                  className="text-red-600"
-                                >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    O'chirish
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="text-sm font-medium text-gray-700">Asosiy o'qituvchi</div>
-                              <div className="text-sm text-gray-900">
-                                {group.mainTeacher
-                                  ? `${group.mainTeacher.first_name} ${group.mainTeacher.last_name}`
-                                  : 'Biriktirilmagan'}
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div className="text-sm font-medium text-gray-700">Yordamchi o'qituvchi</div>
-                              <div className="text-sm text-gray-900">
-                                {group.supportTeacher
-                                  ? `${group.supportTeacher.first_name} ${group.supportTeacher.last_name}`
-                                  : 'Biriktirilmagan'}
-                              </div>
+                              <p className="text-xs text-gray-500">ID: {group.id}</p>
                             </div>
                           </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-gray-600"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="border border-gray-200">
+                              <DropdownMenuItem asChild className="text-gray-700">
+                                <Link href={`/groups/${group.id}`}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ko'rish
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild className="text-gray-700">
+                                <Link href={`/groups/${group.id}/edit`}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Tahrirlash
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setGroupToDelete(group);
+                                  setShowDeleteModal(true);
+                                  setDeleteError(null);
+                                }}
+                                className="text-red-600"
+                              >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  O'chirish
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
 
-                          <div className="flex flex-wrap gap-2">
-                            <Badge
-                              variant="outline"
-                              className="flex items-center gap-1 bg-gray-50 text-gray-700 border-gray-200"
-                            >
-                              <Calendar className="h-3 w-3" />
-                              {group.lessons?.length || 0} ta dars
-                            </Badge>
+                        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm mb-3">
+                          <div className="text-gray-500">O'qituvchi:</div>
+                          <div className="text-gray-900 text-right truncate">
+                            {group.mainTeacher
+                              ? `${group.mainTeacher.first_name} ${group.mainTeacher.last_name}`
+                              : '-'}
                           </div>
-
-                          {group.lessons && group.lessons.length > 0 && (
-                            <div className="text-sm">
-                              <div className="font-medium text-gray-700 mb-1">Keyingi dars</div>
-                              <div className="flex items-center gap-2 text-gray-600">
-                                <Clock className="h-4 w-4" />
-                                {formatDate(group.lessons[0].date)} soat {group.lessons[0].time}
+                          <div className="text-gray-500">Yordamchi:</div>
+                          <div className="text-gray-900 text-right truncate">
+                            {group.supportTeacher
+                              ? `${group.supportTeacher.first_name} ${group.supportTeacher.last_name}`
+                              : '-'}
+                          </div>
+                          <div className="text-gray-500">Studentlar:</div>
+                          <div className="text-gray-900 text-right font-semibold">{group.student_count || 0}</div>
+                          {group.room && (
+                            <>
+                              <div className="text-gray-500">Xona:</div>
+                              <div className="text-right">
+                                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs">
+                                  <DoorOpen className="h-3 w-3 mr-1" />
+                                  {group.room.name}
+                                </Badge>
                               </div>
-                            </div>
+                            </>
                           )}
                         </div>
+
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                          <Badge variant="outline" className="flex items-center gap-1 bg-gray-50 text-gray-700 border-gray-200">
+                            <BookOpen className="h-3 w-3" />
+                            {group.lessons?.length || 0} ta dars
+                          </Badge>
+                          {group.room && (
+                            <Badge variant="outline" className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200">
+                              <DoorOpen className="h-3 w-3" />
+                              {group.room.occupied_seats ?? group.student_count ?? 0}/{group.room.capacity}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {group.lessons && group.lessons.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            Keyingi: {formatDate(group.lessons[0].date)} {group.lessons[0].start_time?.slice(0,5) || group.lessons[0].time}
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}

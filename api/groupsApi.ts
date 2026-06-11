@@ -41,6 +41,11 @@ export interface Group {
     end_time?: string;
     room_id?: string;
     parity: string;
+    room?: {
+      id: string;
+      name: string;
+      capacity: number;
+    };
   }>;
   room_id?: string;
   room?: {
@@ -111,7 +116,7 @@ export const groupsApi = {
     try {
       // Default include relations
       const defaultParams = {
-        include: 'mainTeacher,supportTeacher,lessons',
+        include: 'mainTeacher,supportTeacher,lessons,room',
         ...params
       };
       

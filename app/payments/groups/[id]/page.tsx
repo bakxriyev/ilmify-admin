@@ -24,6 +24,7 @@ export default function GroupPaymentsPage() {
   const [data, setData] = useState<GroupPaymentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const now = new Date();
+  const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
 
@@ -87,8 +88,8 @@ export default function GroupPaymentsPage() {
             <Select value={month} onValueChange={v => { setMonth(v); loadData(v, year); }}>
               <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
-                  <SelectItem key={m} value={String(m)}>{m}-oy</SelectItem>
+                {monthNames.map((name, i) => (
+                  <SelectItem key={i + 1} value={String(i + 1)}>{name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -125,7 +126,7 @@ export default function GroupPaymentsPage() {
         </div>
 
         <Card className="border-0 shadow-md">
-          <CardHeader><CardTitle>Studentlar to'lovlari - {month}-oy / {year}</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Studentlar to'lovlari - {monthNames[Number(month) - 1]} {year}</CardTitle></CardHeader>
           <CardContent className="p-0">
             {loading ? (
               <div className="p-6 space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>

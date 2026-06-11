@@ -63,6 +63,8 @@ export default function StudentDetailPage() {
   const [editValue, setEditValue] = useState('');
   const [isSavingField, setIsSavingField] = useState(false);
 
+  const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+
   // YANGI TO'LOV UCHUN STATLAR
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [debtData, setDebtData] = useState<any>(null);
@@ -129,7 +131,7 @@ export default function StudentDetailPage() {
 
   const formatDate = (dateString: string) => {
     const d = new Date(dateString);
-    return d.toLocaleDateString('uz-UZ', { year: 'numeric', month: 'short', day: 'numeric' });
+    return `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
   };
 
   const formatPhone = (phone: string | null | undefined) => {
@@ -714,7 +716,7 @@ export default function StudentDetailPage() {
                       <TableBody>
                         {payments.map(p => (
                           <TableRow key={p.id} className="hover:bg-gray-50">
-                            <TableCell className="font-medium">{p.month}-oy / {p.year}</TableCell>
+                            <TableCell className="font-medium">{monthNames[p.month - 1]} {p.year}</TableCell>
                             <TableCell>{p.group?.name || '-'}</TableCell>
                             <TableCell className="text-right font-medium">{p.amount.toLocaleString()} so'm</TableCell>
                             <TableCell className="text-center">
