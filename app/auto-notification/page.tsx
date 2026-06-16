@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Bell, Settings, BarChart3, Save, Loader2, Clock, MessageSquare,
   CheckCircle, XCircle, PhoneOff, Calendar, ToggleRight, Send,
-  AlertTriangle, Info, RefreshCw,
+  AlertTriangle, Info, RefreshCw, Smartphone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,9 +14,11 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import toast from 'react-hot-toast';
 import Layout from '@/components/Layout';
 import { autoNotificationApi } from '../../api/autoNotificationApi';
+import { smsApi } from '@/api/smsApi';
 
 function getCenterId(): number | null {
   try {
@@ -38,6 +40,11 @@ export default function AutoNotificationPage() {
   const [messageTemplate, setMessageTemplate] = useState('');
   const [timeInput, setTimeInput] = useState('');
 
+  // SMS config state
+  const [sendSms, setSendSms] = useState(false);
+  const [smsTemplateCategory, setSmsTemplateCategory] = useState('debt_reminder');
+  const [smsTemplates, setSmsTemplates] = useState<Array<{ id: string; title: string }>>([]);
+
   // Stats state
   const [stats, setStats] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
@@ -51,13 +58,17 @@ export default function AutoNotificationPage() {
       if (!cid) { toast.error('Markaz aniqlanmadi'); return; }
       setCenterId(cid);
 
-      const [configRes, statsRes] = await Promise.all([
+      const [configRes, statsRes, templatesRes] = await Promise.all([
         autoNotificationApi.getConfig(cid),
         autoNotificationApi.getStats(cid),
+        smsApi.getTemplates().catch(() => []),
       ]);
+      setSmsTemplates(templatesRes || []);
       const config = configRes.data;
       setEnabled(config.enabled);
       setSendTelegram(config.send_telegram);
+      setSendSms(config.send_sms || false);
+      setSmsTemplateCategory(config.sms_template_category || 'debt_reminder');
       setMessageTemplate(config.message_template || '');
       try {
         setSendTimes(JSON.parse(config.send_times || '[]'));
@@ -89,6 +100,8 @@ export default function AutoNotificationPage() {
       await autoNotificationApi.updateConfig(centerId, {
         enabled,
         send_telegram: sendTelegram,
+        send_sms: sendSms,
+        sms_template_category: smsTemplateCategory,
         send_times: sendTimes,
         message_template: messageTemplate,
       });
@@ -209,7 +222,7 @@ export default function AutoNotificationPage() {
                   <Switch
                     checked={enabled}
                     onCheckedChange={setEnabled}
-                    className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-300"
+                    className="data-[state=checked]:bg-green-500! data-[state=unchecked]:bg-gray-300!"
                   />
                 </div>
 
@@ -221,9 +234,38 @@ export default function AutoNotificationPage() {
                   <Switch
                     checked={sendTelegram}
                     onCheckedChange={setSendTelegram}
-                    className="data-[state=checked]:bg-blue-500 data-[state=unchecked]:bg-gray-300"
+                    className="data-[state=checked]:bg-blue-500! data-[state=unchecked]:bg-gray-300!"
                   />
                 </div>
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div>
+                    <p className="font-medium text-gray-900">SMS orqali jo'natish</p>
+                    <p className="text-sm text-gray-500">SMS orqali eslatma yuborish (debt_reminder shabloni asosida)</p>
+                  </div>
+                  <Switch
+                    checked={sendSms}
+                    onCheckedChange={setSendSms}
+                    className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-300"
+                  />
+                </div>
+
+                {sendSms && (
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
+                    <Label className="text-sm font-medium">SMS shabloni</Label>
+                    <Select value={smsTemplateCategory} onValueChange={setSmsTemplateCategory}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Shablonni tanlang..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {smsTemplates.map(t => (
+                          <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-400 mt-1">Avtomatik SMS uchun ishlatiladigan shablon</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

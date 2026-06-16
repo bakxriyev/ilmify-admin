@@ -8,6 +8,10 @@ export interface SmsLog {
   delivered_at: string | null;
   created_by: number | null;
   center_id: number | null;
+  recipient_type: string | null;
+  recipient_id: number | null;
+  recipient_name: string | null;
+  template_category: string | null;
   metadata: any;
   created_at: string;
 }
@@ -55,3 +59,42 @@ export interface SendResult {
   failed: number;
   logs: SmsLog[];
 }
+
+export interface StudentBrief {
+  id: number;
+  first_name: string;
+  last_name: string;
+  phone_number: string;
+  group_name?: string;
+  group_id?: number;
+}
+
+export interface TeacherBrief {
+  id: number;
+  first_name: string;
+  last_name: string;
+  phone_number: string;
+}
+
+export interface GroupBrief {
+  id: number;
+  name: string;
+  student_count?: number;
+}
+
+export type RecipientType = 
+  | 'single_student'
+  | 'all_students'
+  | 'single_teacher'
+  | 'all_teachers'
+  | 'group_students'
+  | 'selected_students';
+
+export const RECIPIENT_LABELS: Record<RecipientType, string> = {
+  single_student: 'Bitta student',
+  all_students: 'Barcha studentlar',
+  single_teacher: "Bitta o'qituvchi",
+  all_teachers: "Barcha o'qituvchilar",
+  group_students: 'Guruh studentlari',
+  selected_students: 'Tanlangan studentlar',
+};

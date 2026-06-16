@@ -16,16 +16,27 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   failed: { label: 'Xato', className: 'bg-red-100 text-red-800' },
 };
 
+const recipientTypeLabels: Record<string, string> = {
+  single_student: 'Student',
+  all_students: 'Barcha studentlar',
+  single_teacher: "O'qituvchi",
+  all_teachers: "Barcha o'qituvchilar",
+  group_students: 'Guruh',
+  selected_students: 'Tanlanganlar',
+};
+
 export default function SmsLogTable() {
   const [filters, setFilters] = useState<{ start_date?: string; end_date?: string; status?: string; page?: number }>({ page: 1 });
   const { data, loading, refetch } = useSmsLogs(filters);
 
   const exportCsv = () => {
     if (!data?.data.length) return;
-    const headers = ['Sana', 'Telefon', 'Xabar', 'Holat', 'Eskiz ID'];
+    const headers = ['Sana', 'Telefon', 'Qabul qiluvchi', 'Tur', 'Xabar', 'Holat', 'Eskiz ID'];
     const rows = data.data.map((l: SmsLog) => [
       new Date(l.created_at).toLocaleString('uz-UZ'),
       l.phone,
+      l.recipient_name || '',
+      l.recipient_type ? (recipientTypeLabels[l.recipient_type] || l.recipient_type) : '',
       `"${l.message.replace(/"/g, '""')}"`,
       l.status,
       l.eskiz_message_id || '',
@@ -81,6 +92,8 @@ export default function SmsLogTable() {
                 <tr className="border-b text-left text-gray-500">
                   <th className="pb-2 pr-4">Sana</th>
                   <th className="pb-2 pr-4">Telefon</th>
+                  <th className="pb-2 pr-4">Qabul qiluvchi</th>
+                  <th className="pb-2 pr-4">Tur</th>
                   <th className="pb-2 pr-4">Xabar</th>
                   <th className="pb-2 pr-4">Holat</th>
                   <th className="pb-2">Eskiz ID</th>
@@ -91,6 +104,8 @@ export default function SmsLogTable() {
                   <tr key={log.id} className="border-b last:border-0 hover:bg-gray-50">
                     <td className="py-2 pr-4 text-xs whitespace-nowrap">{new Date(log.created_at).toLocaleString('uz-UZ')}</td>
                     <td className="py-2 pr-4"><span className="flex items-center gap-1"><Smartphone className="h-3 w-3" />{log.phone}</span></td>
+                    <td className="py-2 pr-4 text-sm">{log.recipient_name || '-'}</td>
+                    <td className="py-2 pr-4">{log.recipient_type ? <Badge className="bg-blue-100 text-blue-800 text-xs">{recipientTypeLabels[log.recipient_type] || log.recipient_type}</Badge> : '-'}</td>
                     <td className="py-2 pr-4 max-w-xs truncate" title={log.message}>{log.message}</td>
                     <td className="py-2 pr-4"><Badge className={statusConfig[log.status]?.className}>{statusConfig[log.status]?.label}</Badge></td>
                     <td className="py-2 text-xs text-gray-400">{log.eskiz_message_id || '-'}</td>

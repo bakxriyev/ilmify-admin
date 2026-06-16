@@ -7,11 +7,12 @@ import SmsNotificationPanel from '@/components/sms/SmsNotificationPanel';
 import SmsLogTable from '@/components/sms/SmsLogTable';
 import SmsStatsDashboard from '@/components/sms/SmsStatsDashboard';
 import SmsSettings from '@/components/sms/SmsSettings';
+import SmsTemplatesPanel from '@/components/sms/SmsTemplatesPanel';
 import { smsApi } from '@/api/smsApi';
 import { getCenterIdOrThrow } from '@/api/telegramBotApi';
 import type { SmsTemplate } from '@/types/sms.types';
 
-type Tab = 'send' | 'history' | 'stats' | 'settings';
+type Tab = 'send' | 'templates' | 'history' | 'stats' | 'settings';
 
 export default function SmsPage() {
   const [centerId, setCenterId] = useState<number | null>(null);
@@ -39,6 +40,7 @@ export default function SmsPage() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'send', label: 'Yuborish' },
+    { key: 'templates', label: 'Shablonlar' },
     { key: 'history', label: 'Tarix' },
     { key: 'stats', label: 'Statistika' },
     { key: 'settings', label: 'Sozlamalar' },
@@ -67,9 +69,10 @@ export default function SmsPage() {
         </div>
 
         {activeTab === 'send' && centerId && <SmsNotificationPanel templates={templates} centerId={centerId} />}
+        {activeTab === 'templates' && <SmsTemplatesPanel />}
         {activeTab === 'history' && <SmsLogTable />}
         {activeTab === 'stats' && <SmsStatsDashboard />}
-        {activeTab === 'settings' && <SmsSettings />}
+        {activeTab === 'settings' && <SmsSettings templates={templates} />}
       </div>
     </Layout>
   );
