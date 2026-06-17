@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "react-hot-toast";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import { AIAssistant } from "@/components/ai";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -35,6 +36,7 @@ export default function RootLayout({
         >
           <ServiceWorkerRegister />
           {children}
+          <AIAssistant />
           <Toaster
             position="top-right"
             toastOptions={{
