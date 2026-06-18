@@ -19,6 +19,14 @@ export interface GroupStudent {
     phone_number: string;
     photo: string | null;
     age?: number;
+    parent_links?: Array<{
+      parent?: {
+        id: number;
+        first_name: string;
+        last_name: string;
+        phone_number: string;
+      };
+    }>;
   };
   group?: {
     id: number;

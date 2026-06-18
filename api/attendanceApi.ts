@@ -61,4 +61,7 @@ export const attendanceApi = {
 
   getMonthlyGrid: (groupId: number, year: number, month: number) =>
     api.get<MonthlyGridResponse>(`/attendances/group/${groupId}/monthly`, { params: { year, month } }).then(r => r.data),
+
+  clearByCenter: (centerId: number, groupId?: number) =>
+    api.delete<{ deleted: number }>('/attendances/by-center/' + centerId, { params: groupId ? { group_id: groupId } : {} }).then(r => r.data),
 };

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -69,6 +70,7 @@ export default function GroupDetailPage() {
   const [editingDateStudentId, setEditingDateStudentId] = useState<number | null>(null);
   const [editingDateValue, setEditingDateValue] = useState('');
   const [savingDate, setSavingDate] = useState(false);
+  const [confirmDateStudent, setConfirmDateStudent] = useState<{ relationId: number; studentId: number; studentName: string; firstLessonDate: string } | null>(null);
 
   // Attendance grid state
   const [gridYear, setGridYear] = useState(now.getFullYear());
@@ -119,6 +121,21 @@ export default function GroupDetailPage() {
       await groupStudentsApi.update(relationId, { joined_date: editingDateValue });
       toast.success('Qo\'shilgan sana yangilandi');
       setEditingDateStudentId(null);
+      await fetchGroupStudents();
+    } catch {
+      toast.error('Xatolik yuz berdi');
+    } finally {
+      setSavingDate(false);
+    }
+  };
+
+  const handleSetJoinedToFirstLesson = async () => {
+    if (!confirmDateStudent) return;
+    try {
+      setSavingDate(true);
+      await groupStudentsApi.update(confirmDateStudent.relationId, { joined_date: confirmDateStudent.firstLessonDate });
+      toast.success('Qo\'shilgan sana birinchi dars sanasiga o\'rnatildi');
+      setConfirmDateStudent(null);
       await fetchGroupStudents();
     } catch {
       toast.error('Xatolik yuz berdi');
@@ -772,18 +789,37 @@ export default function GroupDetailPage() {
                                       </Button>
                                     </div>
                                   ) : (
-                                    <button
-                                      className="hover:text-blue-600 hover:underline cursor-pointer text-xs flex items-center gap-1"
-                                      onClick={() => {
-                                        if (relation) {
-                                          setEditingDateValue(relation.joined_date ? new Date(relation.joined_date).toISOString().split('T')[0] : '');
-                                          setEditingDateStudentId(Number(student.id));
-                                        }
-                                      }}
-                                    >
-                                      {relation ? formatDate(relation.joined_date) : '-'}
-                                      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </button>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        className="hover:text-blue-600 hover:underline cursor-pointer text-xs flex items-center gap-1"
+                                        onClick={() => {
+                                          if (relation) {
+                                            setEditingDateValue(relation.joined_date ? new Date(relation.joined_date).toISOString().split('T')[0] : '');
+                                            setEditingDateStudentId(Number(student.id));
+                                          }
+                                        }}
+                                      >
+                                        {relation ? formatDate(relation.joined_date) : '-'}
+                                        <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                      </button>
+                                      {sortedLessons.length > 0 && relation && (
+                                        <button
+                                          onClick={() => {
+                                            const firstDate = new Date(sortedLessons[0].date).toISOString().split('T')[0];
+                                            setConfirmDateStudent({
+                                              relationId: relation.id,
+                                              studentId: Number(student.id),
+                                              studentName: `${student.first_name} ${student.last_name}`,
+                                              firstLessonDate: firstDate,
+                                            });
+                                          }}
+                                          className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          title="Birinchi dars sanasiga o'rnatish"
+                                        >
+                                          <Calendar className="h-3 w-3" />
+                                        </button>
+                                      )}
+                                    </div>
                                   )}
                                 </TableCell>
                                 <TableCell className="text-right">
@@ -1067,7 +1103,7 @@ export default function GroupDetailPage() {
                                         {getInitials(student.first_name, student.last_name)}
                                       </AvatarFallback>
                                     </Avatar>
-                                    <span className="truncate max-w-[120px]">{student.first_name.split(' ')[0]}</span>
+                                    <span className="truncate max-w-[140px] text-xs">{student.first_name} {student.last_name}</span>
                                   </div>
                                 </TableCell>
                                 {gridLessons.map(lesson => {
@@ -1278,6 +1314,30 @@ export default function GroupDetailPage() {
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> O'chirilmoqda...</>
               ) : (
                 <><Trash2 className="h-4 w-4 mr-2" /> Ha, o'chirish</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={!!confirmDateStudent} onOpenChange={(open) => { if (!open) setConfirmDateStudent(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Qo'shilgan sanani o'zgartirish</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{confirmDateStudent?.studentName}</strong> uchun qo'shilgan sanani birinchi dars sanasiga (<strong>{confirmDateStudent?.firstLessonDate ? formatDate(confirmDateStudent.firstLessonDate) : '-'}</strong>) o'rnatilsinmi?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={savingDate}>Yo'q</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSetJoinedToFirstLesson}
+              disabled={savingDate}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {savingDate ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saqlanmoqda...</>
+              ) : (
+                <><CheckCircle className="h-4 w-4 mr-2" /> Ha</>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

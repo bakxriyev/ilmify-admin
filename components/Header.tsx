@@ -166,34 +166,31 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
     <header className="fixed top-0 right-0 left-0 z-30 bg-white border-b border-gray-200 shadow-sm">
       <div className="flex items-center justify-between h-16 px-4 md:px-6"
         style={{ marginLeft: !isMobile ? (sidebarCollapsed ? '80px' : '240px') : '0px' }}>
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="text-right">
-              <p className="text-sm font-medium text-gray-900">{currentTime}</p>
-              <p className="text-xs text-gray-500">{currentDate}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-900">{currentTime}</p>
+              <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">{currentDate}</p>
             </div>
           </div>
           {center && (
-            <div className="hidden lg:flex items-center gap-3 pl-4 border-l border-gray-200">
-              <div className="w-8 h-8 rounded-lg overflow-hidden bg-blue-50 flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-2 pl-2 sm:pl-4 border-l border-gray-200 min-w-0">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg overflow-hidden bg-blue-50 flex items-center justify-center shrink-0">
                 {center.logo ? (
                   <img src={`${process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz'}/uploads/centers/${center.logo}`}
                     className="w-full h-full object-cover" alt={center.name} />
                 ) : (
-                  <Building className="h-4 w-4 text-blue-600" />
+                  <Building className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                 )}
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">{center.name}</p>
-                <p className="text-xs text-gray-500">
-                  <DollarSign className="h-3 w-3 inline" /> {Number(center.balance).toLocaleString()} so'm
-                </p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-900 truncate max-w-[100px] sm:max-w-none">{center.name}</p>
                 {tariffStatus && (
-                  <p className={`text-xs font-medium ${tariffStatus.isExpired ? 'text-red-500' : tariffStatus.days <= 5 ? 'text-amber-500' : 'text-green-500'}`}>
+                  <p className={`text-[10px] sm:text-xs font-medium leading-tight ${tariffStatus.isExpired ? 'text-red-500' : tariffStatus.days <= 5 ? 'text-amber-500' : 'text-green-500'}`}>
                     {tariffStatus.isExpired ? (
-                      <><AlertTriangle className="h-3 w-3 inline mr-0.5" />{tariffStatus.tariffName}: muddat tugagan</>
+                      <><AlertTriangle className="h-2.5 w-2.5 sm:h-3 sm:w-3 inline mr-0.5" />{tariffStatus.tariffName}: muddat tugagan</>
                     ) : (
-                      <>{tariffStatus.tariffName}: {tariffStatus.days} kun qoldi</>
+                      <>{tariffStatus.tariffName}: {tariffStatus.days} kun</>
                     )}
                   </p>
                 )}
@@ -281,8 +278,12 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 px-3 py-2 h-9 hover:bg-gray-100 rounded-lg">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                  {admin?.full_name?.charAt(0) || 'A'}
+                <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm font-bold">
+                  {admin?.photo ? (
+                    <img src={admin.photo.startsWith('data:') ? admin.photo : `${process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz'}/uploads/${admin.photo}`} className="w-full h-full object-cover" alt="" />
+                  ) : (
+                    admin?.full_name?.charAt(0) || 'A'
+                  )}
                 </div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-medium text-gray-900 leading-tight">{admin?.full_name || 'Admin'}</p>

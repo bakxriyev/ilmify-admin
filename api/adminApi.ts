@@ -151,11 +151,14 @@ export const adminApi = {
 
   /**
    * Admin ma'lumotlarini yangilash
-   * Endpoint: PUT /admin/profile
+   * Endpoint: PATCH /admin/{id}
    */
   updateProfile: async (data: UpdateProfileRequest): Promise<Admin> => {
     try {
-      const response = await api.put('/admin/profile', data);
+      const adminRaw = localStorage.getItem('admin');
+      const adminId = adminRaw ? JSON.parse(adminRaw).id : null;
+      if (!adminId) throw new Error('Admin ID topilmadi');
+      const response = await api.patch(`/admin/${adminId}`, data);
       
       // Yangilangan ma'lumotlarni localStorage ga saqlash
       if (typeof window !== 'undefined') {
@@ -172,12 +175,39 @@ export const adminApi = {
   },
 
   /**
+   * Admin rasmini yuklash (multipart)
+   * Endpoint: POST /admin/{id}/photo
+   */
+  uploadPhoto: async (file: File): Promise<Admin> => {
+    try {
+      const adminRaw = localStorage.getItem('admin');
+      const adminId = adminRaw ? JSON.parse(adminRaw).id : null;
+      if (!adminId) throw new Error('Admin ID topilmadi');
+      const formData = new FormData();
+      formData.append('photo', file);
+      const response = await api.post(`/admin/${adminId}/photo`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('admin', JSON.stringify(response.data));
+      }
+      return response.data;
+    } catch (error: any) {
+      console.error('Upload photo API error:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Parolni o'zgartirish
-   * Endpoint: POST /admin/change-password
+   * Endpoint: PATCH /admin/{id}/change-password
    */
   changePassword: async (data: ChangePasswordRequest): Promise<{ message: string }> => {
     try {
-      const response = await api.post('/admin/change-password', data);
+      const adminRaw = localStorage.getItem('admin');
+      const adminId = adminRaw ? JSON.parse(adminRaw).id : null;
+      if (!adminId) throw new Error('Admin ID topilmadi');
+      const response = await api.patch(`/admin/${adminId}/change-password`, data);
       return response.data;
     } catch (error: any) {
       console.error('Change password API error:', error);

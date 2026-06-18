@@ -37,7 +37,7 @@ export function AIChatWidget() {
     return (
       <button
         onClick={toggleOpen}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-2xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center group"
+        className="fixed bottom-20 md:bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-2xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center group"
       >
         <MessageCircle className="h-6 w-6 group-hover:scale-110 transition-transform" />
       </button>
@@ -46,7 +46,7 @@ export function AIChatWidget() {
 
   return (
     <div
-      className="fixed z-50 bottom-6 right-6 flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transition-all duration-300"
+      className="fixed z-50 bottom-20 md:bottom-6 right-6 flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transition-all duration-300"
       style={{ width: widgetWidth, height: widgetHeight, maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 32px)' }}
     >
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 flex items-center justify-between shrink-0">

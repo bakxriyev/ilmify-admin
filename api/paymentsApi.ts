@@ -107,6 +107,7 @@ export const paymentsApi = {
       }>;
       total_debt: number;
       paid_total: number;
+      student_groups: Array<{ id: number; name: string }>;
     }>(`/payments/debts/${studentId}`).then(r => r.data),
 
   create: (data: { student_id: number; group_id: number; amount: number; month: number; year: number; status?: string; note?: string; paid_at?: string }) =>
