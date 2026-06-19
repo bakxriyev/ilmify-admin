@@ -9,6 +9,7 @@ export interface Payment {
   year: number;
   status: 'paid' | 'unpaid' | 'partial';
   paid_at: string | null;
+  payment_type: string | null;
   note: string | null;
   created_by: number | null;
   created_at: string;
@@ -20,6 +21,7 @@ export interface GroupPaymentSummary {
   student: { id: number; first_name: string; last_name: string; phone_number: string };
   group?: { id: number; name: string; monthly_price?: number };
   payment: Payment | null;
+  payment_type: string | null;
   status: string;
   month: number;
   year: number;
@@ -40,7 +42,7 @@ export interface PaymentStats {
 }
 
 export const paymentsApi = {
-  getAll: (params?: { group_id?: number; student_id?: number; month?: number; year?: number; status?: string }) =>
+  getAll: (params?: { group_id?: number; student_id?: number; month?: number; year?: number; status?: string; payment_type?: string }) =>
     api.get<Payment[]>('/payments', { params }).then(r => r.data),
 
   getStats: () =>
@@ -93,6 +95,7 @@ export const paymentsApi = {
         amount: number;
         status: 'paid' | 'partial';
         paid_at: string;
+        payment_type?: string | null;
       }>;
       orphaned_payments: Array<{
         id: number;
@@ -102,6 +105,7 @@ export const paymentsApi = {
         amount: number;
         status: string;
         paid_at: string | null;
+        payment_type?: string | null;
         created_at: string;
         note: string | null;
       }>;
@@ -110,10 +114,10 @@ export const paymentsApi = {
       student_groups: Array<{ id: number; name: string }>;
     }>(`/payments/debts/${studentId}`).then(r => r.data),
 
-  create: (data: { student_id: number; group_id: number; amount: number; month: number; year: number; status?: string; note?: string; paid_at?: string }) =>
+  create: (data: { student_id: number; group_id: number; amount: number; month: number; year: number; status?: string; payment_type?: string; note?: string; paid_at?: string }) =>
     api.post<Payment>('/payments', data).then(r => r.data),
 
-  update: (id: number, data: { amount?: number; status?: string; paid_at?: string; note?: string }) =>
+  update: (id: number, data: { amount?: number; status?: string; paid_at?: string; payment_type?: string; note?: string }) =>
     api.patch<Payment>(`/payments/${id}`, data).then(r => r.data),
 
   remove: (id: number) =>

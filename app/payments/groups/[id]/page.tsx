@@ -140,6 +140,7 @@ export default function GroupPaymentsPage() {
                       <th className="text-left p-3 text-gray-600">Telefon</th>
                       <th className="text-right p-3 text-gray-600">Summa</th>
                       <th className="text-center p-3 text-gray-600">Holat</th>
+                      <th className="text-center p-3 text-gray-600">To'lov turi</th>
                       <th className="text-center p-3 text-gray-600">To'langan sana</th>
                       <th className="text-right p-3 text-gray-600">Amallar</th>
                     </tr>
@@ -161,6 +162,19 @@ export default function GroupPaymentsPage() {
                           <Badge className={item.status === 'paid' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}>
                             {item.status === 'paid' ? "To'langan" : "To'lanmagan"}
                           </Badge>
+                        </td>
+                        <td className="p-3 text-center">
+                          {(() => {
+                            const pt = item.payment?.payment_type;
+                            const map: any = { naqt: 'Naqt', karta: 'Karta', click: 'Click' };
+                            const label = pt ? (map[pt] || pt) : '-';
+                            const cls = pt === 'naqt' ? 'text-green-600 bg-green-50 border-green-200' : pt === 'karta' ? 'text-purple-600 bg-purple-50 border-purple-200' : pt === 'click' ? 'text-blue-600 bg-blue-50 border-blue-200' : 'text-gray-400';
+                            return pt ? (
+                              <Badge className={`${cls} text-xs px-1.5 py-0.5 border`}>{label}</Badge>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            );
+                          })()}
                         </td>
                         <td className="p-3 text-center text-gray-500">{item.payment?.paid_at || '-'}</td>
                         <td className="p-3 text-right">
