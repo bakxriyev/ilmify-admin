@@ -903,12 +903,16 @@ export default function StudentsPage() {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {student.group ? (
-                                    <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0 px-3 py-1">
-                                      <Building className="h-3 w-3 mr-1" />
-                                      {student.group.name}
-                                    </Badge>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {student.group_students && student.group_students.filter((gs: any) => !gs.left_date).length > 0 ? (
+                                    student.group_students
+                                      .filter((gs: any) => !gs.left_date)
+                                      .map((gs: any) => (
+                                        <Badge key={gs.id} className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0 px-3 py-1 whitespace-nowrap">
+                                          <Building className="h-3 w-3 mr-1" />
+                                          {gs.group?.name || 'Noma\'lum'}
+                                        </Badge>
+                                      ))
                                   ) : (
                                     <Badge variant="outline" className="border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400">
                                       Guruhsiz
@@ -1084,12 +1088,16 @@ export default function StudentsPage() {
                             </div>
 
                             <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
-                              <div className="flex items-center gap-2">
-                                {student.group ? (
-                                  <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0 px-3 py-1">
-                                    <Building className="h-3 w-3 mr-1" />
-                                    {student.group.name}
-                                  </Badge>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {student.group_students && student.group_students.filter((gs: any) => !gs.left_date).length > 0 ? (
+                                  student.group_students
+                                    .filter((gs: any) => !gs.left_date)
+                                    .map((gs: any) => (
+                                      <Badge key={gs.id} className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0 px-2.5 py-1 text-xs whitespace-nowrap">
+                                        <Building className="h-3 w-3 mr-1" />
+                                        {gs.group?.name || 'Noma\'lum'}
+                                      </Badge>
+                                    ))
                                 ) : (
                                   <Badge variant="outline" className="border-gray-300 dark:border-gray-700">
                                     Guruhsiz
@@ -1240,12 +1248,16 @@ export default function StudentsPage() {
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-2 mb-4">
-                            {student.group ? (
-                              <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0 px-3 py-1">
-                                <Building className="h-3 w-3 mr-1" />
-                                {student.group.name}
-                              </Badge>
+                          <div className="flex flex-wrap items-center gap-1.5 mb-4">
+                            {student.group_students && student.group_students.filter((gs: any) => !gs.left_date).length > 0 ? (
+                              student.group_students
+                                .filter((gs: any) => !gs.left_date)
+                                .map((gs: any) => (
+                                  <Badge key={gs.id} className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0 px-2.5 py-1 text-xs whitespace-nowrap">
+                                    <Building className="h-3 w-3 mr-1" />
+                                    {gs.group?.name || 'Noma\'lum'}
+                                  </Badge>
+                                ))
                             ) : (
                               <Badge variant="outline" className="border-gray-300 dark:border-gray-700">
                                 Guruhsiz

@@ -3,8 +3,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
 
 export interface AIMessage {
   id: string;

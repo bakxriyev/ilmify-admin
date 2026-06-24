@@ -182,21 +182,21 @@ const navigationItems: NavigationItem[] = [
     path: '/reports',
     icon: 'BarChart3Icon',
     badge: 0,
-    roleRequired: 'director',
+    permKey: 'reports',
   },
   {
     label: 'Adminlar',
     path: '/admins',
     icon: 'UsersIcon',
     badge: 0,
-    roleRequired: 'director',
+    permKey: 'admins',
   },
   {
     label: 'Monitoring',
     path: '/monitoring',
     icon: 'ActivityIcon',
     badge: 0,
-    roleRequired: 'director',
+    permKey: 'monitoring',
   },
 ];
 
@@ -486,8 +486,8 @@ export default function Sidebar({
   const visibleItems = !mounted
     ? navigationItems
     : navigationItems.filter(item => {
-        if (item.roleRequired && effectiveRole !== item.roleRequired) return false;
-        if (effectiveRole === 'director' || !item.permKey || !effectivePerms) return true;
+        if (effectiveRole === 'director') return true;
+        if (!item.permKey || !effectivePerms) return true;
         return effectivePerms[item.permKey] === true;
       });
 

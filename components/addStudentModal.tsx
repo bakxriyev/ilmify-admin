@@ -45,7 +45,7 @@ export default function AddStudentsModal({
 
   useEffect(() => {
     if (open) {
-      fetchStudentsWithoutGroup();
+      fetchAllStudents();
     } else {
       setSelectedStudents(new Set());
       setSearchTerm('');
@@ -53,10 +53,10 @@ export default function AddStudentsModal({
     }
   }, [open]);
 
-  const fetchStudentsWithoutGroup = async () => {
+  const fetchAllStudents = async () => {
     try {
       setLoading(true);
-      const response = await studentsApi.getNoGroup(); // ✅ maxsus endpoint
+      const response = await studentsApi.getAll({ limit: 1000 });
       setStudents(response.data);
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -191,7 +191,7 @@ export default function AddStudentsModal({
                 <Users className="h-12 w-12 mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-500 text-base">Studentlar topilmadi</p>
                 <p className="text-sm text-gray-400 mt-1">
-                  Barcha studentlar allaqachon guruhlarga biriktirilgan
+                  Qidiruv bo'yicha hech narsa topilmadi
                 </p>
               </div>
             ) : (
@@ -229,6 +229,20 @@ export default function AddStudentsModal({
                         )}
                         <span>{student.phone_number || 'Kiritilmagan'}</span>
                       </div>
+                      {student.group_students && student.group_students.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {student.group_students
+                            .filter(gs => !gs.left_date)
+                            .map(gs => (
+                              <span
+                                key={gs.id}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200"
+                              >
+                                {gs.group?.name || 'Noma\'lum guruh'}
+                              </span>
+                            ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

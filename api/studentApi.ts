@@ -19,6 +19,18 @@ export interface Student {
     name: string;
     description?: string;
   } | null;
+  group_students?: Array<{
+    id: number;
+    group_id: number;
+    student_id: string;
+    joined_date: string;
+    left_date: string | null;
+    is_trial: boolean;
+    group?: {
+      id: number;
+      name: string;
+    };
+  }>;
   created_at?: string;
   updated_at?: string;
 }

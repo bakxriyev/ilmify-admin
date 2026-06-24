@@ -19,10 +19,15 @@ const ALL_PERMISSIONS = [
   { key: 'teachers', label: "O'qituvchilar", desc: "O'qituvchilar bilan ishlash" },
   { key: 'parents', label: 'Ota-onalar', desc: 'Ota-onalar bilan ishlash' },
   { key: 'groups', label: 'Guruhlar', desc: 'Guruhlar bilan ishlash' },
+  { key: 'attendance', label: 'Davomat', desc: 'Davomatni boshqarish' },
   { key: 'rooms', label: 'Xonalar', desc: 'Xonalarni boshqarish' },
   { key: 'payments', label: "To'lovlar", desc: "To'lovlar bilan ishlash" },
   { key: 'crm', label: 'CRM', desc: 'Leadlar va call-center bilan ishlash' },
   { key: 'notifications', label: 'Bildirishnomalar', desc: 'Bildirishnomalarni ko\'rish' },
+  { key: 'telegram', label: 'Telegram Bot', desc: 'Telegram botni boshqarish' },
+  { key: 'reports', label: 'Hisobotlar', desc: 'Hisobotlarni ko\'rish' },
+  { key: 'admins', label: 'Adminlar', desc: 'Adminlarni boshqarish' },
+  { key: 'monitoring', label: 'Monitoring', desc: 'Monitoringni ko\'rish' },
 ];
 
 export default function EditAdminPage() {
@@ -160,7 +165,7 @@ export default function EditAdminPage() {
                   <Switch
                     checked={permissions[p.key] === true}
                     onCheckedChange={() => togglePermission(p.key)}
-                    className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300"
+                    className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-300 data-[state=checked]:shadow-md"
                   />
                 </div>
               ))}

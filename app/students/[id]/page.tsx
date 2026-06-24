@@ -87,9 +87,10 @@ export default function StudentDetailPage() {
     }).catch(err => setError(err.message || 'Xatolik')).finally(() => setLoading(false));
   }, [id]);
 
-  const getGroupId = () => student?.group_students?.[0]?.group?.id || student?.group?.id;
-  const getGroupInfo = () => student?.group_students?.[0]?.group || student?.group;
-  const getLessonsFromGroupInfo = () => getGroupInfo()?.lessons || [];
+  const getActiveGroups = () => student?.group_students?.filter((gs: any) => !gs.left_date).map((gs: any) => gs.group) || [];
+  const getGroupId = () => getActiveGroups()[0]?.id || student?.group?.id;
+  const getGroupInfo = () => getActiveGroups()[0] || student?.group;
+  const getLessonsFromGroupInfo = () => getActiveGroups()[0]?.lessons || [];
 
   useEffect(() => {
     const gid = getGroupId();
@@ -210,8 +211,8 @@ export default function StudentDetailPage() {
   const groupInfo = student.group_students?.[0]?.group || student.group;
   const mainTeacher = groupInfo?.mainTeacher;
   const supportTeacher = groupInfo?.supportTeacher;
-  const lessons = groupInfo?.lessons || [];
-  const sortedLessons = [...lessons].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const allGroupLessons = getActiveGroups().flatMap((g: any) => (g.lessons || []).map((l: any) => ({ ...l, groupName: g.name })));
+  const sortedLessons = [...allGroupLessons].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const upcomingLessons = sortedLessons.filter((l: any) => new Date(l.date) > new Date());
 
   const parents = student.parent_links?.map((pl: any) => pl.parent).filter(Boolean) || [];
@@ -271,16 +272,23 @@ export default function StudentDetailPage() {
                     {getInitials(student.first_name, student.last_name)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="text-white">
+                  <div className="text-white">
                   <h1 className="text-2xl font-bold">{student.first_name} {student.last_name}</h1>
-                  <div className="flex items-center gap-3 text-white/80 text-sm mt-1">
+                  <div className="flex items-center gap-3 text-white/80 text-sm mt-1 flex-wrap">
                     <span className="flex items-center gap-1"><Hash className="h-3 w-3" /> ID: {student.id}</span>
-                    {groupInfo && (
+                    {getActiveGroups().length > 0 ? (
+                      getActiveGroups().map((g: any) => (
+                        <span key={g.id} className="flex items-center gap-1">
+                          <span className="w-1 h-1 rounded-full bg-white/50" />
+                          <Users className="h-3 w-3" /> {g.name}
+                        </span>
+                      ))
+                    ) : student?.group ? (
                       <>
                         <span className="w-1 h-1 rounded-full bg-white/50" />
-                        <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {groupInfo.name}</span>
+                        <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {student.group.name}</span>
                       </>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -385,8 +393,19 @@ export default function StudentDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 font-medium">Guruh</p>
-                    <p className="text-gray-900 font-semibold mt-1">{groupInfo?.name || "Guruhsiz"}</p>
+                    <p className="text-xs text-gray-500 font-medium">Guruhlar</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {getActiveGroups().length > 0 ? (
+                        getActiveGroups().map((g: any) => (
+                          <Badge key={g.id} className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0">
+                            <Building className="h-3 w-3 mr-1" />
+                            {g.name}
+                          </Badge>
+                        ))
+                      ) : (
+                        <p className="text-gray-900 font-semibold">Guruhsiz</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -418,125 +437,124 @@ export default function StudentDetailPage() {
           </TabsContent>
 
           <TabsContent value="group" className="space-y-6">
-            {groupInfo ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="border-0 shadow-md">
-                  <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-4">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      <Building className="h-5 w-5" /> Guruh ma'lumotlari
-                    </h3>
-                  </div>
-                  <CardContent className="p-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-bold text-gray-900 text-xl">{groupInfo.name}</h4>
-                        <p className="text-sm text-gray-500">ID: {groupInfo.id}</p>
-                      </div>
-                      <Badge className="bg-green-100 text-green-700 border-0">Faol</Badge>
-                    </div>
-                    {groupInfo.level && (
-                      <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-lg">
-                        <GraduationCap className="h-5 w-5 text-purple-600" />
-                        <span className="font-medium text-purple-700">{groupInfo.level.name} - {groupInfo.level.title}</span>
-                      </div>
-                    )}
-                    {groupInfo.kp && (
-                      <div className="flex items-center gap-2 p-3 bg-orange-50 rounded-lg">
-                        <Wallet className="h-5 w-5 text-orange-600" />
-                        <span className="font-medium text-orange-700">O'quvchi narxi: {Number(groupInfo.kp).toLocaleString()} so'm / oy</span>
-                        {groupInfo.monthly_price && (
-                          <span className="text-sm text-orange-600 ml-2">
-                            (oyiga)
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {groupInfo.room && (
-                      <div className="flex items-center gap-2 p-3 bg-teal-50 rounded-lg">
-                        <MapPin className="h-5 w-5 text-teal-600" />
-                        <div>
-                          <span className="font-medium text-teal-700">{groupInfo.room.name}</span>
-                          <span className="text-sm text-teal-600 ml-2">
-                            ({groupInfo.room.capacity} o'rin, {groupInfo.room.occupied_seats} band)
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                    <div className="pt-3 border-t border-gray-100">
-                      <h5 className="text-sm font-medium text-gray-500 mb-2">Darslar jadvali</h5>
-                      {sortedLessons.length > 0 ? (
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {sortedLessons.map((lesson: any) => (
-                            <div key={lesson.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
-                              <span className="text-gray-700">{formatDate(lesson.date)}</span>
-                              <span className="text-gray-500">{lesson.time?.slice(0, 5)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-400">Darslar mavjud emas</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div className="space-y-6">
-                  {mainTeacher && (
-                    <Card className="border-0 shadow-md">
-                      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                          <UserCheck className="h-5 w-5" /> Asosiy o'qituvchi
-                        </h3>
-                      </div>
-                      <CardContent className="p-6">
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-14 w-14 border-2 border-blue-200">
-                            <AvatarFallback className="bg-blue-100 text-blue-700 font-bold">
-                              {getInitials(mainTeacher.first_name, mainTeacher.last_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <h4 className="font-semibold text-gray-900">{mainTeacher.first_name} {mainTeacher.last_name}</h4>
-                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                              <Mail className="h-3.5 w-3.5" /> {mainTeacher.gmail}
-                            </p>
-                            <p className="text-sm text-gray-500 flex items-center gap-1">
-                              <Phone className="h-3.5 w-3.5" /> {mainTeacher.phone_number || "Ko'rsatilmagan"}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {supportTeacher && (
+            {getActiveGroups().length > 0 ? (
+              <div className="space-y-6">
+                {getActiveGroups().map((g: any) => (
+                  <div key={g.id} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <Card className="border-0 shadow-md">
                       <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-4">
                         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                          <Users className="h-5 w-5" /> Yordamchi o'qituvchi
+                          <Building className="h-5 w-5" /> {g.name}
                         </h3>
                       </div>
-                      <CardContent className="p-6">
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-14 w-14 border-2 border-indigo-200">
-                            <AvatarFallback className="bg-indigo-100 text-indigo-700 font-bold">
-                              {getInitials(supportTeacher.first_name, supportTeacher.last_name)}
-                            </AvatarFallback>
-                          </Avatar>
+                      <CardContent className="p-6 space-y-4">
+                        <div className="flex items-center justify-between">
                           <div>
-                            <h4 className="font-semibold text-gray-900">{supportTeacher.first_name} {supportTeacher.last_name}</h4>
-                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                              <Mail className="h-3.5 w-3.5" /> {supportTeacher.gmail}
-                            </p>
-                            <p className="text-sm text-gray-500 flex items-center gap-1">
-                              <Phone className="h-3.5 w-3.5" /> {supportTeacher.phone_number || "Ko'rsatilmagan"}
-                            </p>
+                            <h4 className="font-bold text-gray-900 text-xl">{g.name}</h4>
+                            <p className="text-sm text-gray-500">ID: {g.id}</p>
                           </div>
+                          <Badge className="bg-green-100 text-green-700 border-0">Faol</Badge>
+                        </div>
+                        {g.level && (
+                          <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-lg">
+                            <GraduationCap className="h-5 w-5 text-purple-600" />
+                            <span className="font-medium text-purple-700">{g.level.name} - {g.level.title}</span>
+                          </div>
+                        )}
+                        {g.kp && (
+                          <div className="flex items-center gap-2 p-3 bg-orange-50 rounded-lg">
+                            <Wallet className="h-5 w-5 text-orange-600" />
+                            <span className="font-medium text-orange-700">O'quvchi narxi: {Number(g.kp).toLocaleString()} so'm / oy</span>
+                          </div>
+                        )}
+                        {g.room && (
+                          <div className="flex items-center gap-2 p-3 bg-teal-50 rounded-lg">
+                            <MapPin className="h-5 w-5 text-teal-600" />
+                            <div>
+                              <span className="font-medium text-teal-700">{g.room.name}</span>
+                              <span className="text-sm text-teal-600 ml-2">
+                                ({g.room.capacity} o'rin, {g.room.occupied_seats} band)
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        <div className="pt-3 border-t border-gray-100">
+                          <h5 className="text-sm font-medium text-gray-500 mb-2">Darslar jadvali</h5>
+                          {(g.lessons || []).length > 0 ? (
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                              {(g.lessons || []).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((lesson: any) => (
+                                <div key={lesson.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
+                                  <span className="text-gray-700">{formatDate(lesson.date)}</span>
+                                  <span className="text-gray-500">{lesson.time?.slice(0, 5)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-400">Darslar mavjud emas</p>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
-                  )}
-                </div>
+
+                    <div className="space-y-6">
+                      {g.mainTeacher && (
+                        <Card className="border-0 shadow-md">
+                          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                              <UserCheck className="h-5 w-5" /> Asosiy o'qituvchi
+                            </h3>
+                          </div>
+                          <CardContent className="p-6">
+                            <div className="flex items-center gap-4">
+                              <Avatar className="h-14 w-14 border-2 border-blue-200">
+                                <AvatarFallback className="bg-blue-100 text-blue-700 font-bold">
+                                  {getInitials(g.mainTeacher.first_name, g.mainTeacher.last_name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h4 className="font-semibold text-gray-900">{g.mainTeacher.first_name} {g.mainTeacher.last_name}</h4>
+                                <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                  <Mail className="h-3.5 w-3.5" /> {g.mainTeacher.gmail}
+                                </p>
+                                <p className="text-sm text-gray-500 flex items-center gap-1">
+                                  <Phone className="h-3.5 w-3.5" /> {g.mainTeacher.phone_number || "Ko'rsatilmagan"}
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {g.supportTeacher && (
+                        <Card className="border-0 shadow-md">
+                          <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-4">
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                              <Users className="h-5 w-5" /> Yordamchi o'qituvchi
+                            </h3>
+                          </div>
+                          <CardContent className="p-6">
+                            <div className="flex items-center gap-4">
+                              <Avatar className="h-14 w-14 border-2 border-indigo-200">
+                                <AvatarFallback className="bg-indigo-100 text-indigo-700 font-bold">
+                                  {getInitials(g.supportTeacher.first_name, g.supportTeacher.last_name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h4 className="font-semibold text-gray-900">{g.supportTeacher.first_name} {g.supportTeacher.last_name}</h4>
+                                <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                  <Mail className="h-3.5 w-3.5" /> {g.supportTeacher.gmail}
+                                </p>
+                                <p className="text-sm text-gray-500 flex items-center gap-1">
+                                  <Phone className="h-3.5 w-3.5" /> {g.supportTeacher.phone_number || "Ko'rsatilmagan"}
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <Card className="border-0 shadow-md"><CardContent className="text-center py-12 text-gray-500">
@@ -949,6 +967,7 @@ export default function StudentDetailPage() {
                         <TableRow>
                           <TableHead>Sana</TableHead>
                           <TableHead>Vaqt</TableHead>
+                          <TableHead>Guruh</TableHead>
                           <TableHead>Hafta</TableHead>
                           <TableHead>Holat</TableHead>
                         </TableRow>
@@ -958,6 +977,11 @@ export default function StudentDetailPage() {
                           <TableRow key={lesson.id} className="hover:bg-gray-50">
                             <TableCell className="font-medium">{formatDate(lesson.date)}</TableCell>
                             <TableCell>{lesson.time?.slice(0, 5)}</TableCell>
+                            <TableCell>
+                              <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0 text-xs px-2 py-0.5">
+                                {lesson.groupName}
+                              </Badge>
+                            </TableCell>
                             <TableCell>
                               <Badge variant="outline" className={lesson.parity === 'odd' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-gray-100 text-gray-700'}>
                                 {lesson.parity === 'odd' ? 'Toq' : 'Juft'}
