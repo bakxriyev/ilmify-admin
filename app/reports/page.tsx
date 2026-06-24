@@ -83,11 +83,10 @@ export default function ReportsPage() {
   const totalDebt = debtItems.reduce((sum, i) => sum + i.debt, 0);
   const debtorsCount = debtItems.filter(i => i.status !== 'paid').length;
 
-  // Reja: studentlar * monthly_price = maqsad, tanlangan oydagi tushum = erishilgan
-  const totalMonthlyPrice = debtItems.reduce((sum, i) => sum + i.monthly_price, 0);
+  // Reja: qarzdorlik = maqsad, tanlangan oydagi tushum = erishilgan
   const currentMonthIncome = monthlyIncome[month - 1]?.total || 0;
   const planAchieved = currentMonthIncome;
-  const planTarget = totalMonthlyPrice;
+  const planTarget = totalDebt;
   const planPercent = planTarget > 0 ? Math.min(100, (planAchieved / planTarget) * 100) : 0;
 
   const incomeData = monthlyIncome.map(m => ({
@@ -199,7 +198,7 @@ export default function ReportsPage() {
                     <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-2xl p-4 text-center border border-amber-200/50">
                       <p className="text-amber-600 text-[11px] font-semibold uppercase tracking-wider">Kutilayotgan</p>
                       <p className="text-xl font-bold text-amber-700 mt-1">{formatSum(planTarget)} so'm</p>
-                      <p className="text-amber-500 text-xs mt-1">{debtItems.length} ta student</p>
+                      <p className="text-amber-500 text-xs mt-1">{debtorsCount} ta qarzdor</p>
                     </div>
                     <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-2xl p-4 text-center border border-purple-200/50">
                       <p className="text-purple-600 text-[11px] font-semibold uppercase tracking-wider">Qarzdorlik</p>
@@ -221,7 +220,7 @@ export default function ReportsPage() {
                     </div>
                     <div className="flex justify-between text-xs text-gray-400">
                       <span>Reja bajarilishi: {planPercent.toFixed(1)}%</span>
-                      <span>Maqsad: {formatSum(planTarget)} so'm / {debtItems.length} ta student</span>
+                      <span>Maqsad: {formatSum(planTarget)} so'm / {debtorsCount} ta qarzdor</span>
                     </div>
                   </div>
                 </div>
