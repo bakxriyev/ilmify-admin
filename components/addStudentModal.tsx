@@ -56,7 +56,7 @@ export default function AddStudentsModal({
   const fetchAllStudents = async () => {
     try {
       setLoading(true);
-      const response = await studentsApi.getAll({ limit: 1000 });
+      const response = await studentsApi.getAll({ limit: 10000 });
       setStudents(response.data);
     } catch (error) {
       console.error('Error fetching students:', error);
