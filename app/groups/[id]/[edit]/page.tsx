@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, ArrowLeft, Save, Plus, Trash2, DoorOpen, Check, ChevronsUpDown } from 'lucide-react';
+import {
+  AlertCircle, ArrowLeft, Save, Plus, Trash2, DoorOpen, Check, ChevronsUpDown,
+  UserCheck, Users, Wallet, Layers, School, GraduationCap, Calendar, Clock,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { groupsApi, type Group, type UpdateGroupRequest } from '@/api/groupsApi';
 import { lessonsApi, type Lesson, type CreateLessonRequest } from '@/api/lessonsApi';
@@ -45,6 +48,8 @@ export default function EditGroupPage() {
   const [supportTeacherOpen, setSupportTeacherOpen] = useState(false);
   const [mainTeacherSearch, setMainTeacherSearch] = useState('');
   const [supportTeacherSearch, setSupportTeacherSearch] = useState('');
+  const [priceText, setPriceText] = useState('');
+  const [kpText, setKpText] = useState('');
 
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonsLoading, setLessonsLoading] = useState(false);
@@ -59,6 +64,8 @@ export default function EditGroupPage() {
 
   const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
   const selectedRoom = rooms.find(r => r.id === formData.room_id);
+  const selectedMainTeacher = mainTeachers.find(t => t.id.toString() === formData.teacher_id);
+  const selectedSupportTeacher = supportTeachers.find(t => t.id.toString() === formData.support_teacher_id);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -79,6 +86,8 @@ export default function EditGroupPage() {
           monthly_price: groupData.monthly_price,
           kp: groupData.kp,
         });
+        setPriceText(groupData.monthly_price ? String(groupData.monthly_price) : '');
+        setKpText(groupData.kp ? String(groupData.kp) : '');
 
         const teachers = teachersRes.data;
         setMainTeachers(teachers.filter(t => t.teacher_type === 'MAIN_TEACHER'));
@@ -106,9 +115,8 @@ export default function EditGroupPage() {
       setLessonsLoading(true);
       const data = await lessonsApi.getByGroup(groupId);
       setLessons(data);
-    } catch (err: any) {
+    } catch {
       toast.error("Darslarni yuklashda xatolik");
-      console.error('Failed to fetch lessons:', err);
     } finally {
       setLessonsLoading(false);
     }
@@ -133,6 +141,8 @@ export default function EditGroupPage() {
         payload.support_teacher_id = null;
       }
       payload.room_id = formData.room_id ? Number(formData.room_id) : null;
+      payload.monthly_price = priceText ? Number(priceText) : undefined;
+      payload.kp = kpText ? Number(kpText) : undefined;
 
       await groupsApi.update(groupId, payload);
       toast.success('Guruh muvaffaqiyatli yangilandi!');
@@ -188,9 +198,14 @@ export default function EditGroupPage() {
   if (loading || fetchingMeta) {
     return (
       <Layout>
-        <div className="space-y-6 py-6 px-4 md:px-6 lg:px-8 max-w-4xl mx-auto">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-64 w-full rounded-xl" />
+        <div className="w-full min-h-[calc(100vh-80px)] bg-gradient-to-br from-gray-50 to-white">
+          <div className="w-full h-full p-6 md:p-8 lg:p-10">
+            <div className="max-w-[1000px] mx-auto space-y-6">
+              <Skeleton className="h-10 w-48" />
+              <Skeleton className="h-36 w-full rounded-2xl" />
+              <Skeleton className="h-[600px] w-full rounded-2xl" />
+            </div>
+          </div>
         </div>
       </Layout>
     );
@@ -199,13 +214,16 @@ export default function EditGroupPage() {
   if (!group) {
     return (
       <Layout>
-        <div className="space-y-6 py-6 px-4 md:px-6 lg:px-8 max-w-4xl mx-auto">
-          <Button variant="ghost" size="sm" asChild className="hover:bg-accent text-muted-foreground hover:text-primary transition-all duration-300">
-              <Link href="/groups">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Guruhlarga qaytish
-              </Link>
-          </Button>
+        <div className="w-full min-h-[calc(100vh-80px)] bg-gradient-to-br from-gray-50 to-white">
+          <div className="w-full h-full p-6 md:p-8 lg:p-10">
+            <div className="max-w-[1000px] mx-auto">
+              <Button variant="ghost" asChild className="hover:bg-blue-50 text-gray-600 hover:text-blue-600 h-9 text-sm -ml-2">
+                <Link href="/groups">
+                  <ArrowLeft className="h-4 w-4 mr-1.5" /> Guruhlarga qaytish
+                </Link>
+              </Button>
+            </div>
+          </div>
         </div>
       </Layout>
     );
@@ -213,415 +231,505 @@ export default function EditGroupPage() {
 
   return (
     <Layout>
-      <div className="space-y-6 px-4 md:px-6 lg:px-8 py-6 max-w-4xl mx-auto">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild className="hover:bg-accent text-muted-foreground hover:text-primary transition-all duration-300">
-              <Link href={`/groups/${groupId}`}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Guruh tafsilotlariga qaytish
-              </Link>
-          </Button>
-        </div>
+      <div className="w-full min-h-[calc(100vh-80px)] bg-gradient-to-br from-gray-50 to-white">
+        <div className="w-full h-full p-6 md:p-8 lg:p-10">
+          <div className="max-w-[1000px] mx-auto space-y-6">
 
-        <Card className="border-gray-200 bg-white shadow-lg overflow-hidden rounded-xl">
-          <CardHeader className="bg-gray-50/50 border-b border-gray-200 px-6 py-5">
-            <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <div className="p-2 bg-primary/10 rounded-lg transition-all duration-300 hover:scale-110">
-                <Save className="h-5 w-5 text-primary" />
-              </div>
-              Guruhni tahrirlash: {group?.name}
-            </CardTitle>
-            <CardDescription className="text-muted-foreground">
-              Guruh ma'lumotlarini yangilang va darslarni boshqaring.
-            </CardDescription>
-          </CardHeader>
+            {/* Back */}
+            <div>
+              <Button variant="ghost" asChild className="hover:bg-blue-50 text-gray-600 hover:text-blue-600 h-9 text-sm -ml-2">
+                <Link href={`/groups/${groupId}`}>
+                  <ArrowLeft className="h-4 w-4 mr-1.5" /> Guruh tafsilotlariga qaytish
+                </Link>
+              </Button>
+            </div>
 
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-6 p-6">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-gray-900 font-medium">
-                  Guruh nomi <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  className="transition-all duration-300"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-gray-900 font-medium">
-                  Asosiy o'qituvchi <span className="text-destructive">*</span>
-                </Label>
-                <Popover open={mainTeacherOpen} onOpenChange={setMainTeacherOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={mainTeacherOpen}
-                      className="w-full justify-between"
-                    >
-                      {formData.teacher_id
-                        ? (() => {
-                            const t = mainTeachers.find(t => t.id.toString() === formData.teacher_id);
-                            return t ? `${t.first_name} ${t.last_name}` : "Asosiy o'qituvchini tanlang";
-                          })()
-                        : "Asosiy o'qituvchini tanlang"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
-                      <CommandInput
-                        placeholder="O'qituvchi qidirish..."
-                        value={mainTeacherSearch}
-                        onValueChange={setMainTeacherSearch}
-                      />
-                      <CommandList>
-                        <CommandEmpty>O'qituvchi topilmadi</CommandEmpty>
-                        <CommandGroup className="max-h-48 overflow-y-auto">
-                          {mainTeachers
-                            .filter(t =>
-                              t.first_name.toLowerCase().includes(mainTeacherSearch.toLowerCase()) ||
-                              t.last_name.toLowerCase().includes(mainTeacherSearch.toLowerCase()) ||
-                              (t.gmail || '').toLowerCase().includes(mainTeacherSearch.toLowerCase())
-                            )
-                            .map((teacher) => (
-                              <CommandItem
-                                key={teacher.id}
-                                value={`${teacher.first_name} ${teacher.last_name} ${teacher.gmail || ''}`}
-                                onSelect={() => {
-                                  setFormData({ ...formData, teacher_id: teacher.id.toString() });
-                                  setMainTeacherOpen(false);
-                                  setMainTeacherSearch('');
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    formData.teacher_id === teacher.id.toString() ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {teacher.first_name} {teacher.last_name}
-                                <span className="ml-2 text-xs text-gray-400">{teacher.gmail}</span>
-                              </CommandItem>
-                            ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-gray-900 font-medium">
-                  Yordamchi o'qituvchi
-                </Label>
-                <Popover open={supportTeacherOpen} onOpenChange={setSupportTeacherOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={supportTeacherOpen}
-                      className="w-full justify-between"
-                    >
-                      {formData.support_teacher_id
-                        ? (() => {
-                            const t = supportTeachers.find(t => t.id.toString() === formData.support_teacher_id);
-                            return t ? `${t.first_name} ${t.last_name}` : "Yordamchi o'qituvchini tanlang";
-                          })()
-                        : "Yordamchi o'qituvchini tanlang (ixtiyoriy)"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
-                      <CommandInput
-                        placeholder="O'qituvchi qidirish..."
-                        value={supportTeacherSearch}
-                        onValueChange={setSupportTeacherSearch}
-                      />
-                      <CommandList>
-                        <CommandEmpty>O'qituvchi topilmadi</CommandEmpty>
-                        <CommandGroup className="max-h-48 overflow-y-auto">
-                          <CommandItem
-                            onSelect={() => {
-                              setFormData({ ...formData, support_teacher_id: '' });
-                              setSupportTeacherOpen(false);
-                              setSupportTeacherSearch('');
-                            }}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", !formData.support_teacher_id ? "opacity-100" : "opacity-0")} />
-                            Yo'q
-                          </CommandItem>
-                          {supportTeachers
-                            .filter(t =>
-                              t.first_name.toLowerCase().includes(supportTeacherSearch.toLowerCase()) ||
-                              t.last_name.toLowerCase().includes(supportTeacherSearch.toLowerCase()) ||
-                              (t.gmail || '').toLowerCase().includes(supportTeacherSearch.toLowerCase())
-                            )
-                            .map((teacher) => (
-                              <CommandItem
-                                key={teacher.id}
-                                value={`${teacher.first_name} ${teacher.last_name} ${teacher.gmail || ''}`}
-                                onSelect={() => {
-                                  setFormData({ ...formData, support_teacher_id: teacher.id.toString() });
-                                  setSupportTeacherOpen(false);
-                                  setSupportTeacherSearch('');
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    formData.support_teacher_id === teacher.id.toString() ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {teacher.first_name} {teacher.last_name}
-                                <span className="ml-2 text-xs text-gray-400">{teacher.gmail}</span>
-                              </CommandItem>
-                            ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="room_id" className="text-gray-900 font-medium">
-                  Xona
-                </Label>
-                <Select
-                  value={formData.room_id || 'none'}
-                  onValueChange={(value) => setFormData({ ...formData, room_id: value === 'none' ? '' : value })}
-                >
-                  <SelectTrigger className="transition-all duration-300">
-                    <SelectValue placeholder="Xonani tanlang (ixtiyoriy)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Xonasiz</SelectItem>
-                    {rooms.length === 0 ? (
-                      <SelectItem value="no-room" disabled>
-                        Xonalar mavjud emas
-                      </SelectItem>
-                    ) : (
-                      rooms.map((room) => (
-                        <SelectItem key={room.id} value={room.id.toString()}>
-                          {room.name} ({room.capacity} o'rin)
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                {selectedRoom && (
-                  <div className="flex items-center gap-2 mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <DoorOpen className="h-4 w-4 text-primary" />
-                    <div className="text-sm text-muted-foreground">
-                      <span className="font-medium text-gray-900">{selectedRoom.name}</span>
-                      <span className="mx-2">&middot;</span>
-                      Sig'imi: <span className="font-medium text-gray-900">{selectedRoom.capacity}</span>
-                      <span className="mx-2">&middot;</span>
-                      Band: <span className="font-medium text-amber-600 dark:text-amber-400">{selectedRoom.occupied_seats}</span>
-                      <span className="mx-2">&middot;</span>
-                      Bo'sh: <span className="font-medium text-green-600 dark:text-green-400">{selectedRoom.capacity - selectedRoom.occupied_seats}</span>
+            {/* Header card */}
+            <Card className="border-0 rounded-2xl shadow-lg overflow-hidden">
+              <div className="relative h-36 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
+                <div className="absolute inset-0 flex items-center justify-center opacity-[0.06]">
+                  <School className="h-32 w-32 text-white" />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl">
+                      <GraduationCap className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h1 className="text-2xl font-bold text-white">Guruhni tahrirlash</h1>
+                      <p className="text-white/70 text-sm mt-0.5">{group.name}</p>
                     </div>
                   </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="monthly_price" className="text-gray-900 font-medium">
-                  Oylik to'lov narxi
-                </Label>
-                <Input
-                  id="monthly_price"
-                  type="number"
-                  min="0"
-                  value={formData.monthly_price || ''}
-                  onChange={(e) => setFormData({ ...formData, monthly_price: e.target.value ? Number(e.target.value) : undefined })}
-                  placeholder="Masalan, 200000"
-                  className="transition-all duration-300"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="kp" className="text-gray-900 font-medium">
-                  O'quvchi narxi (so'm)
-                </Label>
-                <Input
-                  id="kp"
-                  type="number"
-                  min="0"
-                  step="1000"
-                  value={formData.kp ?? ''}
-                  onChange={(e) => setFormData({ ...formData, kp: e.target.value ? Number(e.target.value) : undefined })}
-                  placeholder="Masalan, 150000"
-                  className="transition-all duration-300"
-                />
-                <p className="text-xs text-gray-500">Har bir o'quvchidan olinadigan oylik summa</p>
-              </div>
-
-              <div className="pt-6 border-t border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Darslar</h3>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      resetLessonForm();
-                      setLessonFormOpen(true);
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Dars qo'shish
-                  </Button>
                 </div>
+              </div>
+            </Card>
 
-                {lessonFormOpen && (
-                  <Card className="mb-6 border-gray-200 bg-gray-50/30">
-                    <CardHeader className="p-4 pb-2">
-                      <CardTitle className="text-base text-gray-900">Yangi dars</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <form onSubmit={handleLessonSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="lesson-date" className="text-muted-foreground">Sana *</Label>
-                            <Input
-                              id="lesson-date"
-                              type="date"
-                              value={lessonFormData.date}
-                              onChange={(e) => setLessonFormData({ ...lessonFormData, date: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="lesson-time" className="text-muted-foreground">Vaqt *</Label>
-                            <Input
-                              id="lesson-time"
-                              type="time"
-                              value={lessonFormData.time}
-                              onChange={(e) => setLessonFormData({ ...lessonFormData, time: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="lesson-parity" className="text-muted-foreground">Juftlik</Label>
-                            <Select
-                              value={lessonFormData.parity || ''}
-                              onValueChange={(value: 'odd' | 'even') => setLessonFormData({ ...lessonFormData, parity: value })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Juftlikni tanlang" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="odd">Toq haftalar</SelectItem>
-                                <SelectItem value="even">Juft haftalar</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
+            {/* Form card */}
+            <Card className="border border-gray-200/80 bg-white/95 backdrop-blur-sm shadow-md rounded-2xl overflow-hidden">
+              <form onSubmit={handleSubmit}>
+                <CardContent className="p-0">
+                  <div className="p-6 md:p-8 space-y-7">
+                    {/* Main info section */}
+                    <div>
+                      <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2 mb-5">
+                        <div className="p-1.5 bg-blue-50 rounded-lg"><Layers className="h-4 w-4 text-blue-600" /></div>
+                        Asosiy ma'lumotlar
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="space-y-2">
+                          <Label htmlFor="name" className="text-gray-900 font-medium text-sm flex items-center gap-1">
+                            Guruh nomi <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            id="name"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            required
+                            className="h-11 text-sm rounded-xl border-gray-300 focus:border-blue-400 focus:ring-blue-400 transition-all"
+                          />
                         </div>
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setLessonFormOpen(false);
-                              resetLessonForm();
+
+                        <div className="space-y-2">
+                          <Label htmlFor="monthly_price" className="text-gray-900 font-medium text-sm flex items-center gap-1">
+                            <Wallet className="h-3.5 w-3.5 text-gray-400" /> Oylik to'lov narxi
+                          </Label>
+                          <Input
+                            id="monthly_price"
+                            type="text"
+                            inputMode="numeric"
+                            value={priceText}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '');
+                              setPriceText(digits);
+                              setFormData({ ...formData, monthly_price: digits ? Number(digits) : undefined });
                             }}
-                          >
-                            Bekor qilish
-                          </Button>
-                          <Button type="submit">
-                            Dars yaratish
-                          </Button>
+                            placeholder="Masalan, 600000"
+                            className="h-11 text-sm rounded-xl border-gray-300 focus:border-blue-400 focus:ring-blue-400 transition-all"
+                          />
+                          {priceText && (
+                            <p className="text-xs text-gray-500">
+                              {Number(priceText).toLocaleString('uz-UZ')} so'm
+                            </p>
+                          )}
                         </div>
-                      </form>
-                    </CardContent>
-                  </Card>
-                )}
 
-                <Collapsible open={lessonsOpen} onOpenChange={setLessonsOpen}>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" className="w-full flex justify-between text-gray-900 hover:bg-accent transition-all duration-300">
-                      <span>{lessons.length} ta dars</span>
-                      <span>{lessonsOpen ? 'Yashirish' : 'Ko\'rsatish'}</span>
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-2 mt-2">
-                    {lessonsLoading ? (
-                      <div className="space-y-2">
-                        <Skeleton className="h-12 w-full rounded-lg" />
-                        <Skeleton className="h-12 w-full rounded-lg" />
+                        <div className="space-y-2">
+                          <Label htmlFor="kp" className="text-gray-900 font-medium text-sm flex items-center gap-1">
+                            <Wallet className="h-3.5 w-3.5 text-gray-400" /> O'quvchi narxi (KP)
+                          </Label>
+                          <Input
+                            id="kp"
+                            type="text"
+                            inputMode="numeric"
+                            value={kpText}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '');
+                              setKpText(digits);
+                              setFormData({ ...formData, kp: digits ? Number(digits) : undefined });
+                            }}
+                            placeholder="Masalan, 150000"
+                            className="h-11 text-sm rounded-xl border-gray-300 focus:border-blue-400 focus:ring-blue-400 transition-all"
+                          />
+                          <p className="text-xs text-gray-500">Ustozga beriladigan KP summasi</p>
+                        </div>
                       </div>
-                    ) : lessons.length === 0 ? (
-                      <p className="text-muted-foreground text-sm py-4">Hali darslar yo'q.</p>
-                    ) : (
-                      lessons.map((lesson) => {
-                        const lessonDate = new Date(lesson.date);
-                        const formattedDate = `${lessonDate.getDate()} ${monthNames[lessonDate.getMonth()]} ${lessonDate.getFullYear()}`;
-                        return (
-                          <div
-                            key={lesson.id}
-                            className="flex items-center justify-between p-3 bg-gray-50/30 border border-gray-200 rounded-lg transition-all duration-300 hover:shadow-md"
-                          >
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {formattedDate} soat {lesson.time.slice(0,5)}
-                                {lesson.parity && (
-                                  <span className="ml-2 text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-                                    {lesson.parity === 'odd' ? 'Toq' : 'Juft'} hafta
-                                  </span>
-                                )}
+                    </div>
+
+                    {/* Teachers section */}
+                    <div className="border-t border-gray-100 pt-7">
+                      <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2 mb-5">
+                        <div className="p-1.5 bg-emerald-50 rounded-lg"><Users className="h-4 w-4 text-emerald-600" /></div>
+                        O'qituvchilar
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="space-y-2">
+                          <Label className="text-gray-900 font-medium text-sm flex items-center gap-1">
+                            <UserCheck className="h-3.5 w-3.5 text-blue-500" /> Asosiy o'qituvchi <span className="text-red-500">*</span>
+                          </Label>
+                          <Popover open={mainTeacherOpen} onOpenChange={setMainTeacherOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={mainTeacherOpen}
+                                className="w-full justify-between h-11 text-sm rounded-xl border-gray-300 bg-white hover:bg-gray-50 transition-all"
+                              >
+                                <span className={selectedMainTeacher ? 'text-gray-900' : 'text-gray-400'}>
+                                  {selectedMainTeacher
+                                    ? `${selectedMainTeacher.first_name} ${selectedMainTeacher.last_name}`
+                                    : "Asosiy o'qituvchini tanlang"}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+                              <Command className="rounded-xl">
+                                <CommandInput
+                                  placeholder="O'qituvchi qidirish..."
+                                  value={mainTeacherSearch}
+                                  onValueChange={setMainTeacherSearch}
+                                  className="h-11"
+                                />
+                                <CommandList>
+                                  <CommandEmpty className="py-6 text-center text-sm text-gray-500">
+                                    <div className="flex flex-col items-center gap-2">
+                                      <UserCheck className="h-8 w-8 text-gray-300" />
+                                      O'qituvchi topilmadi
+                                    </div>
+                                  </CommandEmpty>
+                                  <CommandGroup className="max-h-56 overflow-y-auto p-1">
+                                    {mainTeachers
+                                      .filter(t =>
+                                        t.first_name.toLowerCase().includes(mainTeacherSearch.toLowerCase()) ||
+                                        t.last_name.toLowerCase().includes(mainTeacherSearch.toLowerCase()) ||
+                                        (t.gmail || '').toLowerCase().includes(mainTeacherSearch.toLowerCase())
+                                      )
+                                      .map((teacher) => (
+                                        <CommandItem
+                                          key={teacher.id}
+                                          value={`${teacher.first_name} ${teacher.last_name} ${teacher.gmail || ''}`}
+                                          onSelect={() => {
+                                            setFormData({ ...formData, teacher_id: teacher.id.toString() });
+                                            setMainTeacherOpen(false);
+                                            setMainTeacherSearch('');
+                                          }}
+                                          className="rounded-lg cursor-pointer hover:bg-blue-50 aria-selected:bg-blue-50 transition-colors"
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              formData.teacher_id === teacher.id.toString() ? "opacity-100 text-blue-600" : "opacity-0"
+                                            )}
+                                          />
+                                          <div className="flex flex-col">
+                                            <span className="text-sm font-medium text-gray-900">
+                                              {teacher.first_name} {teacher.last_name}
+                                            </span>
+                                            <span className="text-xs text-gray-400">{teacher.gmail}</span>
+                                          </div>
+                                        </CommandItem>
+                                      ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-gray-900 font-medium text-sm flex items-center gap-1">
+                            <Users className="h-3.5 w-3.5 text-indigo-500" /> Yordamchi o'qituvchi
+                          </Label>
+                          <Popover open={supportTeacherOpen} onOpenChange={setSupportTeacherOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={supportTeacherOpen}
+                                className="w-full justify-between h-11 text-sm rounded-xl border-gray-300 bg-white hover:bg-gray-50 transition-all"
+                              >
+                                <span className={selectedSupportTeacher ? 'text-gray-900' : 'text-gray-400'}>
+                                  {selectedSupportTeacher
+                                    ? `${selectedSupportTeacher.first_name} ${selectedSupportTeacher.last_name}`
+                                    : "Yordamchi o'qituvchini tanlang (ixtiyoriy)"}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+                              <Command className="rounded-xl">
+                                <CommandInput
+                                  placeholder="O'qituvchi qidirish..."
+                                  value={supportTeacherSearch}
+                                  onValueChange={setSupportTeacherSearch}
+                                  className="h-11"
+                                />
+                                <CommandList>
+                                  <CommandEmpty className="py-6 text-center text-sm text-gray-500">
+                                    <div className="flex flex-col items-center gap-2">
+                                      <Users className="h-8 w-8 text-gray-300" />
+                                      O'qituvchi topilmadi
+                                    </div>
+                                  </CommandEmpty>
+                                  <CommandGroup className="max-h-56 overflow-y-auto p-1">
+                                    <CommandItem
+                                      onSelect={() => {
+                                        setFormData({ ...formData, support_teacher_id: '' });
+                                        setSupportTeacherOpen(false);
+                                        setSupportTeacherSearch('');
+                                      }}
+                                      className="rounded-lg cursor-pointer hover:bg-gray-50 aria-selected:bg-gray-50 transition-colors"
+                                    >
+                                      <Check className={cn("mr-2 h-4 w-4", !formData.support_teacher_id ? "opacity-100 text-gray-600" : "opacity-0")} />
+                                      <span className="text-sm text-gray-500">Yo'q (tanlanmagan)</span>
+                                    </CommandItem>
+                                    {supportTeachers
+                                      .filter(t =>
+                                        t.first_name.toLowerCase().includes(supportTeacherSearch.toLowerCase()) ||
+                                        t.last_name.toLowerCase().includes(supportTeacherSearch.toLowerCase()) ||
+                                        (t.gmail || '').toLowerCase().includes(supportTeacherSearch.toLowerCase())
+                                      )
+                                      .map((teacher) => (
+                                        <CommandItem
+                                          key={teacher.id}
+                                          value={`${teacher.first_name} ${teacher.last_name} ${teacher.gmail || ''}`}
+                                          onSelect={() => {
+                                            setFormData({ ...formData, support_teacher_id: teacher.id.toString() });
+                                            setSupportTeacherOpen(false);
+                                            setSupportTeacherSearch('');
+                                          }}
+                                          className="rounded-lg cursor-pointer hover:bg-indigo-50 aria-selected:bg-indigo-50 transition-colors"
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              formData.support_teacher_id === teacher.id.toString() ? "opacity-100 text-indigo-600" : "opacity-0"
+                                            )}
+                                          />
+                                          <div className="flex flex-col">
+                                            <span className="text-sm font-medium text-gray-900">
+                                              {teacher.first_name} {teacher.last_name}
+                                            </span>
+                                            <span className="text-xs text-gray-400">{teacher.gmail}</span>
+                                          </div>
+                                        </CommandItem>
+                                      ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Room section */}
+                    <div className="border-t border-gray-100 pt-7">
+                      <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2 mb-5">
+                        <div className="p-1.5 bg-teal-50 rounded-lg"><DoorOpen className="h-4 w-4 text-teal-600" /></div>
+                        Xona
+                      </h2>
+                      <div className="space-y-2">
+                        <Select
+                          value={formData.room_id || 'none'}
+                          onValueChange={(value) => setFormData({ ...formData, room_id: value === 'none' ? '' : value })}
+                        >
+                          <SelectTrigger className="h-11 text-sm rounded-xl border-gray-300 focus:border-teal-400 focus:ring-teal-400 transition-all">
+                            <SelectValue placeholder="Xonani tanlang (ixtiyoriy)" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-gray-200 bg-white shadow-lg">
+                            <SelectItem value="none" className="text-gray-400">Xonasiz</SelectItem>
+                            {rooms.length === 0 ? (
+                              <SelectItem value="no-room" disabled className="text-gray-400">
+                                Xonalar mavjud emas
+                              </SelectItem>
+                            ) : (
+                              rooms.map((room) => (
+                                <SelectItem key={room.id} value={room.id.toString()}>
+                                  {room.name} ({room.capacity} o'rin)
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {selectedRoom && (
+                          <div className="flex items-center gap-3 p-4 bg-teal-50/80 rounded-xl border border-teal-200/80 shadow-sm">
+                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                              <DoorOpen className="h-5 w-5 text-teal-600" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-gray-900">{selectedRoom.name}</p>
+                              <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                                <span>Sig'imi: <strong className="text-gray-900">{selectedRoom.capacity}</strong></span>
+                                <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                <span>Band: <strong className="text-amber-600">{selectedRoom.occupied_seats}</strong></span>
+                                <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                <span>Bo'sh: <strong className="text-emerald-600">{selectedRoom.capacity - selectedRoom.occupied_seats}</strong></span>
                               </div>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteLesson(lesson.id)}
-                              className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 transition-all duration-300"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
                           </div>
-                        );
-                      })
-                    )}
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
-            </CardContent>
+                        )}
+                      </div>
+                    </div>
 
-            <CardFooter className="flex justify-end gap-3 border-t border-gray-200 bg-gray-50/50 px-6 py-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push(`/groups/${groupId}`)}
-                disabled={submitting}
-              >
-                Bekor qilish
-              </Button>
-              <Button
-                type="submit"
-                disabled={submitting || !formData.name || !formData.teacher_id}
-                className="min-w-[120px] shadow-md hover:shadow-lg font-semibold"
-              >
-                {submitting ? (
-                  <>
-                    <span className="animate-spin mr-2">⏳</span>
-                    Yangilanmoqda...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Guruhni yangilash
-                  </>
-                )}
-              </Button>
-            </CardFooter>
-          </form>
-        </Card>
+                    {/* Lessons section */}
+                    <div className="border-t border-gray-100 pt-7">
+                      <div className="flex items-center justify-between mb-5">
+                        <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                          <div className="p-1.5 bg-amber-50 rounded-lg"><Calendar className="h-4 w-4 text-amber-600" /></div>
+                          Darslar
+                        </h2>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            resetLessonForm();
+                            setLessonFormOpen(true);
+                          }}
+                          className="h-9 text-xs rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-sm"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Dars qo'shish
+                        </Button>
+                      </div>
+
+                      {lessonFormOpen && (
+                        <Card className="mb-5 border border-amber-200/80 bg-amber-50/30 shadow-sm rounded-xl overflow-hidden">
+                          <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2.5">
+                            <h3 className="text-sm font-semibold text-white">Yangi dars</h3>
+                          </div>
+                          <CardContent className="p-4">
+                            <form onSubmit={handleLessonSubmit} className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="lesson-date" className="text-gray-700 text-sm">Sana *</Label>
+                                  <Input
+                                    id="lesson-date"
+                                    type="date"
+                                    value={lessonFormData.date}
+                                    onChange={(e) => setLessonFormData({ ...lessonFormData, date: e.target.value })}
+                                    required
+                                    className="h-10 text-sm rounded-xl border-gray-300"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="lesson-time" className="text-gray-700 text-sm">Vaqt *</Label>
+                                  <Input
+                                    id="lesson-time"
+                                    type="time"
+                                    value={lessonFormData.time}
+                                    onChange={(e) => setLessonFormData({ ...lessonFormData, time: e.target.value })}
+                                    required
+                                    className="h-10 text-sm rounded-xl border-gray-300"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="lesson-parity" className="text-gray-700 text-sm">Juftlik</Label>
+                                  <Select
+                                    value={lessonFormData.parity || ''}
+                                    onValueChange={(value: 'odd' | 'even') => setLessonFormData({ ...lessonFormData, parity: value })}
+                                  >
+                                    <SelectTrigger className="h-10 text-sm rounded-xl border-gray-300">
+                                      <SelectValue placeholder="Juftlikni tanlang" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-gray-200 bg-white shadow-lg">
+                                      <SelectItem value="odd">Toq haftalar</SelectItem>
+                                      <SelectItem value="even">Juft haftalar</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setLessonFormOpen(false);
+                                    resetLessonForm();
+                                  }}
+                                  className="h-9 text-xs rounded-xl"
+                                >
+                                  Bekor qilish
+                                </Button>
+                                <Button type="submit" className="h-9 text-xs rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-sm">
+                                  Dars yaratish
+                                </Button>
+                              </div>
+                            </form>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      <Collapsible open={lessonsOpen} onOpenChange={setLessonsOpen}>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" className="w-full flex justify-between text-gray-900 hover:bg-gray-50 transition-all rounded-xl h-10">
+                            <span className="font-medium">{lessons.length} ta dars</span>
+                            <span className="text-xs text-gray-500">{lessonsOpen ? 'Yashirish' : 'Ko\'rsatish'}</span>
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-2 mt-2">
+                          {lessonsLoading ? (
+                            <div className="space-y-2">
+                              <Skeleton className="h-12 w-full rounded-lg" />
+                              <Skeleton className="h-12 w-full rounded-lg" />
+                            </div>
+                          ) : lessons.length === 0 ? (
+                            <p className="text-gray-500 text-sm py-4 text-center">Hali darslar yo'q.</p>
+                          ) : (
+                            lessons.map((lesson) => {
+                              const lessonDate = new Date(lesson.date);
+                              const formattedDate = `${lessonDate.getDate()} ${monthNames[lessonDate.getMonth()]} ${lessonDate.getFullYear()}`;
+                              return (
+                                <div
+                                  key={lesson.id}
+                                  className="flex items-center justify-between p-3.5 bg-white border border-gray-200 rounded-xl transition-all hover:shadow-md hover:border-gray-300"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-amber-50 rounded-lg">
+                                      <Calendar className="h-4 w-4 text-amber-600" />
+                                    </div>
+                                    <div>
+                                      <div className="font-medium text-gray-900 text-sm">
+                                        {formattedDate} soat {lesson.time.slice(0,5)}
+                                      </div>
+                                      {lesson.parity && (
+                                        <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full mt-0.5 inline-block">
+                                          {lesson.parity === 'odd' ? 'Toq' : 'Juft'} hafta
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteLesson(lesson.id)}
+                                    className="h-9 w-9 p-0 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              );
+                            })
+                          )}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between gap-3 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-white px-6 md:px-8 py-5">
+                    <p className="text-xs text-gray-400 hidden sm:block">
+                      <AlertCircle className="h-3 w-3 inline mr-1" />
+                      Barcha ma'lumotlarni to'g'ri kiritganingizga ishonch hosil qiling
+                    </p>
+                    <div className="flex items-center gap-3 ml-auto">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => router.push(`/groups/${groupId}`)}
+                        disabled={submitting}
+                        className="h-11 px-5 text-sm rounded-xl border-gray-300 hover:bg-gray-100"
+                      >
+                        Bekor qilish
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={submitting || !formData.name || !formData.teacher_id}
+                        className="h-11 px-6 text-sm rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+                      >
+                        {submitting ? (
+                          <><span className="animate-spin mr-2">⏳</span> Yangilanmoqda...</>
+                        ) : (
+                          <><Save className="h-4 w-4 mr-2" /> Guruhni yangilash</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </form>
+            </Card>
+
+          </div>
+        </div>
       </div>
     </Layout>
   );

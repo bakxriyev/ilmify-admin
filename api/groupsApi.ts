@@ -98,6 +98,9 @@ export interface GetAllGroupsParams {
   support_teacher_id?: string;
   name?: string;
   day?: string;
+  parity?: string;
+  start_time_from?: string;
+  start_time_to?: string;
   include?: string;
 }
 
