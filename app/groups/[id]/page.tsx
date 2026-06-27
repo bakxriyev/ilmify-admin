@@ -905,11 +905,14 @@ export default function GroupDetailPage() {
                                   <Clock className="h-3.5 w-3.5" />
                                   <span>{nextUpcomingLesson.start_time?.slice(0, 5) || nextUpcomingLesson.time?.slice(0, 5)}</span>
                                   <span className="w-1 h-1 rounded-full bg-gray-300" />
-                                  <Badge className={nextUpcomingLesson.parity === 'odd'
-                                    ? 'bg-amber-100 text-amber-700 border-amber-200 text-[11px] px-2 py-0.5'
-                                    : 'bg-gray-100 text-gray-700 border-gray-200 text-[11px] px-2 py-0.5'
+                                  <Badge className={
+                                    nextUpcomingLesson.parity === 'odd'
+                                      ? 'bg-amber-100 text-amber-700 border-amber-200 text-[11px] px-2 py-0.5'
+                                      : nextUpcomingLesson.parity === 'everyday'
+                                      ? 'bg-green-100 text-green-700 border-green-200 text-[11px] px-2 py-0.5'
+                                      : 'bg-gray-100 text-gray-700 border-gray-200 text-[11px] px-2 py-0.5'
                                   }>
-                                    {nextUpcomingLesson.parity === 'odd' ? 'Toq hafta' : 'Juft hafta'}
+                                    {nextUpcomingLesson.parity === 'odd' ? 'Toq hafta' : nextUpcomingLesson.parity === 'everyday' ? 'Har kuni' : 'Juft hafta'}
                                   </Badge>
                                 </div>
                               </div>
@@ -1010,10 +1013,12 @@ export default function GroupDetailPage() {
                                       <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
                                         lesson.parity === 'odd'
                                           ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                          : lesson.parity === 'everyday'
+                                          ? 'bg-green-50 text-green-700 border border-green-200'
                                           : 'bg-gray-100 text-gray-600 border border-gray-200'
                                       }`}>
                                         <Layers className="h-3 w-3" />
-                                        {lesson.parity === 'odd' ? 'Toq hafta' : 'Juft hafta'}
+                                        {lesson.parity === 'odd' ? 'Toq hafta' : lesson.parity === 'everyday' ? 'Har kuni' : 'Juft hafta'}
                                       </div>
                                     </div>
                                   </div>

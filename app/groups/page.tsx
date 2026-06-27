@@ -48,7 +48,7 @@ const PARITY_OPTIONS = [
   { value: 'all', label: 'Barchasi' },
   { value: 'odd', label: 'Toq' },
   { value: 'even', label: 'Juft' },
-  { value: 'both', label: 'Har kuni' },
+  { value: 'everyday', label: 'Har kuni' },
 ];
 
 const DAY_OPTIONS = [
@@ -91,7 +91,7 @@ const getDayName = (dayNum: number) => {
 const getParityBadge = (parity: string) => {
   if (parity === 'odd') return <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[11px] px-2 py-0.5">Toq</Badge>;
   if (parity === 'even') return <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-[11px] px-2 py-0.5">Juft</Badge>;
-  if (parity === 'both') return <Badge className="bg-green-50 text-green-700 border-green-200 text-[11px] px-2 py-0.5">Har kuni</Badge>;
+  if (parity === 'everyday') return <Badge className="bg-green-50 text-green-700 border-green-200 text-[11px] px-2 py-0.5">Har kuni</Badge>;
   return null;
 };
 
@@ -182,7 +182,7 @@ export default function GroupsListPage() {
     };
     if (aSearch) params.name = aSearch;
     if (aTeacherId) params.teacher_id = aTeacherId;
-    if (aParity && aParity !== 'all' && aParity !== 'both') params.parity = aParity;
+    if (aParity && aParity !== 'all') params.parity = aParity;
     if (aDay && aDay !== 'all') {
       const dayNum = parseInt(aDay);
       if (!isNaN(dayNum) && dayNum >= 0 && dayNum <= 6) params.day = String(dayNum);

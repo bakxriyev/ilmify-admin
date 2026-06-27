@@ -113,6 +113,7 @@ export default function CreateGroupPage() {
       if (formData.start_time) payload.start_time = formData.start_time;
       if (formData.end_time) payload.end_time = formData.end_time;
       if (formData.parity) payload.parity = formData.parity;
+      if (formData.weekdays) payload.weekdays = formData.weekdays;
 
       await groupsApi.create(payload);
       toast.success('Guruh muvaffaqiyatli yaratildi!');
@@ -541,21 +542,39 @@ export default function CreateGroupPage() {
 
                         <div className="space-y-2">
                           <Label htmlFor="parity" className="text-gray-700 text-sm flex items-center gap-1">
-                            <BookOpen className="h-3.5 w-3.5 text-gray-400" /> Hafta juftligi
+                            <BookOpen className="h-3.5 w-3.5 text-gray-400" /> Hafta rejimi
                           </Label>
                           <Select
                             value={formData.parity || ''}
-                            onValueChange={(value: 'odd' | 'even' | 'both') => setFormData({ ...formData, parity: value })}
+                            onValueChange={(value: 'odd' | 'even' | 'everyday') => {
+                              setFormData({ ...formData, parity: value, weekdays: value === 'everyday' ? formData.weekdays || 'mon-sat' : undefined });
+                            }}
                           >
                             <SelectTrigger className="h-11 text-sm rounded-xl border-gray-300 focus:border-amber-400 focus:ring-amber-400 transition-all">
-                              <SelectValue placeholder="Juftlikni tanlang" />
+                              <SelectValue placeholder="Rejimni tanlang" />
                             </SelectTrigger>
                             <SelectContent className="rounded-xl border-gray-200 bg-white shadow-lg">
-                              <SelectItem value="odd">Toq haftalar</SelectItem>
-                              <SelectItem value="even">Juft haftalar</SelectItem>
-                              <SelectItem value="both">Har kuni (Dush-Shanba)</SelectItem>
+                              <SelectItem value="odd">Toq kunlar (Dush, Chor, Juma)</SelectItem>
+                              <SelectItem value="even">Juft kunlar (Sesh, Pay, Shanba)</SelectItem>
+                              <SelectItem value="everyday">Har kuni (davomli)</SelectItem>
                             </SelectContent>
                           </Select>
+
+                          {formData.parity === 'everyday' && (
+                            <Select
+                              value={formData.weekdays || 'mon-sat'}
+                              onValueChange={(value: 'mon-fri' | 'mon-sat') => setFormData({ ...formData, weekdays: value })}
+                            >
+                              <SelectTrigger className="h-11 text-sm rounded-xl border-gray-300 focus:border-amber-400 focus:ring-amber-400 transition-all">
+                                <SelectValue placeholder="Ish kunlarini tanlang" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl border-gray-200 bg-white shadow-lg">
+                                <SelectItem value="mon-fri">Dushanbadan Jumagacha</SelectItem>
+                                <SelectItem value="mon-sat">Dushanbadan Shanbagacha</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+
                           <p className="text-xs text-gray-400 mt-1">
                             Agar kiritilsa, darslar avtomatik ravishda yaratiladi.
                           </p>

@@ -291,7 +291,7 @@ export default function TeacherDetailPage() {
                                 <div key={l.id} className="flex items-center gap-2 text-gray-500">
                                   <Clock className="h-3 w-3" />
                                   <span>{formatLessonDate(l.date)} {l.time?.slice(0,5)}</span>
-                                  <Badge className="text-[10px] px-1 py-0">{l.parity === 'odd' ? 'Toq' : 'Juft'}</Badge>
+                                  <Badge className="text-[10px] px-1 py-0">{l.parity === 'odd' ? 'Toq' : l.parity === 'everyday' ? 'Har kuni' : 'Juft'}</Badge>
                                 </div>
                               ))}
                               {g.lessons.length > 3 && <p className="text-gray-400 text-[10px] mt-1">+ {g.lessons.length - 3} ta dars</p>}

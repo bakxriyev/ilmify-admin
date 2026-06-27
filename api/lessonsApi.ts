@@ -5,7 +5,8 @@ export interface Lesson {
   group_id: string;     // e.g., "19"
   date: string;         // ISO string: "1111-11-13T00:00:00.000Z"
   time: string;         // "11:11:00"
-  parity: 'odd' | 'even' | null;
+  parity: 'odd' | 'even' | 'everyday' | null;
+  weekdays?: 'mon-fri' | 'mon-sat' | null;
   // Optional fields if your backend adds them later
   topic?: string;
   homework?: string;
@@ -15,7 +16,8 @@ export interface CreateLessonRequest {
   group_id: string;
   date: string;         // Format: YYYY-MM-DD (will be sent as is)
   time: string;         // Format: HH:mm (backend expects HH:mm:ss, we'll append ':00')
-  parity?: 'odd' | 'even' | null;
+  parity?: 'odd' | 'even' | 'everyday' | null;
+  weekdays?: 'mon-fri' | 'mon-sat' | null;
   // If your backend supports topic/homework, add them
   topic?: string;
   homework?: string;

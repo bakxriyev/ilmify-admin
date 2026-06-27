@@ -1012,8 +1012,12 @@ export default function StudentDetailPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="py-2">
-                              <Badge variant="outline" className={`${lesson.parity === 'odd' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-gray-100 text-gray-700'} text-[10px] px-1.5`}>
-                                {lesson.parity === 'odd' ? 'Toq' : 'Juft'}
+                              <Badge variant="outline" className={`${
+                                lesson.parity === 'odd' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                lesson.parity === 'everyday' ? 'bg-green-100 text-green-700 border-green-200' :
+                                'bg-gray-100 text-gray-700'
+                              } text-[10px] px-1.5`}>
+                                {lesson.parity === 'odd' ? 'Toq' : lesson.parity === 'everyday' ? 'Har kuni' : 'Juft'}
                               </Badge>
                             </TableCell>
                             <TableCell className="py-2">

@@ -33,7 +33,7 @@ export interface RoomLesson {
   time: string;
   start_time: string;
   end_time: string;
-  parity: 'odd' | 'even';
+  parity: 'odd' | 'even' | 'everyday';
 }
 
 export interface CreateRoomRequest {

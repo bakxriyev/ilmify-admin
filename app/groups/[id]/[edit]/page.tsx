@@ -603,19 +603,34 @@ export default function EditGroupPage() {
                                   />
                                 </div>
                                 <div className="space-y-2">
-                                  <Label htmlFor="lesson-parity" className="text-gray-700 text-sm">Juftlik</Label>
+                                  <Label htmlFor="lesson-parity" className="text-gray-700 text-sm">Hafta rejimi</Label>
                                   <Select
                                     value={lessonFormData.parity || ''}
-                                    onValueChange={(value: 'odd' | 'even') => setLessonFormData({ ...lessonFormData, parity: value })}
+                                    onValueChange={(value: 'odd' | 'even' | 'everyday') => setLessonFormData({ ...lessonFormData, parity: value, weekdays: value === 'everyday' ? lessonFormData.weekdays || 'mon-sat' : undefined })}
                                   >
                                     <SelectTrigger className="h-10 text-sm rounded-xl border-gray-300">
-                                      <SelectValue placeholder="Juftlikni tanlang" />
+                                      <SelectValue placeholder="Rejimni tanlang" />
                                     </SelectTrigger>
                                     <SelectContent className="rounded-xl border-gray-200 bg-white shadow-lg">
                                       <SelectItem value="odd">Toq haftalar</SelectItem>
                                       <SelectItem value="even">Juft haftalar</SelectItem>
+                                      <SelectItem value="everyday">Har kuni</SelectItem>
                                     </SelectContent>
                                   </Select>
+                                  {lessonFormData.parity === 'everyday' && (
+                                    <Select
+                                      value={lessonFormData.weekdays || 'mon-sat'}
+                                      onValueChange={(value: 'mon-fri' | 'mon-sat') => setLessonFormData({ ...lessonFormData, weekdays: value })}
+                                    >
+                                      <SelectTrigger className="h-10 text-sm rounded-xl border-gray-300">
+                                        <SelectValue placeholder="Ish kunlari" />
+                                      </SelectTrigger>
+                                      <SelectContent className="rounded-xl border-gray-200 bg-white shadow-lg">
+                                        <SelectItem value="mon-fri">Dushanbadan Jumagacha</SelectItem>
+                                        <SelectItem value="mon-sat">Dushanbadan Shanbagacha</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex justify-end gap-2">
@@ -672,8 +687,14 @@ export default function EditGroupPage() {
                                         {formattedDate} soat {lesson.time.slice(0,5)}
                                       </div>
                                       {lesson.parity && (
-                                        <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full mt-0.5 inline-block">
-                                          {lesson.parity === 'odd' ? 'Toq' : 'Juft'} hafta
+                                        <span className={`text-xs px-2 py-0.5 rounded-full mt-0.5 inline-block ${
+                                          lesson.parity === 'odd'
+                                            ? 'bg-amber-50 text-amber-700'
+                                            : lesson.parity === 'everyday'
+                                            ? 'bg-green-50 text-green-700'
+                                            : 'bg-gray-100 text-gray-600'
+                                        }`}>
+                                          {lesson.parity === 'odd' ? 'Toq' : lesson.parity === 'everyday' ? 'Har kuni' : 'Juft'} hafta
                                         </span>
                                       )}
                                     </div>

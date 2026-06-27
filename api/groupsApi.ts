@@ -72,7 +72,8 @@ export interface CreateGroupRequest {
   time?: string;
   start_time?: string;
   end_time?: string;
-  parity?: 'odd' | 'even' | 'both';
+  parity?: 'odd' | 'even' | 'everyday';
+  weekdays?: 'mon-fri' | 'mon-sat';
 }
 
 export interface UpdateGroupRequest {
@@ -88,7 +89,8 @@ export interface UpdateGroupRequest {
   time?: string;
   start_time?: string;
   end_time?: string;
-  parity?: 'odd' | 'even' | 'both';
+  parity?: 'odd' | 'even' | 'everyday';
+  weekdays?: 'mon-fri' | 'mon-sat';
 }
 
 export interface GetAllGroupsParams {
@@ -211,7 +213,7 @@ export const groupsApi = {
     }
   },
 
-  generateLessons: async (groupId: number, data: { start_date: string; duration_months: number; time: string; parity: string; start_time?: string; end_time?: string; room_id?: number }): Promise<{ created: number }> => {
+  generateLessons: async (groupId: number, data: { start_date: string; duration_months: number; time: string; parity: string; start_time?: string; end_time?: string; room_id?: number; weekdays?: 'mon-fri' | 'mon-sat' }): Promise<{ created: number }> => {
     const response = await api.post(`/groups/${groupId}/generate-lessons`, data);
     return response.data;
   }

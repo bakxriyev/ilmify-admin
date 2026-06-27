@@ -23,7 +23,8 @@ export default function GenerateLessonsModal({ open, onOpenChange, groupId, onSu
   const [time, setTime] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  const [parity, setParity] = useState<'odd' | 'even' | 'both'>('odd');
+  const [parity, setParity] = useState<'odd' | 'even' | 'everyday'>('odd');
+  const [weekdays, setWeekdays] = useState<'mon-fri' | 'mon-sat'>('mon-sat');
   const [saving, setSaving] = useState(false);
 
   const handleGenerate = async () => {
@@ -39,6 +40,7 @@ export default function GenerateLessonsModal({ open, onOpenChange, groupId, onSu
         duration_months: Number(durationMonths),
         time,
         parity,
+        weekdays: parity === 'everyday' ? weekdays : undefined,
         start_time: startTime || undefined,
         end_time: endTime || undefined,
       });
@@ -75,16 +77,28 @@ export default function GenerateLessonsModal({ open, onOpenChange, groupId, onSu
 
           <div>
             <Label>Kun turi</Label>
-            <Select value={parity} onValueChange={(v: 'odd' | 'even') => setParity(v)}>
+            <Select value={parity} onValueChange={(v: 'odd' | 'even' | 'everyday') => setParity(v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="odd">Toq kunlar (Dush, Chor, Juma)</SelectItem>
                 <SelectItem value="even">Juft kunlar (Sesh, Pay, Shanba)</SelectItem>
-                <SelectItem value="both">Har kuni (Dush-Shanba)</SelectItem>
+                <SelectItem value="everyday">Har kuni (davomli)</SelectItem>
               </SelectContent>
             </Select>
+
+            {parity === 'everyday' && (
+              <Select value={weekdays} onValueChange={(v: 'mon-fri' | 'mon-sat') => setWeekdays(v)}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mon-fri">Dushanbadan Jumagacha</SelectItem>
+                  <SelectItem value="mon-sat">Dushanbadan Shanbagacha</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-2">
