@@ -268,7 +268,7 @@ export default function Header({ sidebarCollapsed, isMobile, onMenuClick }: Head
                     className="block text-center text-sm text-blue-600 hover:text-blue-800 font-medium py-1.5 rounded-lg hover:bg-blue-50"
                     onClick={() => setNotifOpen(false)}
                   >
-                    Barcha xabarlar
+                    Barcha xabarlar !
                   </Link>
                 </div>
               </div>

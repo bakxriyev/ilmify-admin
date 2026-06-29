@@ -25,7 +25,7 @@ export function AIChatMessage({ message }: { message: AIMessage }) {
             <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-bold">
               AI
             </div>
-            <span className="text-xs font-medium text-gray-500">Ilmify AI</span>
+            <span className="text-xs font-medium text-gray-500">Ilmify AI Yordamchi </span>
           </div>
         )}
 
