@@ -4,19 +4,14 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
 
   images: {
-    domains: ["localhost"],
+    remotePatterns: [
+      { protocol: "http", hostname: "localhost" },
+      { protocol: "https", hostname: "api.ilmify-edu.uz" },
+    ],
   },
 
   typescript: {
     ignoreBuildErrors: true,
-  },
-
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-
-  experimental: {
-    turbo: false,
   },
 };
 

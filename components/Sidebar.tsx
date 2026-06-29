@@ -129,6 +129,17 @@ const navigationItems: NavigationItem[] = [
     permKey: 'attendance',
   },
   {
+    label: "O'qituvchi davomati",
+    path: '/teacher-attendance/locations',
+    icon: 'UserGroupIcon',
+    badge: 0,
+    permKey: 'attendance',
+    children: [
+      { label: 'Markaz lokatsiyasi', path: '/teacher-attendance/locations', icon: 'MapPinIcon', permKey: 'attendance' },
+      { label: 'Davomat yozuvlari', path: '/teacher-attendance/records', icon: 'ClipboardCheckIcon', permKey: 'attendance' },
+    ],
+  },
+  {
     label: 'Xonalar',
     path: '/rooms',
     icon: 'Building2Icon',
@@ -492,7 +503,7 @@ export default function Sidebar({
       });
 
   // Priority labels for mobile: always show these + "..." for rest
-  const priorityLabels = ['Dashboard', 'Studentlar', "O'qituvchilar", 'Davomat', "To'lovlar"];
+  const priorityLabels = ['Dashboard', 'Studentlar', "O'qituvchilar", 'Davomat', "O'qituvchi davomati", "To'lovlar"];
   const priorityItems = visibleItems.filter(item => priorityLabels.includes(item.label));
   const restItems = visibleItems.filter(item => !priorityLabels.includes(item.label));
 
