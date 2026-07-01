@@ -12,7 +12,7 @@ import {
   BarChart3, Calendar, Clock, Phone, Mail as MailIcon, Globe, MapPin,
   Award, Target, TrendingUp, Activity, Zap, Heart, Star, Moon, Sun,
   Newspaper, Camera as CameraIcon, Building2, Wallet, Link as LinkIcon,
-  PhoneIcon, Bot,
+  PhoneIcon, Bot, PrinterIcon, ReceiptIcon,
   SparklesIcon, CheckCircle,
 } from 'lucide-react';
 import { adminApi } from '../api/adminApi';
@@ -83,6 +83,8 @@ const iconMap = {
   BotIcon: Bot,               // for Telegram Bot
   AutoBellIcon: Bell,         // for Auto Notification
   ClipboardCheckIcon: CheckCircle, // for Attendance
+  PrinterIcon: PrinterIcon,        // for Printer settings
+  ReceiptIcon: ReceiptIcon,        // for Receipt history
 };
 
 const navigationItems: NavigationItem[] = [
@@ -208,6 +210,27 @@ const navigationItems: NavigationItem[] = [
     icon: 'ActivityIcon',
     badge: 0,
     permKey: 'monitoring',
+  },
+  {
+    label: 'Printer sozlamalari',
+    path: '/payments/printer',
+    icon: 'PrinterIcon',
+    badge: 0,
+    permKey: 'payments',
+  },
+  {
+    label: "Chek ma'lumotlari",
+    path: '/payments/settings',
+    icon: 'Building2Icon',
+    badge: 0,
+    permKey: 'payments',
+  },
+  {
+    label: 'Cheklar tarixi',
+    path: '/payments/receipts',
+    icon: 'ReceiptIcon',
+    badge: 0,
+    permKey: 'payments',
   },
 ];
 

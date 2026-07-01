@@ -17,11 +17,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { paymentsApi, type GroupPaymentSummary, type PaymentStats } from '@/api/paymentsApi';
+import { receiptApi } from '@/api/receiptApi';
+
 import { groupsApi, type Group } from '@/api/groupsApi';
 import { studentsApi, type Student } from '@/api/studentApi';
 import {
   Wallet, CheckCircle, XCircle, Clock, Plus, Search,
   RefreshCw, ChevronRight, ChevronLeft, Filter, AlertCircle, Users, CalendarDays, Download, Loader2,
+  PrinterIcon, Building2, ReceiptIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -317,6 +320,15 @@ export default function PaymentsPage() {
     } catch { toast.error('Xatolik'); }
   };
 
+  const handlePrintReceipt = async (paymentId: number) => {
+    try {
+      await receiptApi.print({ payment_id: paymentId });
+      toast.success("Chek chop etish uchun yuborildi");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Chop etishda xatolik');
+    }
+  };
+
   const statusBadge = (status: string) => {
     const map: any = {
       paid: { label: "To'langan", class: 'bg-green-100 text-green-700 border-green-200' },
@@ -366,6 +378,19 @@ export default function PaymentsPage() {
               <Plus className="h-3 w-3 mr-1" /> Qarzdorlikni to'lash
             </Button>
           </div>
+        </div>
+
+        {/* Printer & Settings */}
+        <div className="flex items-center gap-2 flex-wrap bg-white rounded-2xl shadow-sm border border-gray-100 p-3 md:p-4">
+          <Link href="/payments/printer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold transition-colors">
+            <PrinterIcon className="h-3.5 w-3.5" /> Printer sozlamalari
+          </Link>
+          <Link href="/payments/settings" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold transition-colors">
+            <Building2 className="h-3.5 w-3.5" /> Chek ma'lumotlari
+          </Link>
+          <Link href="/payments/receipts" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold transition-colors">
+            <ReceiptIcon className="h-3.5 w-3.5" /> Cheklar tarixi
+          </Link>
         </div>
 
         {/* Stats Cards */}
@@ -784,6 +809,11 @@ export default function PaymentsPage() {
                             {item.payment && (
                               <Button variant="ghost" size="sm" onClick={() => router.push(`/payments/students/${item.student.id}`)} className="text-blue-600 h-7 md:h-8 w-7 md:w-8 p-0" title="Batafsil">
                                 <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
+                              </Button>
+                            )}
+                            {item.payment && (
+                              <Button variant="ghost" size="sm" onClick={() => handlePrintReceipt(item.payment!.id)} className="text-purple-600 h-7 md:h-8 w-7 md:w-8 p-0" title="Chek chop etish">
+                                <PrinterIcon className="h-3 w-3 md:h-4 md:w-4" />
                               </Button>
                             )}
                             {item.payment && (
