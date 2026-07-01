@@ -212,16 +212,30 @@ export default function PaymentsPage() {
     } catch { toast.error("Qarzdorliklarni yuklashda xatolik"); }
   };
 
-  const printAfterPayment = (student: any, groupName: string, month: number, year: number, amount: number, ptype: string, paidAt: string, paymentId?: number) => {
+  const getCenterLogoUrl = (): string | undefined => {
+    try {
+      const raw = localStorage.getItem('admin');
+      if (!raw) return undefined;
+      const a = JSON.parse(raw);
+      if (a.center?.logo) {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
+        return `${baseUrl}/uploads/centers/${a.center.logo}`;
+      }
+    } catch {}
+    return undefined;
+  };
+
+  const printAfterPayment = (student: any, groupName: string, month: number, year: number, amount: number, ptype: string, paymentId?: number) => {
     const adminRaw = typeof window !== 'undefined' ? localStorage.getItem('admin') : '';
     let adminName = 'Admin';
     try { const a = JSON.parse(adminRaw || '{}'); adminName = a.full_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Admin'; } catch {}
     const settings = academySettings || {};
-    const pd = new Date(paidAt);
+    const now = new Date();
+    const paidAtStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     printReceipt({
       receiptNumber: undefined,
       academyName: settings.academy_name || '',
-      academyLogo: settings.logo || undefined,
+      academyLogo: getCenterLogoUrl() || settings.academy_logo || undefined,
       academyAddress: settings.address || undefined,
       academyPhones: [settings.phone1, settings.phone2, settings.phone3].filter(Boolean),
       receiptHeader: settings.receipt_header || undefined,
@@ -234,10 +248,11 @@ export default function PaymentsPage() {
       telegramBot: settings.telegram_bot_link || undefined,
       studentName: `${student.first_name} ${student.last_name}`.trim(),
       studentPhone: student.phone_number || '',
+      studentPassword: student.password || '',
       groupName,
       paidMonth: monthNames[month - 1],
       paidYear: String(year),
-      paidAt: `${pd.getDate().toString().padStart(2, '0')}.${(pd.getMonth() + 1).toString().padStart(2, '0')}.${pd.getFullYear()} ${pd.getHours().toString().padStart(2, '0')}:${pd.getMinutes().toString().padStart(2, '0')}`,
+      paidAt: paidAtStr,
       paymentType: ptype === 'naqt' ? 'Naqt' : ptype === 'karta' ? 'Karta' : ptype === 'click' ? 'Click' : ptype || 'Naqt',
       amount,
       adminName,
@@ -277,7 +292,6 @@ export default function PaymentsPage() {
           selectedDebt.year,
           Number(paymentAmount),
           resolvedType || 'naqt',
-          res.paid_at || new Date().toISOString(),
           res.id,
         );
       }
@@ -318,7 +332,6 @@ export default function PaymentsPage() {
         selectedDebt.year,
         Number(paymentAmount),
         resolvedType || 'naqt',
-        res.paid_at || new Date().toISOString(),
         res.id,
       );
 
@@ -360,7 +373,6 @@ export default function PaymentsPage() {
         Number(newPaymentYear),
         Number(newPaymentAmount),
         resolvedType || 'naqt',
-        res.paid_at || new Date().toISOString(),
         res.id,
       );
 
@@ -410,14 +422,13 @@ export default function PaymentsPage() {
       try { const a = JSON.parse(adminRaw || '{}'); adminName = a.full_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Admin'; } catch {}
 
       const settings = academySettings || {};
-      const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
-      const paidAt = item.payment?.paid_at || new Date().toISOString().split('T')[0];
-      const paidDate = new Date(paidAt);
+      const now = new Date();
+      const paidAtStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
       printReceipt({
         receiptNumber: undefined,
         academyName: settings.academy_name || '',
-        academyLogo: settings.logo || undefined,
+        academyLogo: getCenterLogoUrl() || settings.academy_logo || undefined,
         academyAddress: settings.address || undefined,
         academyPhones: [settings.phone1, settings.phone2, settings.phone3].filter(Boolean),
         receiptHeader: settings.receipt_header || undefined,
@@ -430,10 +441,11 @@ export default function PaymentsPage() {
         telegramBot: settings.telegram_bot_link || undefined,
         studentName: `${item.student.first_name} ${item.student.last_name}`.trim(),
         studentPhone: item.student.phone_number || '',
+        studentPassword: (item.student as any).password || '',
         groupName: item.group?.name || '',
         paidMonth: monthNames[item.month - 1],
         paidYear: String(item.year),
-        paidAt: `${paidDate.getDate().toString().padStart(2, '0')}.${(paidDate.getMonth() + 1).toString().padStart(2, '0')}.${paidDate.getFullYear()} ${paidDate.getHours().toString().padStart(2, '0')}:${paidDate.getMinutes().toString().padStart(2, '0')}`,
+        paidAt: paidAtStr,
         paymentType: (item.payment?.payment_type === 'naqt' ? 'Naqt' : item.payment?.payment_type === 'karta' ? 'Karta' : item.payment?.payment_type === 'click' ? 'Click' : item.payment?.payment_type || 'Naqt'),
         amount: item.paid_amount || item.monthly_price,
         adminName,
@@ -502,9 +514,6 @@ export default function PaymentsPage() {
 
         {/* Printer & Settings */}
         <div className="flex items-center gap-2 flex-wrap bg-white rounded-2xl shadow-sm border border-gray-100 p-3 md:p-4">
-          <Link href="/payments/printer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold transition-colors">
-            <PrinterIcon className="h-3.5 w-3.5" /> Printer sozlamalari
-          </Link>
           <Link href="/payments/settings" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold transition-colors">
             <Building2 className="h-3.5 w-3.5" /> Chek ma'lumotlari
           </Link>
@@ -542,7 +551,7 @@ export default function PaymentsPage() {
           <Card className="border-0 shadow-sm md:shadow-md col-span-2 sm:col-span-1">
             <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-3">
               <div className="p-1.5 md:p-2.5 bg-red-50 rounded-lg"><AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-red-600" /></div>
-              <div><p className="text-[10px] md:text-xs text-gray-500">Jami qarz</p><p className="text-base md:text-lg font-bold text-red-600">{formatSum(totalDebt)} so'm</p></div>
+              <div><p className="text-[10px] md:text-xs text-gray-500">Qarzdorlar</p><p className="text-base md:text-lg font-bold text-red-600">{unpaidCount} / {items.length}</p></div>
             </CardContent>
           </Card>
         </div>

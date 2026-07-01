@@ -57,6 +57,7 @@ export interface Group {
   };
   student_count?: number;
   trial_count?: number;
+  closed_at?: string;
 }
 
 export interface CreateGroupRequest {
@@ -215,6 +216,11 @@ export const groupsApi = {
 
   generateLessons: async (groupId: number, data: { start_date: string; duration_months: number; time: string; parity: string; start_time?: string; end_time?: string; room_id?: number; weekdays?: 'mon-fri' | 'mon-sat' }): Promise<{ created: number }> => {
     const response = await api.post(`/groups/${groupId}/generate-lessons`, data);
+    return response.data;
+  },
+
+  closeGroup: async (id: string, closed_date: string): Promise<Group> => {
+    const response = await api.patch(`/groups/${id}/close`, { closed_date });
     return response.data;
   }
 };

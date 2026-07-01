@@ -212,13 +212,6 @@ const navigationItems: NavigationItem[] = [
     permKey: 'monitoring',
   },
   {
-    label: 'Printer sozlamalari',
-    path: '/payments/printer',
-    icon: 'PrinterIcon',
-    badge: 0,
-    permKey: 'payments',
-  },
-  {
     label: "Chek ma'lumotlari",
     path: '/payments/settings',
     icon: 'Building2Icon',

@@ -252,44 +252,6 @@ export default function AcademySettingsPage() {
 
         <div className="border-t border-dashed border-gray-400 my-1.5" />
 
-        {(preview.tgLink || preview.website || preview.instagram) && (
-          <>
-            <div className="flex justify-center gap-3 py-1">
-              {preview.tgLink && (
-                <div className="flex flex-col items-center gap-0.5">
-                  <div className="w-8 h-8 bg-gray-800 rounded flex items-center justify-center">
-                    <Smartphone className="h-4 w-4 text-white" />
-                  </div>
-                  <span className="text-[6px] text-gray-500">Telegram</span>
-                </div>
-              )}
-              {preview.website && (
-                <div className="flex flex-col items-center gap-0.5">
-                  <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                    <Globe className="h-4 w-4 text-white" />
-                  </div>
-                  <span className="text-[6px] text-gray-500">Website</span>
-                </div>
-              )}
-              {preview.instagram && (
-                <div className="flex flex-col items-center gap-0.5">
-                  <div className="w-8 h-8 bg-pink-600 rounded flex items-center justify-center">
-                    <Instagram className="h-4 w-4 text-white" />
-                  </div>
-                  <span className="text-[6px] text-gray-500">Instagram</span>
-                </div>
-              )}
-              <div className="flex flex-col items-center gap-0.5">
-                <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
-                  <ShieldCheck className="h-4 w-4 text-white" />
-                </div>
-                <span className="text-[6px] text-gray-500">Tasdiqlangan</span>
-              </div>
-            </div>
-            <div className="border-t border-dashed border-gray-400 my-1.5" />
-          </>
-        )}
-
         <div className="text-center space-y-0.5">
           {preview.thankYou && <p className="text-[10px] font-semibold">{preview.thankYou}</p>}
           {preview.footerText && <p className="text-[8px] text-gray-500">{preview.footerText}</p>}

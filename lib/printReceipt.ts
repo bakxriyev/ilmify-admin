@@ -17,6 +17,7 @@ interface PrintData {
 
   studentName: string;
   studentPhone: string;
+  studentPassword?: string;
   groupName: string;
   paidMonth: string;
   paidYear: string;
@@ -255,6 +256,7 @@ export function printReceipt(data: PrintData) {
           <span class="value">${data.studentName}</span>
         </div>
         ${data.studentPhone ? `<div class="info-row"><span class="label">Telefon:</span><span class="value">${data.studentPhone}</span></div>` : ''}
+        ${data.studentPassword ? `<div class="info-row"><span class="label">Parol:</span><span class="value">${data.studentPassword}</span></div>` : ''}
         ${data.groupName ? `<div class="info-row"><span class="label">Guruh:</span><span class="value">${data.groupName}</span></div>` : ''}
         <div class="info-row">
           <span class="label">To'lov oyi:</span>

@@ -85,6 +85,10 @@ export default function GroupDetailPage() {
   const [editingDateValue, setEditingDateValue] = useState('');
   const [savingDate, setSavingDate] = useState(false);
   const [confirmDateStudent, setConfirmDateStudent] = useState<{ relationId: number; studentId: number; studentName: string; firstLessonDate: string } | null>(null);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [showCloseGroup, setShowCloseGroup] = useState(false);
+  const [closeDate, setCloseDate] = useState(now.toISOString().split('T')[0]);
+  const [closingGroup, setClosingGroup] = useState(false);
 
   const [gridYear, setGridYear] = useState(now.getFullYear());
   const [gridMonth, setGridMonth] = useState(now.getMonth());
@@ -252,7 +256,15 @@ export default function GroupDetailPage() {
 
   const getPaymentForStudent = (studentId: number) => paymentData.find(p => p.student.id === studentId);
 
-  const activeRelations = groupStudents.filter(r => !r.left_date && r.student);
+  const activeRelations = groupStudents.filter(r => !r.left_date && r.student).sort((a, b) => {
+    const al = (a.student?.last_name || '').toLowerCase();
+    const bl = (b.student?.last_name || '').toLowerCase();
+    if (al < bl) return -1;
+    if (al > bl) return 1;
+    const af = (a.student?.first_name || '').toLowerCase();
+    const bf = (b.student?.first_name || '').toLowerCase();
+    return af < bf ? -1 : af > bf ? 1 : 0;
+  });
 
   const isStudentActiveInMonth = (relation: GroupStudent, month: number, year: number) => {
     const monthEnd = new Date(year, month, 0, 23, 59, 59);
@@ -349,6 +361,12 @@ export default function GroupDetailPage() {
                     <Edit className="h-4 w-4 mr-1.5" /> Tahrirlash
                   </Link>
                 </Button>
+                {!group.closed_at && (
+                  <Button onClick={() => setShowCloseGroup(true)}
+                    className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-md h-10 text-sm">
+                    <XCircle className="h-4 w-4 mr-1.5" /> Guruhni yopish
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -362,7 +380,14 @@ export default function GroupDetailPage() {
                 <div className="absolute bottom-0 left-0 right-0 p-8">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">{group.name}</h1>
+                      <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+                        {group.name}
+                        {group.closed_at && (
+                          <Badge className="ml-3 bg-red-500/80 text-white border-0 text-sm px-3 py-1 align-middle">
+                            <XCircle className="h-4 w-4 mr-1" /> Yopilgan
+                          </Badge>
+                        )}
+                      </h1>
                       <div className="flex items-center gap-3 text-white/70 text-sm flex-wrap">
                         <span className="flex items-center gap-1.5">
                           <Hash className="h-3.5 w-3.5" /> ID: {group.id}
@@ -371,6 +396,14 @@ export default function GroupDetailPage() {
                         <span className="flex items-center gap-1.5">
                           <CalendarDays className="h-3.5 w-3.5" /> Yaratilgan: {formatDate(group.created_at)}
                         </span>
+                        {group.closed_at && (
+                          <>
+                            <span className="w-1 h-1 rounded-full bg-white/40" />
+                            <span className="flex items-center gap-1.5">
+                              <XCircle className="h-3.5 w-3.5" /> Yopilgan: {formatDate(group.closed_at)}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -667,6 +700,14 @@ export default function GroupDetailPage() {
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
+                        <div className="p-3 border-b border-gray-100">
+                          <Input
+                            placeholder="Ism, familiya yoki telefon raqam bilan qidirish..."
+                            value={studentSearch}
+                            onChange={e => setStudentSearch(e.target.value)}
+                            className="h-9 text-sm max-w-sm"
+                          />
+                        </div>
                         <Table>
                           <TableHeader className="bg-gray-50/80">
                             <TableRow>
@@ -680,7 +721,26 @@ export default function GroupDetailPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {paymentData.map((payItem, idx) => {
+                            {(() => {
+                              const search = studentSearch.toLowerCase().trim();
+                              const sorted = [...paymentData].sort((a, b) => {
+                                const al = (a.student?.last_name || '').toLowerCase();
+                                const bl = (b.student?.last_name || '').toLowerCase();
+                                if (al < bl) return -1;
+                                if (al > bl) return 1;
+                                const af = (a.student?.first_name || '').toLowerCase();
+                                const bf = (b.student?.first_name || '').toLowerCase();
+                                return af < bf ? -1 : af > bf ? 1 : 0;
+                              });
+                              const filtered = search
+                                ? sorted.filter(p => {
+                                    const fn = (p.student?.first_name || '').toLowerCase();
+                                    const ln = (p.student?.last_name || '').toLowerCase();
+                                    const ph = (p.student?.phone_number || '').toLowerCase();
+                                    return fn.includes(search) || ln.includes(search) || ph.includes(search);
+                                  })
+                                : sorted;
+                              return filtered.map((payItem, idx) => {
                               const student = payItem.student;
                               const relation = groupStudents.find(r => Number(r.student_id) === Number(student.id));
                               const payStatus = payItem.status;
@@ -798,7 +858,7 @@ export default function GroupDetailPage() {
                                   </TableCell>
                                 </TableRow>
                               );
-                            })}
+                            })})()}
                           </TableBody>
                         </Table>
                       </div>
@@ -827,7 +887,17 @@ export default function GroupDetailPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {groupStudents.filter(r => r.left_date).map((relation, idx) => {
+                            {(() => {
+                              const leftStudents = [...groupStudents].filter(r => r.left_date).sort((a, b) => {
+                                const al = (a.student?.last_name || '').toLowerCase();
+                                const bl = (b.student?.last_name || '').toLowerCase();
+                                if (al < bl) return -1;
+                                if (al > bl) return 1;
+                                const af = (a.student?.first_name || '').toLowerCase();
+                                const bf = (b.student?.first_name || '').toLowerCase();
+                                return af < bf ? -1 : af > bf ? 1 : 0;
+                              });
+                              return leftStudents.map((relation, idx) => {
                               const student = relation.student;
                               if (!student) return null;
                               return (
@@ -855,7 +925,7 @@ export default function GroupDetailPage() {
                                   </TableCell>
                                 </TableRow>
                               );
-                            })}
+                            })})()}
                           </TableBody>
                         </Table>
                       </div>
@@ -1376,6 +1446,66 @@ export default function GroupDetailPage() {
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saqlanmoqda...</>
                 ) : (
                   <><CheckCircle className="h-4 w-4 mr-2" /> Ha</>
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Close group dialog */}
+      <AlertDialog open={showCloseGroup} onOpenChange={setShowCloseGroup}>
+        <AlertDialogContent className="bg-white max-w-lg rounded-2xl border-0 p-0 overflow-hidden shadow-2xl">
+          <div className="bg-gradient-to-r from-red-500 to-rose-600 p-6 text-white">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-xl font-bold text-white flex items-center gap-2">
+                <XCircle className="h-6 w-6" /> Guruhni yopish
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-white/80 text-sm">
+                Bu amaldan keyin guruhga student qo'shib bo'lmaydi
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+          </div>
+          <div className="p-6">
+            <div className="flex items-start gap-3 mb-5">
+              <div className="p-2.5 bg-red-100 rounded-full flex-shrink-0">
+                <AlertCircle className="h-6 w-6 text-red-600" />
+              </div>
+              <p className="text-sm text-gray-700 leading-relaxed">
+                Guruh yopilganda barcha <strong className="text-red-600">faol studentlar</strong> guruhdan chiqariladi va yopilish sanasidan keyin qarzdorlik hisoblanmaydi.
+              </p>
+            </div>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Yopilish sanasi</label>
+              <Input
+                type="date"
+                value={closeDate}
+                onChange={e => setCloseDate(e.target.value)}
+                className="h-11 text-sm"
+              />
+            </div>
+            <AlertDialogFooter className="flex gap-3">
+              <AlertDialogCancel disabled={closingGroup}
+                className="flex-1 border-gray-300 hover:bg-gray-100 h-11 text-sm rounded-xl">Bekor qilish</AlertDialogCancel>
+              <AlertDialogAction onClick={async () => {
+                if (!closeDate) { toast.error('Yopilish sanasini kiriting'); return; }
+                try {
+                  setClosingGroup(true);
+                  await groupsApi.closeGroup(String(groupId), closeDate);
+                  toast.success('Guruh yopildi');
+                  setShowCloseGroup(false);
+                  await fetchGroupData();
+                } catch (err: any) {
+                  toast.error(err?.response?.data?.message || err.message || 'Xatolik yuz berdi');
+                } finally {
+                  setClosingGroup(false);
+                }
+              }} disabled={closingGroup}
+                className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white h-11 text-sm rounded-xl shadow-md">
+                {closingGroup ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Yopilmoqda...</>
+                ) : (
+                  <><XCircle className="h-4 w-4 mr-2" /> Ha, yopish</>
                 )}
               </AlertDialogAction>
             </AlertDialogFooter>
