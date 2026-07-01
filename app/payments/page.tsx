@@ -201,6 +201,12 @@ export default function PaymentsPage() {
   const handleSelectStudent = async (studentId: string) => {
     try {
       const debts = await paymentsApi.getStudentDebts(Number(studentId));
+      try {
+        const studentData = await studentsApi.getById(studentId);
+        if (studentData?.password) {
+          debts.student.password = studentData.password;
+        }
+      } catch {}
       setSelectedStudentDebts(debts);
       setSelectedPaymentId(null);
       setPaymentAmount('');
@@ -232,6 +238,7 @@ export default function PaymentsPage() {
     const settings = academySettings || {};
     const now = new Date();
     const paidAtStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const studentPassword = student.password || '';
     printReceipt({
       receiptNumber: undefined,
       academyName: settings.academy_name || '',
@@ -248,7 +255,7 @@ export default function PaymentsPage() {
       telegramBot: settings.telegram_bot_link || undefined,
       studentName: `${student.first_name} ${student.last_name}`.trim(),
       studentPhone: student.phone_number || '',
-      studentPassword: student.password || '',
+      studentPassword: studentPassword,
       groupName,
       paidMonth: monthNames[month - 1],
       paidYear: String(year),
@@ -421,6 +428,14 @@ export default function PaymentsPage() {
       let adminName = 'Admin';
       try { const a = JSON.parse(adminRaw || '{}'); adminName = a.full_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Admin'; } catch {}
 
+      let studentPassword = item.student.password || '';
+      if (!studentPassword) {
+        try {
+          const studentData = await studentsApi.getById(String(item.student.id));
+          if (studentData?.password) studentPassword = studentData.password;
+        } catch {}
+      }
+
       const settings = academySettings || {};
       const now = new Date();
       const paidAtStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -441,7 +456,7 @@ export default function PaymentsPage() {
         telegramBot: settings.telegram_bot_link || undefined,
         studentName: `${item.student.first_name} ${item.student.last_name}`.trim(),
         studentPhone: item.student.phone_number || '',
-        studentPassword: (item.student as any).password || '',
+        studentPassword: studentPassword,
         groupName: item.group?.name || '',
         paidMonth: monthNames[item.month - 1],
         paidYear: String(item.year),

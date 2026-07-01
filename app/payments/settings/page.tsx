@@ -204,7 +204,7 @@ export default function AcademySettingsPage() {
             </div>
           ) : null}
           {preview.academyName && (
-            <p className="font-bold uppercase tracking-wider" style={{ fontSize: rfs + 4 }}>{preview.academyName}</p>
+            <p className="font-bold uppercase tracking-wider whitespace-pre-line" style={{ fontSize: rfs + 4 }}>{preview.academyName}</p>
           )}
           {preview.header && <p className="text-gray-600 mt-0.5" style={{ fontSize: rfs - 2 }}>{preview.header}</p>}
           {(preview.academyName || preview.header) && (
@@ -214,21 +214,29 @@ export default function AcademySettingsPage() {
 
         {/* Receipt meta */}
         <div style={{ fontSize: rfs - 1 }}>
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-2">
             <span>Chek №:</span>
-            <span className="font-semibold">{receiptNo}</span>
+            <span className="font-semibold text-right break-words max-w-[60%]">{receiptNo}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-2">
             <span>Sana:</span>
-            <span>{dateStr}</span>
+            <span className="text-right break-words max-w-[60%]">{dateStr}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-2">
             <span>O'quvchi:</span>
-            <span>Test User</span>
+            <span className="text-right break-words max-w-[60%]">Test User</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-2">
+            <span>Telefon:</span>
+            <span className="text-right break-words max-w-[60%]">+998901234567</span>
+          </div>
+          <div className="flex justify-between gap-2">
+            <span>Parol:</span>
+            <span className="text-right break-words max-w-[60%]">12345</span>
+          </div>
+          <div className="flex justify-between gap-2">
             <span>Guruh:</span>
-            <span>Frontend N3</span>
+            <span className="text-right break-words max-w-[60%]">Frontend N3</span>
           </div>
           <div className="border-t border-dashed border-gray-400 my-1.5" />
         </div>
@@ -258,16 +266,32 @@ export default function AcademySettingsPage() {
           {preview.footer && <p className="text-[8px] text-gray-600">{preview.footer}</p>}
           {preview.address && <p className="text-[8px] text-gray-500">{preview.address}</p>}
           {preview.hasPhones && (
-            <div className="text-[8px] text-gray-500">
-              {preview.phone1 && <p>{preview.phone1}</p>}
-              {preview.phone2 && <p>{preview.phone2}</p>}
-              {preview.phone3 && <p>{preview.phone3}</p>}
+            <div className="flex items-center justify-center gap-1 text-[8px] text-gray-500 mt-0.5">
+              <img src="https://png.pngtree.com/png-vector/20201028/ourmid/pngtree-phone-icon-in-solid-circle-png-image_2380227.jpg" alt="Tel" className="w-3 h-3 rounded-full object-cover" />
+              <span>{[preview.phone1, preview.phone2, preview.phone3].filter(Boolean).join(', ')}</span>
             </div>
           )}
           {preview.hasSocial && (
-            <p className="text-[8px] text-gray-500">
-              {[preview.website, preview.instagram, preview.tgLink].filter(Boolean).join(' | ')}
-            </p>
+            <div className="flex items-center justify-center flex-wrap gap-x-2 gap-y-0.5 mt-1 text-[8px] text-gray-500">
+              {preview.tgLink && (
+                <span className="flex items-center gap-0.5">
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/3840px-Telegram_logo.svg.png" alt="TG" className="w-3.5 h-3.5 object-cover rounded" />
+                  <span>{preview.tgLink}</span>
+                </span>
+              )}
+              {preview.instagram && (
+                <span className="flex items-center gap-0.5">
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="IG" className="w-3.5 h-3.5 object-cover rounded" />
+                  <span>{preview.instagram}</span>
+                </span>
+              )}
+              {preview.website && (
+                <span className="flex items-center gap-0.5">
+                  <span className="inline-flex items-center justify-center w-3.5 h-3.5 bg-blue-600 text-white rounded text-[7px] font-bold">W</span>
+                  <span>{preview.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -350,12 +374,14 @@ export default function AcademySettingsPage() {
                 </h3>
                 <div>
                   <Label className="text-xs text-gray-500">Akademiya nomi</Label>
-                  <Input
+                  <textarea
                     value={form.academy_name || ''}
                     onChange={(e) => set('academy_name', e.target.value)}
-                    placeholder="Masalan: Excellent Academy"
-                    className="mt-1"
+                    placeholder="Masalan: YES&#10;Learning center"
+                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 min-h-[60px] resize-y"
+                    rows={2}
                   />
+                  <p className="text-[9px] text-gray-400 mt-0.5">Enter bilan yangi qatorga o'tishingiz mumkin</p>
                 </div>
                 <div>
                   <Label className="text-xs text-gray-500 flex items-center gap-1">

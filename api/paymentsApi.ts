@@ -18,7 +18,7 @@ export interface Payment {
 }
 
 export interface GroupPaymentSummary {
-  student: { id: number; first_name: string; last_name: string; phone_number: string };
+  student: { id: number; first_name: string; last_name: string; phone_number: string; password?: string };
   group?: { id: number; name: string; monthly_price?: number };
   payment: Payment | null;
   payment_type: string | null;
@@ -71,7 +71,7 @@ export const paymentsApi = {
 
   getStudentDebts: (studentId: number) =>
     api.get<{
-      student: { id: number; first_name: string; last_name: string; phone_number: string };
+      student: { id: number; first_name: string; last_name: string; phone_number: string; password?: string };
       debts: Array<{
         id?: number;
         month: number;

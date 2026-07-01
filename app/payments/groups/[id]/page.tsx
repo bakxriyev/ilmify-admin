@@ -13,7 +13,10 @@ import {
 } from '@/components/ui/select';
 import { paymentsApi, type GroupPaymentSummary } from '@/api/paymentsApi';
 import { groupsApi, type Group } from '@/api/groupsApi';
-import { ArrowLeft, Wallet, CheckCircle, XCircle, Clock, Users } from 'lucide-react';
+import { academySettingsApi } from '@/api/academySettingsApi';
+import { receiptApi } from '@/api/receiptApi';
+import { printReceipt } from '@/lib/printReceipt';
+import { ArrowLeft, Wallet, CheckCircle, XCircle, Clock, Users, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function GroupPaymentsPage() {
@@ -23,12 +26,14 @@ export default function GroupPaymentsPage() {
   const [group, setGroup] = useState<Group | null>(null);
   const [data, setData] = useState<GroupPaymentSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [academySettings, setAcademySettings] = useState<any>(null);
   const now = new Date();
   const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
 
   useEffect(() => {
+    academySettingsApi.get().then(setAcademySettings).catch(() => {});
     Promise.all([
       groupsApi.getById(String(groupId)),
       paymentsApi.findByGroup(groupId, Number(month), Number(year)),
@@ -46,22 +51,126 @@ export default function GroupPaymentsPage() {
     finally { setLoading(false); }
   };
 
-  const handleMarkPaid = async (studentId: number) => {
-    const existing = data.find(d => d.student.id === studentId)?.payment;
-    if (existing) {
-      await paymentsApi.update(existing.id, { status: 'paid' });
-    } else {
-      await paymentsApi.create({
-        student_id: studentId,
-        group_id: groupId,
+  const getCenterLogoUrl = () => {
+    try {
+      const raw = localStorage.getItem('admin');
+      if (!raw) return undefined;
+      const a = JSON.parse(raw);
+      if (a.center?.logo) {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
+        return `${baseUrl}/uploads/centers/${a.center.logo}`;
+      }
+    } catch {}
+    return undefined;
+  };
+
+  const handleMarkPaid = async (item: GroupPaymentSummary) => {
+    const itemStudentId = item.student.id;
+    const existing = data.find(d => d.student.id === itemStudentId)?.payment;
+    try {
+      let paymentId: number | undefined;
+      if (existing) {
+        const res = await paymentsApi.update(existing.id, { status: 'paid' });
+        paymentId = existing.id;
+      } else {
+        const res = await paymentsApi.create({
+          student_id: itemStudentId,
+          group_id: groupId,
+          amount: group?.monthly_price || 0,
+          month: Number(month),
+          year: Number(year),
+          status: 'paid',
+          payment_type: 'naqt',
+        });
+        paymentId = res.id;
+      }
+
+      toast.success("To'lov tasdiqlandi");
+
+      const adminRaw = typeof window !== 'undefined' ? localStorage.getItem('admin') : '';
+      let adminName = 'Admin';
+      try { const a = JSON.parse(adminRaw || '{}'); adminName = a.full_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Admin'; } catch {}
+
+      const settings = academySettings || {};
+      const paidAtStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+      printReceipt({
+        receiptNumber: undefined,
+        academyName: settings.academy_name || '',
+        academyLogo: getCenterLogoUrl() || settings.academy_logo || undefined,
+        academyAddress: settings.address || undefined,
+        academyPhones: [settings.phone1, settings.phone2, settings.phone3].filter(Boolean),
+        receiptHeader: settings.receipt_header || undefined,
+        receiptFooter: settings.receipt_footer || undefined,
+        receiptNote: settings.receipt_note || undefined,
+        thankYouText: settings.receipt_thank_you_text || 'Rahmat!',
+        footerText: settings.footer_text || undefined,
+        website: settings.website || undefined,
+        instagram: settings.instagram || undefined,
+        telegramBot: settings.telegram_bot_link || undefined,
+        studentName: `${item.student.first_name} ${item.student.last_name}`.trim(),
+        studentPhone: item.student.phone_number || '',
+        studentPassword: item.student.password || '',
+        groupName: group?.name || '',
+        paidMonth: monthNames[Number(month) - 1],
+        paidYear: String(year),
+        paidAt: paidAtStr,
+        paymentType: 'Naqt',
         amount: group?.monthly_price || 0,
-        month: Number(month),
-        year: Number(year),
-        status: 'paid',
+        adminName,
+        receiptWidth: settings.receipt_width || 320,
+        fontSize: settings.receipt_font_size || 13,
       });
+
+      if (paymentId) {
+        receiptApi.print({ payment_id: paymentId }).catch(() => {});
+      }
+
+      loadData();
+    } catch { toast.error('Xatolik yuz berdi'); }
+  };
+
+  const handlePrintReceipt = (item: GroupPaymentSummary) => {
+    const adminRaw = typeof window !== 'undefined' ? localStorage.getItem('admin') : '';
+    let adminName = 'Admin';
+    try { const a = JSON.parse(adminRaw || '{}'); adminName = a.full_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Admin'; } catch {}
+
+    const settings = academySettings || {};
+    const paidAtStr = item.payment?.paid_at
+      ? new Date(item.payment.paid_at).toLocaleDateString('uz-UZ')
+      : `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
+
+    printReceipt({
+      receiptNumber: undefined,
+      academyName: settings.academy_name || '',
+      academyLogo: getCenterLogoUrl() || settings.academy_logo || undefined,
+      academyAddress: settings.address || undefined,
+      academyPhones: [settings.phone1, settings.phone2, settings.phone3].filter(Boolean),
+      receiptHeader: settings.receipt_header || undefined,
+      receiptFooter: settings.receipt_footer || undefined,
+      receiptNote: settings.receipt_note || undefined,
+      thankYouText: settings.receipt_thank_you_text || 'Rahmat!',
+      footerText: settings.footer_text || undefined,
+      website: settings.website || undefined,
+      instagram: settings.instagram || undefined,
+      telegramBot: settings.telegram_bot_link || undefined,
+      studentName: `${item.student.first_name} ${item.student.last_name}`.trim(),
+      studentPhone: item.student.phone_number || '',
+      studentPassword: item.student.password || '',
+      groupName: group?.name || '',
+      paidMonth: monthNames[Number(month) - 1],
+      paidYear: String(year),
+      paidAt: paidAtStr,
+      paymentType: item.payment?.payment_type === 'naqt' ? 'Naqt' : item.payment?.payment_type === 'karta' ? 'Karta' : item.payment?.payment_type === 'click' ? 'Click' : item.payment?.payment_type || 'Naqt',
+      amount: item.payment?.amount || group?.monthly_price || 0,
+      adminName,
+      receiptWidth: settings.receipt_width || 320,
+      fontSize: settings.receipt_font_size || 13,
+    });
+
+    if (item.payment?.id) {
+      receiptApi.print({ payment_id: item.payment.id }).catch(() => {});
     }
-    toast.success("To'lov tasdiqlandi");
-    loadData();
   };
 
   if (!group && loading) return <Layout><div className="p-6"><Skeleton className="h-8 w-48" /></div></Layout>;
@@ -178,9 +287,13 @@ export default function GroupPaymentsPage() {
                         </td>
                         <td className="p-3 text-center text-gray-500">{item.payment?.paid_at || '-'}</td>
                         <td className="p-3 text-right">
-                          {item.status !== 'paid' && (
-                            <Button size="sm" onClick={() => handleMarkPaid(item.student.id)} className="bg-green-600 hover:bg-green-700 text-white h-8">
+                          {item.status !== 'paid' ? (
+                            <Button size="sm" onClick={() => handleMarkPaid(item)} className="bg-green-600 hover:bg-green-700 text-white h-8">
                               <CheckCircle className="h-3.5 w-3.5 mr-1" /> To'landi
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="outline" onClick={() => handlePrintReceipt(item)} className="h-8 text-xs">
+                              <Printer className="h-3.5 w-3.5 mr-1" /> Chek
                             </Button>
                           )}
                         </td>

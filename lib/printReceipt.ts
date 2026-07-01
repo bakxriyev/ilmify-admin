@@ -43,7 +43,7 @@ export function printReceipt(data: PrintData) {
   <title>Chek - ${receiptNo}</title>
   <style>
     @media print {
-      @page { margin: 10mm; size: auto; }
+      @page { margin: 8mm; size: auto; }
       body { margin: 0; padding: 0; }
       .no-print { display: none !important; }
     }
@@ -59,36 +59,44 @@ export function printReceipt(data: PrintData) {
     .receipt {
       width: ${width}px;
       background: #fff;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-      border-radius: 4px;
-      overflow: hidden;
+      box-shadow: 0 10px 30px -8px rgba(0,0,0,0.25);
+      position: relative;
     }
     .receipt-inner {
-      padding: 24px 20px 20px;
+      padding: 20px 16px 16px;
+    }
+    .punch-left {
+      position: absolute; left: -7px; top: 40px;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+    }
+    .punch-right {
+      position: absolute; right: -7px; top: 40px;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #f5f5f5;
+      border: 1px solid #ddd;
     }
     .header {
       text-align: center;
-      border-bottom: 2px dashed #333;
-      padding-bottom: 14px;
-      margin-bottom: 14px;
+      padding-bottom: 10px;
     }
     .header .logo {
-      max-height: 60px;
-      max-width: 120px;
+      max-height: 44px;
+      max-width: 100px;
       object-fit: contain;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .header .logo-placeholder {
-      width: 50px;
-      height: 50px;
-      background: #f0f0f0;
+      width: 36px; height: 36px;
+      background: rgba(217,119,6,0.1);
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 8px;
-      font-size: 24px;
-      color: #999;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 6px;
+      font-size: 18px;
+      color: #b45309;
     }
     .header h1 {
       font-size: ${fs + 4}px;
@@ -96,106 +104,135 @@ export function printReceipt(data: PrintData) {
       letter-spacing: 1px;
       text-transform: uppercase;
       color: #111;
+      white-space: pre-line;
     }
     .header .sub {
       font-size: ${fs - 2}px;
       color: #666;
-      margin-top: 4px;
+      margin-top: 2px;
     }
-    .header .header-text {
-      font-size: ${fs - 2}px;
-      color: #555;
-      margin-top: 6px;
-      font-style: italic;
-    }
-    .meta {
-      font-size: ${fs - 1}px;
-      margin-bottom: 12px;
-    }
-    .meta-row {
+    .row {
       display: flex;
       justify-content: space-between;
-      padding: 3px 0;
+      padding: 2px 0;
+      gap: 8px;
     }
-    .meta-row .label { color: #555; }
-    .meta-row .value { font-weight: 700; color: #111; text-align: right; }
-    .divider {
+    .row .l {
+      color: #555;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .row .r {
+      font-weight: 700;
+      color: #111;
+      text-align: right;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
+      max-width: 65%;
+    }
+    .dashed {
       border-top: 1px dashed #999;
+      margin: 8px 0;
+    }
+    .dashed-thick {
+      border-top: 2px dashed #333;
       margin: 10px 0;
     }
-    .divider-thick {
-      border-top: 2px dashed #333;
-      margin: 12px 0;
-    }
-    .amount-row {
+    .total-row {
       display: flex;
       justify-content: space-between;
-      padding: 6px 0;
-      font-size: ${fs}px;
-    }
-    .amount-row.total {
+      padding: 4px 0;
       font-size: ${fs + 4}px;
       font-weight: 900;
     }
-    .amount-row .label { color: #333; }
-    .amount-row .value { font-weight: 700; }
-    .info-grid {
-      font-size: ${fs - 1}px;
-    }
-    .info-row {
-      display: flex;
-      padding: 2px 0;
-    }
-    .info-row .label {
-      color: #666;
-      min-width: 80px;
-      flex-shrink: 0;
-    }
-    .info-row .value {
-      color: #111;
-      font-weight: 600;
-    }
+    .total-row .r { font-weight: 900; }
     .footer {
       text-align: center;
       font-size: ${fs - 2}px;
       color: #555;
-      margin-top: 4px;
+      margin-top: 2px;
     }
-    .footer p { margin-top: 4px; }
-    .thank-you {
-      text-align: center;
-      font-size: ${fs + 2}px;
-      font-weight: 700;
-      color: #111;
-      margin: 10px 0 4px;
-    }
-    .social {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      margin: 8px 0;
-      font-size: ${fs - 3}px;
-    }
-    .social-item {
-      text-align: center;
-      color: #555;
-    }
-    .social-item .icon {
-      display: block;
-      width: 32px;
-      height: 32px;
-      margin: 0 auto 2px;
-      border-radius: 6px;
+    .footer p { margin-top: 3px; }
+    .contact-row {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
-      color: #fff;
+      gap: 6px;
+      margin-top: 4px;
+      font-size: ${fs - 2}px;
+      color: #555;
     }
-    .social-item .icon.tg { background: #1a1a2e; }
-    .social-item .icon.web { background: #2563eb; }
-    .social-item .icon.ig { background: #db2777; }
-    .social-item .icon.verify { background: #16a34a; }
+    .contact-icon img {
+      width: 14px;
+      height: 14px;
+      display: block;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .social-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .social-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+      color: #555;
+      font-size: ${fs - 2}px;
+    }
+    .social-icon img {
+      width: 18px;
+      height: 18px;
+      display: block;
+      border-radius: 3px;
+      object-fit: cover;
+    }
+    .social-label {
+      font-size: ${fs - 3}px;
+      color: #555;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .web-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    .thank-you {
+      text-align: center;
+      font-size: ${fs + 1}px;
+      font-weight: 700;
+      color: #111;
+      margin: 8px 0 2px;
+    }
+    .torn-edge {
+      height: 10px;
+      width: 100%;
+      background: inherit;
+      background-color: #fff;
+      -webkit-mask-image: linear-gradient(135deg, black 25%, transparent 25.5%), linear-gradient(225deg, black 25%, transparent 25.5%);
+      mask-image: linear-gradient(135deg, black 25%, transparent 25.5%), linear-gradient(225deg, black 25%, transparent 25.5%);
+      -webkit-mask-size: 9px 14px;
+      mask-size: 9px 14px;
+      -webkit-mask-position: top left;
+      mask-position: top left;
+      -webkit-mask-repeat: repeat-x;
+      mask-repeat: repeat-x;
+    }
     .actions {
       margin-top: 20px;
       display: flex;
@@ -225,6 +262,8 @@ export function printReceipt(data: PrintData) {
 </head>
 <body>
   <div class="receipt">
+    <div class="punch-left"></div>
+    <div class="punch-right"></div>
     <div class="receipt-inner">
       <div class="header">
         ${data.academyLogo
@@ -234,83 +273,81 @@ export function printReceipt(data: PrintData) {
             : ''
         }
         ${data.academyName ? `<h1>${data.academyName}</h1>` : ''}
-        ${data.receiptHeader ? `<div class="header-text">${data.receiptHeader}</div>` : ''}
+        ${data.receiptHeader ? `<div class="sub">${data.receiptHeader}</div>` : ''}
       </div>
 
-      <div class="meta">
-        <div class="meta-row">
-          <span class="label">Chek №:</span>
-          <span class="value">${receiptNo}</span>
-        </div>
-        <div class="meta-row">
-          <span class="label">Chop etilgan:</span>
-          <span class="value">${dateStr}</span>
-        </div>
-      </div>
+      <div class="dashed-thick"></div>
 
-      <div class="divider-thick"></div>
-
-      <div class="info-grid">
-        <div class="info-row">
-          <span class="label">O'quvchi:</span>
-          <span class="value">${data.studentName}</span>
+      <div style="font-size:${fs - 1}px">
+        <div class="row">
+          <span class="l">Chek №:</span>
+          <span class="r">${receiptNo}</span>
         </div>
-        ${data.studentPhone ? `<div class="info-row"><span class="label">Telefon:</span><span class="value">${data.studentPhone}</span></div>` : ''}
-        ${data.studentPassword ? `<div class="info-row"><span class="label">Parol:</span><span class="value">${data.studentPassword}</span></div>` : ''}
-        ${data.groupName ? `<div class="info-row"><span class="label">Guruh:</span><span class="value">${data.groupName}</span></div>` : ''}
-        <div class="info-row">
-          <span class="label">To'lov oyi:</span>
-          <span class="value">${data.paidMonth} ${data.paidYear}</span>
-        </div>
-        <div class="info-row">
-          <span class="label">To'lov sanasi:</span>
-          <span class="value">${data.paidAt}</span>
-        </div>
-        <div class="info-row">
-          <span class="label">To'lov turi:</span>
-          <span class="value">${data.paymentType}</span>
-        </div>
-        <div class="info-row">
-          <span class="label">Admin:</span>
-          <span class="value">${data.adminName}</span>
+        <div class="row">
+          <span class="l">Sana:</span>
+          <span class="r">${dateStr}</span>
         </div>
       </div>
 
-      <div class="divider-thick"></div>
+      <div class="dashed"></div>
 
-      <div class="amount-row total">
-        <span class="label">JAMI SUMMA:</span>
-        <span class="value">${data.amount.toLocaleString()} so'm</span>
+      <div style="font-size:${fs - 1}px">
+        <div class="row">
+          <span class="l">O'quvchi:</span>
+          <span class="r">${data.studentName}</span>
+        </div>
+        ${data.studentPhone ? `<div class="row"><span class="l">Telefon:</span><span class="r">${data.studentPhone}</span></div>` : ''}
+        ${data.studentPassword ? `<div class="row"><span class="l">Parol:</span><span class="r">${data.studentPassword}</span></div>` : ''}
+        ${data.groupName ? `<div class="row"><span class="l">Guruh:</span><span class="r">${data.groupName}</span></div>` : ''}
+        <div class="row">
+          <span class="l">To'lov oyi:</span>
+          <span class="r">${data.paidMonth} ${data.paidYear}</span>
+        </div>
+        <div class="row">
+          <span class="l">To'lov sanasi:</span>
+          <span class="r">${data.paidAt}</span>
+        </div>
+        <div class="row">
+          <span class="l">To'lov turi:</span>
+          <span class="r">${data.paymentType}</span>
+        </div>
+        <div class="row">
+          <span class="l">Admin:</span>
+          <span class="r">${data.adminName}</span>
+        </div>
       </div>
 
-      ${data.paidAt ? `<div class="meta" style="margin-top:4px;font-size:${fs - 2}px;color:#888;text-align:center;">To'lov vaqti: ${data.paidAt}</div>` : ''}
+      <div class="dashed-thick"></div>
 
-      ${data.receiptNote ? `<div class="divider"></div><div class="footer"><em>${data.receiptNote}</em></div>` : ''}
+      <div class="total-row">
+        <span>JAMI SUMMA:</span>
+        <span class="r">${data.amount.toLocaleString()} so'm</span>
+      </div>
 
-      <div class="divider"></div>
+      ${data.receiptNote ? `<div class="dashed"></div><div class="footer"><em>${data.receiptNote}</em></div>` : ''}
+
+      <div class="dashed"></div>
 
       ${data.thankYouText ? `<div class="thank-you">${data.thankYouText}</div>` : ''}
 
       <div class="footer">
         ${data.footerText ? `<p>${data.footerText}</p>` : ''}
         ${data.academyAddress ? `<p>${data.academyAddress}</p>` : ''}
-        ${data.academyPhones && data.academyPhones.length > 0 ? `<p>${data.academyPhones.join(' | ')}</p>` : ''}
+        ${data.academyPhones && data.academyPhones.length > 0 ? `<div class="contact-row"><span class="contact-icon"><img src="https://png.pngtree.com/png-vector/20201028/ourmid/pngtree-phone-icon-in-solid-circle-png-image_2380227.jpg" alt="Tel" /></span><span>${data.academyPhones.join(', ')}</span></div>` : ''}
+        ${(data.telegramBot || data.instagram || data.website) ? `<div class="social-row">
+          ${data.telegramBot ? `<a href="https://${data.telegramBot}" target="_blank" class="social-link"><span class="social-icon"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/3840px-Telegram_logo.svg.png" alt="Telegram" /></span><span class="social-label">${data.telegramBot}</span></a>` : ''}
+          ${data.instagram ? `<a href="https://instagram.com/${data.instagram.replace('@','')}" target="_blank" class="social-link"><span class="social-icon"><img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="Instagram" /></span><span class="social-label">${data.instagram}</span></a>` : ''}
+          ${data.website ? `<a href="${data.website.startsWith('http') ? data.website : 'https://'+data.website}" target="_blank" class="social-link"><span class="social-icon web-icon">W</span><span class="social-label">${data.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span></a>` : ''}
+        </div>` : ''}
         ${data.receiptFooter ? `<p>${data.receiptFooter}</p>` : ''}
       </div>
-
-      ${(data.telegramBot || data.website || data.instagram) ? `
-      <div class="divider"></div>
-      <div class="social">
-        ${data.telegramBot ? `<div class="social-item"><span class="icon tg">&#9993;</span>Telegram</div>` : ''}
-        ${data.website ? `<div class="social-item"><span class="icon web">&#9783;</span>Web</div>` : ''}
-        ${data.instagram ? `<div class="social-item"><span class="icon ig">&#9642;</span>Instagram</div>` : ''}
-        <div class="social-item"><span class="icon verify">&#10003;</span>Tasdiq</div>
-      </div>` : ''}
     </div>
+
+    <div class="torn-edge"></div>
   </div>
 
   <div class="actions no-print">
-    <button class="print-btn" onclick="window.print()">🖨 Chop etish</button>
+    <button class="print-btn" onclick="window.print()">Chop etish</button>
     <button class="close-btn" onclick="window.close()">Yopish</button>
   </div>
 
