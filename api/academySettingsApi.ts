@@ -24,6 +24,8 @@ export interface AcademySettings {
   receipt_footer: string | null;
   receipt_note: string | null;
   receipt_thank_you_text: string | null;
+  receipt_width: number;
+  receipt_font_size: number;
   created_at: string;
   updated_at: string;
 }

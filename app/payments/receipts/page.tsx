@@ -3,16 +3,17 @@
 import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { receiptApi, type Receipt } from '@/api/receiptApi';
-import { ReceiptIcon, RefreshCw, Printer, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ReceiptIcon, RefreshCw, Printer, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 
 const statusColors: Record<string, string> = {
-  printed: 'bg-emerald-100 text-emerald-700',
-  pending: 'bg-amber-100 text-amber-700',
-  failed: 'bg-red-100 text-red-700',
-  reprinted: 'bg-blue-100 text-blue-700',
+  printed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  pending: 'bg-amber-100 text-amber-700 border-amber-200',
+  failed: 'bg-red-100 text-red-700 border-red-200',
+  reprinted: 'bg-blue-100 text-blue-700 border-blue-200',
 };
 
 const statusLabels: Record<string, string> = {
@@ -21,6 +22,8 @@ const statusLabels: Record<string, string> = {
   failed: 'Xatolik',
   reprinted: 'Qayta chop etilgan',
 };
+
+const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 
 export default function ReceiptHistoryPage() {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -45,7 +48,6 @@ export default function ReceiptHistoryPage() {
   return (
     <Layout>
       <div className="p-4 md:p-6 w-full max-w-6xl mx-auto space-y-5">
-        {/* Header */}
         <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-5">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl shadow-sm">
@@ -63,7 +65,7 @@ export default function ReceiptHistoryPage() {
 
         {loading ? (
           <div className="space-y-3">
-            {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
+            {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
           </div>
         ) : receipts.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
@@ -77,38 +79,64 @@ export default function ReceiptHistoryPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/50">
-                      <th className="text-left py-3.5 px-4 text-gray-400 text-[10px] font-semibold uppercase">Chek №</th>
-                      <th className="text-left py-3.5 px-4 text-gray-400 text-[10px] font-semibold uppercase">Summa</th>
-                      <th className="text-left py-3.5 px-4 text-gray-400 text-[10px] font-semibold uppercase">Status</th>
-                      <th className="text-left py-3.5 px-4 text-gray-400 text-[10px] font-semibold uppercase">Printer</th>
-                      <th className="text-left py-3.5 px-4 text-gray-400 text-[10px] font-semibold uppercase">Sana</th>
-                      <th className="text-right py-3.5 px-4 text-gray-400 text-[10px] font-semibold uppercase">Urinishlar</th>
+                      <th className="text-left py-3 px-4 text-gray-400 text-[10px] font-semibold uppercase">Chek №</th>
+                      <th className="text-left py-3 px-4 text-gray-400 text-[10px] font-semibold uppercase">Student</th>
+                      <th className="text-left py-3 px-4 text-gray-400 text-[10px] font-semibold uppercase">Guruh</th>
+                      <th className="text-left py-3 px-4 text-gray-400 text-[10px] font-semibold uppercase">Oy</th>
+                      <th className="text-right py-3 px-4 text-gray-400 text-[10px] font-semibold uppercase">Summa</th>
+                      <th className="text-left py-3 px-4 text-gray-400 text-[10px] font-semibold uppercase">To'lov turi</th>
+                      <th className="text-left py-3 px-4 text-gray-400 text-[10px] font-semibold uppercase">Status</th>
+                      <th className="text-left py-3 px-4 text-gray-400 text-[10px] font-semibold uppercase">Sana</th>
                     </tr>
                   </thead>
                   <tbody>
                     {receipts.map(r => (
                       <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="py-3.5 px-4">
+                        <td className="py-3 px-4">
                           <span className="font-bold text-gray-800 text-xs">{r.receipt_number}</span>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-bold text-gray-800">{Math.floor(r.total).toLocaleString()} so'm</span>
+                        <td className="py-3 px-4">
+                          <div className="text-xs text-gray-900 font-medium">
+                            {r.payment?.student ? `${r.payment.student.first_name} ${r.payment.student.last_name}` : '-'}
+                          </div>
+                          {r.payment?.student?.phone_number && (
+                            <div className="text-[10px] text-gray-400">{r.payment.student.phone_number}</div>
+                          )}
                         </td>
-                        <td className="py-3.5 px-4">
+                        <td className="py-3 px-4">
+                          <span className="text-xs text-gray-600">{r.payment?.group?.name || '-'}</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          {r.payment ? (
+                            <span className="text-xs text-gray-600">{monthNames[(r.payment.month || 1) - 1]} {r.payment.year}</span>
+                          ) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="font-bold text-gray-800 text-xs">{Math.floor(r.total).toLocaleString()} so'm</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          {r.payment?.payment_type ? (
+                            <Badge className={`text-[10px] px-1.5 py-0.5 ${
+                              r.payment.payment_type === 'naqt' ? 'bg-green-50 text-green-700 border-green-200' :
+                              r.payment.payment_type === 'karta' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                              r.payment.payment_type === 'click' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                              'bg-gray-50 text-gray-600 border-gray-200'
+                            }`}>
+                              {r.payment.payment_type === 'naqt' ? 'Naqt' : r.payment.payment_type === 'karta' ? 'Karta' : r.payment.payment_type === 'click' ? 'Click' : r.payment.payment_type}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${statusColors[r.status] || 'bg-gray-100 text-gray-600'}`}>
                             {statusLabels[r.status] || r.status}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <span className="text-xs text-gray-500">{r.printer_ip || '-'}</span>
-                        </td>
-                        <td className="py-3.5 px-4">
+                        <td className="py-3 px-4">
                           <span className="text-xs text-gray-500">
                             {r.created_at ? format(new Date(r.created_at), 'dd.MM.yyyy HH:mm') : '-'}
                           </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <span className="text-xs text-gray-500">{r.print_attempts}</span>
                         </td>
                       </tr>
                     ))}
@@ -117,7 +145,6 @@ export default function ReceiptHistoryPage() {
               </div>
             </div>
 
-            {/* Pagination */}
             <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
               <p className="text-xs text-gray-400">Sahifa {page} / {totalPages}</p>
               <div className="flex items-center gap-2">

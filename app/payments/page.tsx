@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/dialog';
 import { paymentsApi, type GroupPaymentSummary, type PaymentStats } from '@/api/paymentsApi';
 import { receiptApi } from '@/api/receiptApi';
+import { academySettingsApi } from '@/api/academySettingsApi';
+import { printReceipt } from '@/lib/printReceipt';
 
 import { groupsApi, type Group } from '@/api/groupsApi';
 import { studentsApi, type Student } from '@/api/studentApi';
@@ -72,6 +74,8 @@ export default function PaymentsPage() {
   const [newCustomPaymentType, setNewCustomPaymentType] = useState('');
   const [submittingNewPayment, setSubmittingNewPayment] = useState(false);
 
+  const [academySettings, setAcademySettings] = useState<any>(null);
+
   // Pagination
   const [page, setPage] = useState(1);
   const pageSize = 15;
@@ -86,14 +90,16 @@ export default function PaymentsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [overview, s, g] = await Promise.all([
+      const [overview, s, g, aset] = await Promise.all([
         paymentsApi.getStudentsOverview(Number(filterMonth), Number(filterYear)),
         paymentsApi.getStats(),
         groupsApi.getAll({ limit: 100 }),
+        academySettingsApi.get(),
       ]);
       setItems(overview);
       setStats(s);
       setGroups(g.data);
+      setAcademySettings(aset);
     } catch { toast.error("Ma'lumotlarni yuklashda xatolik"); }
     finally { setLoading(false); }
   };
@@ -206,6 +212,43 @@ export default function PaymentsPage() {
     } catch { toast.error("Qarzdorliklarni yuklashda xatolik"); }
   };
 
+  const printAfterPayment = (student: any, groupName: string, month: number, year: number, amount: number, ptype: string, paidAt: string, paymentId?: number) => {
+    const adminRaw = typeof window !== 'undefined' ? localStorage.getItem('admin') : '';
+    let adminName = 'Admin';
+    try { const a = JSON.parse(adminRaw || '{}'); adminName = a.full_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Admin'; } catch {}
+    const settings = academySettings || {};
+    const pd = new Date(paidAt);
+    printReceipt({
+      receiptNumber: undefined,
+      academyName: settings.academy_name || '',
+      academyLogo: settings.logo || undefined,
+      academyAddress: settings.address || undefined,
+      academyPhones: [settings.phone1, settings.phone2, settings.phone3].filter(Boolean),
+      receiptHeader: settings.receipt_header || undefined,
+      receiptFooter: settings.receipt_footer || undefined,
+      receiptNote: settings.receipt_note || undefined,
+      thankYouText: settings.receipt_thank_you_text || 'Rahmat!',
+      footerText: settings.footer_text || undefined,
+      website: settings.website || undefined,
+      instagram: settings.instagram || undefined,
+      telegramBot: settings.telegram_bot_link || undefined,
+      studentName: `${student.first_name} ${student.last_name}`.trim(),
+      studentPhone: student.phone_number || '',
+      groupName,
+      paidMonth: monthNames[month - 1],
+      paidYear: String(year),
+      paidAt: `${pd.getDate().toString().padStart(2, '0')}.${(pd.getMonth() + 1).toString().padStart(2, '0')}.${pd.getFullYear()} ${pd.getHours().toString().padStart(2, '0')}:${pd.getMinutes().toString().padStart(2, '0')}`,
+      paymentType: ptype === 'naqt' ? 'Naqt' : ptype === 'karta' ? 'Karta' : ptype === 'click' ? 'Click' : ptype || 'Naqt',
+      amount,
+      adminName,
+      receiptWidth: settings.receipt_width || 320,
+      fontSize: settings.receipt_font_size || 13,
+    });
+    if (paymentId) {
+      receiptApi.print({ payment_id: paymentId }).catch(() => {});
+    }
+  };
+
   const handlePayDebt = async () => {
     if (!selectedPaymentId || !paymentAmount || Number(paymentAmount) <= 0) {
       toast.error('To\'lov summasini kiriting');
@@ -215,7 +258,7 @@ export default function PaymentsPage() {
     const resolvedType = paymentType === 'boshqa' ? customPaymentType : paymentType;
 
     try {
-      await paymentsApi.update(selectedPaymentId, {
+      const res = await paymentsApi.update(selectedPaymentId, {
         amount: Number(paymentAmount),
         status: 'paid',
         paid_at: new Date().toISOString().split('T')[0],
@@ -225,6 +268,20 @@ export default function PaymentsPage() {
 
       toast.success("To'lov qabul qilindi");
       setShowCreateModal(false);
+
+      if (selectedStudentDebts && selectedDebt) {
+        printAfterPayment(
+          selectedStudentDebts.student,
+          selectedDebt.group_name,
+          selectedDebt.month,
+          selectedDebt.year,
+          Number(paymentAmount),
+          resolvedType || 'naqt',
+          res.paid_at || new Date().toISOString(),
+          res.id,
+        );
+      }
+
       loadData();
       loadYearOverview();
     } catch (err: any) { toast.error(err.message || 'Xatolik'); }
@@ -239,7 +296,7 @@ export default function PaymentsPage() {
     const resolvedType = paymentType === 'boshqa' ? customPaymentType : paymentType;
 
     try {
-      await paymentsApi.create({
+      const res = await paymentsApi.create({
         student_id: selectedStudentDebts.student.id,
         group_id: selectedDebt.group_id,
         amount: Number(paymentAmount),
@@ -253,6 +310,18 @@ export default function PaymentsPage() {
 
       toast.success("To'lov qabul qilindi");
       setShowCreateModal(false);
+
+      printAfterPayment(
+        selectedStudentDebts.student,
+        selectedDebt.group_name,
+        selectedDebt.month,
+        selectedDebt.year,
+        Number(paymentAmount),
+        resolvedType || 'naqt',
+        res.paid_at || new Date().toISOString(),
+        res.id,
+      );
+
       loadData();
       loadYearOverview();
     } catch (err: any) { toast.error(err.message || 'Xatolik'); }
@@ -268,7 +337,7 @@ export default function PaymentsPage() {
 
     try {
       setSubmittingNewPayment(true);
-      await paymentsApi.create({
+      const res = await paymentsApi.create({
         student_id: selectedStudentDebts.student.id,
         group_id: newPaymentGroupId,
         amount: Number(newPaymentAmount),
@@ -282,6 +351,19 @@ export default function PaymentsPage() {
 
       toast.success("Yangi to'lov yaratildi");
       setShowCreateModal(false);
+
+      const grp = (selectedStudentDebts.student_groups || []).find((g: any) => g.id === newPaymentGroupId);
+      printAfterPayment(
+        selectedStudentDebts.student,
+        grp?.name || '',
+        Number(newPaymentMonth),
+        Number(newPaymentYear),
+        Number(newPaymentAmount),
+        resolvedType || 'naqt',
+        res.paid_at || new Date().toISOString(),
+        res.id,
+      );
+
       loadData();
       loadYearOverview();
     } catch (err: any) { toast.error(err.message || 'Xatolik'); }
@@ -305,6 +387,7 @@ export default function PaymentsPage() {
         });
         toast.success("To'lov qo'shildi");
       }
+      handlePrintReceipt(item);
       loadData();
       loadYearOverview();
     } catch { toast.error('Xatolik'); }
@@ -320,12 +403,49 @@ export default function PaymentsPage() {
     } catch { toast.error('Xatolik'); }
   };
 
-  const handlePrintReceipt = async (paymentId: number) => {
+  const handlePrintReceipt = async (item: GroupPaymentSummary) => {
     try {
-      await receiptApi.print({ payment_id: paymentId });
-      toast.success("Chek chop etish uchun yuborildi");
+      const adminRaw = typeof window !== 'undefined' ? localStorage.getItem('admin') : '';
+      let adminName = 'Admin';
+      try { const a = JSON.parse(adminRaw || '{}'); adminName = a.full_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Admin'; } catch {}
+
+      const settings = academySettings || {};
+      const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+      const paidAt = item.payment?.paid_at || new Date().toISOString().split('T')[0];
+      const paidDate = new Date(paidAt);
+
+      printReceipt({
+        receiptNumber: undefined,
+        academyName: settings.academy_name || '',
+        academyLogo: settings.logo || undefined,
+        academyAddress: settings.address || undefined,
+        academyPhones: [settings.phone1, settings.phone2, settings.phone3].filter(Boolean),
+        receiptHeader: settings.receipt_header || undefined,
+        receiptFooter: settings.receipt_footer || undefined,
+        receiptNote: settings.receipt_note || undefined,
+        thankYouText: settings.receipt_thank_you_text || 'Rahmat!',
+        footerText: settings.footer_text || undefined,
+        website: settings.website || undefined,
+        instagram: settings.instagram || undefined,
+        telegramBot: settings.telegram_bot_link || undefined,
+        studentName: `${item.student.first_name} ${item.student.last_name}`.trim(),
+        studentPhone: item.student.phone_number || '',
+        groupName: item.group?.name || '',
+        paidMonth: monthNames[item.month - 1],
+        paidYear: String(item.year),
+        paidAt: `${paidDate.getDate().toString().padStart(2, '0')}.${(paidDate.getMonth() + 1).toString().padStart(2, '0')}.${paidDate.getFullYear()} ${paidDate.getHours().toString().padStart(2, '0')}:${paidDate.getMinutes().toString().padStart(2, '0')}`,
+        paymentType: (item.payment?.payment_type === 'naqt' ? 'Naqt' : item.payment?.payment_type === 'karta' ? 'Karta' : item.payment?.payment_type === 'click' ? 'Click' : item.payment?.payment_type || 'Naqt'),
+        amount: item.paid_amount || item.monthly_price,
+        adminName,
+        receiptWidth: settings.receipt_width || 320,
+        fontSize: settings.receipt_font_size || 13,
+      });
+
+      if (item.payment?.id) {
+        receiptApi.print({ payment_id: item.payment.id }).catch(() => {});
+      }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Chop etishda xatolik');
+      toast.error('Chop etishda xatolik');
     }
   };
 
@@ -811,11 +931,9 @@ export default function PaymentsPage() {
                                 <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
                               </Button>
                             )}
-                            {item.payment && (
-                              <Button variant="ghost" size="sm" onClick={() => handlePrintReceipt(item.payment!.id)} className="text-purple-600 h-7 md:h-8 w-7 md:w-8 p-0" title="Chek chop etish">
-                                <PrinterIcon className="h-3 w-3 md:h-4 md:w-4" />
-                              </Button>
-                            )}
+                            <Button variant="ghost" size="sm" onClick={() => handlePrintReceipt(item)} className="text-purple-600 h-7 md:h-8 w-7 md:w-8 p-0" title="Chek chop etish">
+                              <PrinterIcon className="h-3 w-3 md:h-4 md:w-4" />
+                            </Button>
                             {item.payment && (
                               <Button variant="ghost" size="sm" onClick={() => handleDelete(item.payment!.id)} className="text-red-600 h-7 md:h-8 w-7 md:w-8 p-0" title="O'chirish">
                                 <XCircle className="h-3 w-3 md:h-4 md:w-4" />

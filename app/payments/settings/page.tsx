@@ -175,12 +175,16 @@ export default function AcademySettingsPage() {
     );
   }
 
+  const rw = form.receipt_width || 320;
+  const rfs = form.receipt_font_size || 13;
+
   const ReceiptPaper = ({ scale = 1 }: { scale?: number }) => (
     <div
       className="bg-white shadow-[0_10px_30px_-8px_rgba(0,0,0,0.25)] rounded-sm relative"
       style={{
-        width: 280,
+        width: rw,
         fontFamily: "'Courier New', monospace",
+        fontSize: rfs,
         transform: `scale(${scale})`,
         transformOrigin: 'top center',
       }}
@@ -189,7 +193,7 @@ export default function AcademySettingsPage() {
       <div className="absolute -left-[7px] top-10 w-3.5 h-3.5 rounded-full bg-gray-100 border border-gray-200" />
       <div className="absolute -right-[7px] top-10 w-3.5 h-3.5 rounded-full bg-gray-100 border border-gray-200" />
 
-      <div className="p-4 pt-5 space-y-2 text-[10px] leading-tight text-black">
+      <div className="p-4 pt-5 space-y-2 leading-tight text-black">
         {/* Logo + Header */}
         <div className="text-center">
           {preview.logo ? (
@@ -200,16 +204,16 @@ export default function AcademySettingsPage() {
             </div>
           ) : null}
           {preview.academyName && (
-            <p className="text-sm font-bold uppercase tracking-wider">{preview.academyName}</p>
+            <p className="font-bold uppercase tracking-wider" style={{ fontSize: rfs + 4 }}>{preview.academyName}</p>
           )}
-          {preview.header && <p className="text-[9px] text-gray-600 mt-0.5">{preview.header}</p>}
+          {preview.header && <p className="text-gray-600 mt-0.5" style={{ fontSize: rfs - 2 }}>{preview.header}</p>}
           {(preview.academyName || preview.header) && (
             <div className="border-t border-dashed border-gray-400 my-1.5" />
           )}
         </div>
 
         {/* Receipt meta */}
-        <div className="text-[9px]">
+        <div style={{ fontSize: rfs - 1 }}>
           <div className="flex justify-between">
             <span>Chek №:</span>
             <span className="font-semibold">{receiptNo}</span>
@@ -230,27 +234,19 @@ export default function AcademySettingsPage() {
         </div>
 
         {/* Items */}
-        <div className="text-[9px]">
+        <div style={{ fontSize: rfs - 1 }}>
           <div className="flex justify-between font-semibold">
             <span>To'lov:</span>
             <span>200,000 so'm</span>
           </div>
-          <div className="flex justify-between text-gray-600">
-            <span>Chegirma:</span>
-            <span>-20,000 so'm</span>
-          </div>
-          <div className="flex justify-between text-gray-600">
-            <span>Penya:</span>
-            <span>0 so'm</span>
-          </div>
-          <div className="border-t border-dashed border-gray-400 my-1" />
-          <div className="flex justify-between text-xs font-bold">
-            <span>JAMI:</span>
-            <span>180,000 so'm</span>
-          </div>
-          <div className="flex justify-between text-[8px] text-gray-500">
+          <div className="flex justify-between">
             <span>To'lov turi:</span>
             <span>Naqt</span>
+          </div>
+          <div className="border-t border-dashed border-gray-400 my-1" />
+          <div className="flex justify-between font-bold" style={{ fontSize: rfs + 2 }}>
+            <span>JAMI:</span>
+            <span>200,000 so'm</span>
           </div>
         </div>
 
@@ -503,12 +499,41 @@ export default function AcademySettingsPage() {
                   <Label className="text-xs text-gray-500">Rahmat matni</Label>
                   <Input value={form.receipt_thank_you_text || ''} onChange={(e) => set('receipt_thank_you_text', e.target.value)} placeholder="Xaridingiz uchun rahmat!" className="mt-1" />
                 </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Footer text</Label>
-                  <Textarea value={form.footer_text || ''} onChange={(e) => set('footer_text', e.target.value)} rows={2} className="mt-1" />
+              <div>
+                <Label className="text-xs text-gray-500">Footer text</Label>
+                <Textarea value={form.footer_text || ''} onChange={(e) => set('footer_text', e.target.value)} rows={2} className="mt-1" />
+              </div>
+              <div className="border-t border-gray-100 pt-4 mt-2">
+                <h4 className="text-xs font-bold text-gray-800 mb-3">Chek o'lchamlari</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs text-gray-500">Chek eni (px)</Label>
+                    <Input
+                      type="number"
+                      value={form.receipt_width ?? 320}
+                      onChange={(e) => set('receipt_width', Number(e.target.value) || 320)}
+                      min={200}
+                      max={600}
+                      className="mt-1"
+                    />
+                    <p className="text-[9px] text-gray-400 mt-0.5">200-600 px, standart: 320</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Shrift hajmi (px)</Label>
+                    <Input
+                      type="number"
+                      value={form.receipt_font_size ?? 13}
+                      onChange={(e) => set('receipt_font_size', Number(e.target.value) || 13)}
+                      min={8}
+                      max={24}
+                      className="mt-1"
+                    />
+                    <p className="text-[9px] text-gray-400 mt-0.5">8-24 px, standart: 13</p>
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
             {/* Logotip */}
             {activeTab === 'logo' && (
