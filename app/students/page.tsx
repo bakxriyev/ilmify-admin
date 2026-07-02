@@ -91,6 +91,11 @@ export default function StudentsPage() {
     averageAge: 0,
   });
 
+  // Bulk password
+  const [bulkPasswordDialogOpen, setBulkPasswordDialogOpen] = useState(false);
+  const [bulkPasswordValue, setBulkPasswordValue] = useState('');
+  const [bulkPasswordLoading, setBulkPasswordLoading] = useState(false);
+
   // Delete modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
@@ -544,6 +549,9 @@ export default function StudentsPage() {
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="text-xs">
                   <Upload className="h-3.5 w-3.5 mr-1" /> Excel Import
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => { setBulkPasswordDialogOpen(true); setBulkPasswordValue(''); }} className="text-xs" title="Barcha studentlar parolini o'zgartirish">
+                  <KeyRound className="h-3.5 w-3.5 mr-1 text-purple-600" /> Ommaviy parol
                 </Button>
                 <Button size="sm" onClick={() => router.push('/students/new')} className="text-xs">
                   <UserPlus className="h-3.5 w-3.5 mr-1" /> Yangi Student
@@ -1674,6 +1682,52 @@ export default function StudentsPage() {
                 className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-8"
               >
                Tushunarli
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Password Dialog */}
+        <Dialog open={bulkPasswordDialogOpen} onOpenChange={setBulkPasswordDialogOpen}>
+          <DialogContent className="bg-white max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-purple-600" /> Ommaviy parol o'zgartirish
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Barcha studentlar uchun yangi parol o'rnating
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Yangi parol</Label>
+                <Input
+                  value={bulkPasswordValue}
+                  onChange={e => setBulkPasswordValue(e.target.value)}
+                  placeholder="Yangi parolni kiriting"
+                  className="h-9 text-sm"
+                />
+              </div>
+              <p className="text-[11px] text-amber-600 bg-amber-50 p-2 rounded">
+                <AlertCircle className="h-3 w-3 inline mr-1" />
+                Bu amal barcha studentlarning parolini o'zgartiradi.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setBulkPasswordDialogOpen(false)} className="h-8 text-xs">
+                Bekor qilish
+              </Button>
+              <Button size="sm" onClick={async () => {
+                if (!bulkPasswordValue.trim()) { toast.error('Parolni kiriting'); return; }
+                try {
+                  setBulkPasswordLoading(true);
+                  await studentsApi.bulkUpdatePassword(bulkPasswordValue.trim());
+                  toast.success("Barcha studentlar paroli o'zgartirildi");
+                  setBulkPasswordDialogOpen(false);
+                } catch { toast.error('Xatolik yuz berdi'); }
+                finally { setBulkPasswordLoading(false); }
+              }} disabled={bulkPasswordLoading} className="h-8 text-xs bg-purple-600 hover:bg-purple-700 text-white">
+                {bulkPasswordLoading ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Saqlanmoqda</> : 'Saqlash'}
               </Button>
             </DialogFooter>
           </DialogContent>

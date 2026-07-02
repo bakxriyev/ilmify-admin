@@ -264,6 +264,11 @@ export const groupStudentsApi = {
       throw error;
     }
   },
+  bulkUpdateJoinDate: async (groupId: number, joined_date: string): Promise<{ updated: number }> => {
+    const response = await api.patch(`/group-students/group/${groupId}/bulk-join-date`, { joined_date });
+    return response.data;
+  },
+
   bulkAddStudents: async (
     groupId: number,
     data: BulkAddStudentsRequest

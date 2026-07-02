@@ -85,6 +85,9 @@ export default function GroupDetailPage() {
   const [editingDateValue, setEditingDateValue] = useState('');
   const [savingDate, setSavingDate] = useState(false);
   const [confirmDateStudent, setConfirmDateStudent] = useState<{ relationId: number; studentId: number; studentName: string; firstLessonDate: string } | null>(null);
+  const [bulkJoinDate, setBulkJoinDate] = useState(now.toISOString().split('T')[0]);
+  const [showBulkJoinDate, setShowBulkJoinDate] = useState(false);
+  const [bulkJoinDateLoading, setBulkJoinDateLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
   const [showCloseGroup, setShowCloseGroup] = useState(false);
   const [closeDate, setCloseDate] = useState(now.toISOString().split('T')[0]);
@@ -143,6 +146,20 @@ export default function GroupDetailPage() {
       toast.error('Xatolik yuz berdi');
     } finally {
       setSavingDate(false);
+    }
+  };
+
+  const handleBulkSetJoinDate = async () => {
+    try {
+      setBulkJoinDateLoading(true);
+      const res = await groupStudentsApi.bulkUpdateJoinDate(groupId, bulkJoinDate);
+      toast.success(`${res.updated} ta studentning qo'shilgan sanasi yangilandi`);
+      setShowBulkJoinDate(false);
+      await fetchGroupStudents();
+    } catch {
+      toast.error('Xatolik yuz berdi');
+    } finally {
+      setBulkJoinDateLoading(false);
     }
   };
 
@@ -716,7 +733,27 @@ export default function GroupDetailPage() {
                               <TableHead className="text-gray-500 font-semibold text-[11px] uppercase tracking-wider">Yosh</TableHead>
                               <TableHead className="text-gray-500 font-semibold text-[11px] uppercase tracking-wider">Telefon</TableHead>
                               <TableHead className="text-gray-500 font-semibold text-[11px] uppercase tracking-wider">To'lov</TableHead>
-                              <TableHead className="text-gray-500 font-semibold text-[11px] uppercase tracking-wider">Qo'shilgan sana</TableHead>
+                              <TableHead className="text-gray-500 font-semibold text-[11px] uppercase tracking-wider">
+                                <div className="flex items-center gap-1">
+                                  <span>Qo'shilgan sana</span>
+                                  <button onClick={() => setShowBulkJoinDate(!showBulkJoinDate)}
+                                    className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200"
+                                    title="Barchasiga sana o'rnatish">
+                                    <Calendar className="h-3 w-3" />
+                                  </button>
+                                </div>
+                                {showBulkJoinDate && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <Input type="date" value={bulkJoinDate}
+                                      onChange={e => setBulkJoinDate(e.target.value)}
+                                      className="h-6 w-[120px] text-[10px] rounded" />
+                                    <Button size="sm" className="h-6 text-[10px] px-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                                      onClick={handleBulkSetJoinDate} disabled={bulkJoinDateLoading}>
+                                      {bulkJoinDateLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Qo\'llash'}
+                                    </Button>
+                                  </div>
+                                )}
+                              </TableHead>
                               <TableHead className="text-right text-gray-500 font-semibold text-[11px] uppercase tracking-wider">Amallar</TableHead>
                             </TableRow>
                           </TableHeader>

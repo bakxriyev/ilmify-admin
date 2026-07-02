@@ -41,6 +41,7 @@ export default function PaymentsPage() {
   const [filterPaymentType, setFilterPaymentType] = useState('all');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterMonth, setFilterMonth] = useState(String(new Date().getMonth() + 1));
   const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()));
   const [tempMonth, setTempMonth] = useState(String(new Date().getMonth() + 1));
@@ -62,6 +63,15 @@ export default function PaymentsPage() {
   const [paymentNote, setPaymentNote] = useState('');
   const [paymentType, setPaymentType] = useState('naqt');
   const [customPaymentType, setCustomPaymentType] = useState('');
+
+  // Multi-debt payment
+  const [selectedDebtIds, setSelectedDebtIds] = useState<Set<string>>(new Set());
+  const [showMultiPayModal, setShowMultiPayModal] = useState(false);
+  const [multiPayAmount, setMultiPayAmount] = useState('');
+  const [multiPayType, setMultiPayType] = useState('naqt');
+  const [multiPayCustomType, setMultiPayCustomType] = useState('');
+  const [multiPayNote, setMultiPayNote] = useState('');
+  const [multiPayLoading, setMultiPayLoading] = useState(false);
 
   // Yangi to'lov qo'shish (prepayment)
   const [showNewPayment, setShowNewPayment] = useState(false);
@@ -115,8 +125,12 @@ export default function PaymentsPage() {
   useEffect(() => { loadData(); }, [filterMonth, filterYear]);
   useEffect(() => { loadYearOverview(); }, [overviewYear]);
 
+  const normalizeSearch = (text: string) => text?.toLowerCase().replace(/[''`´"]/g, '').trim() || '';
+
   const filteredItems = useMemo(() => {
-    return items.filter(item => {
+    let result = items;
+
+    result = result.filter(item => {
       if (filterGroup !== 'all' && String(item.group?.id) !== filterGroup) return false;
       if (filterStatus !== 'all' && item.status !== filterStatus) return false;
       if (filterPaymentType !== 'all') {
@@ -135,7 +149,44 @@ export default function PaymentsPage() {
       }
       return true;
     });
-  }, [items, filterGroup, filterStatus, filterPaymentType, filterDateFrom, filterDateTo]);
+
+    if (searchQuery.trim()) {
+      const sq = normalizeSearch(searchQuery);
+      const sqDigits = sq.replace(/\D/g, '');
+      const sqWords = sq.split(/\s+/).filter(Boolean);
+
+      result = result.filter(item => {
+        const fn = normalizeSearch(item.student?.first_name);
+        const ln = normalizeSearch(item.student?.last_name);
+        const fullName = `${fn} ${ln}`;
+        const reversedName = `${ln} ${fn}`;
+        const phone = (item.student?.phone_number || '').replace(/\D/g, '');
+
+        if (fullName.includes(sq) || reversedName.includes(sq)) return true;
+
+        if (sqWords.length >= 2) {
+          const allMatch = sqWords.every(w => fn.includes(w) || ln.includes(w));
+          if (allMatch) return true;
+          if (
+            (fn.startsWith(sqWords[0]) && ln.includes(sqWords.slice(1).join(' '))) ||
+            (ln.startsWith(sqWords[0]) && fn.includes(sqWords.slice(1).join(' ')))
+          ) return true;
+        }
+
+        if (sqWords.length === 1) {
+          const w = sqWords[0];
+          if (fn.startsWith(w) || ln.startsWith(w)) return true;
+          if (fn.includes(w) || ln.includes(w)) return true;
+        }
+
+        if (sqDigits && phone.includes(sqDigits)) return true;
+
+        return false;
+      });
+    }
+
+    return result;
+  }, [items, filterGroup, filterStatus, filterPaymentType, filterDateFrom, filterDateTo, searchQuery]);
 
   const totalPages = Math.ceil(filteredItems.length / pageSize);
   const paginatedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
@@ -345,6 +396,102 @@ export default function PaymentsPage() {
       loadData();
       loadYearOverview();
     } catch (err: any) { toast.error(err.message || 'Xatolik'); }
+  };
+
+  const toggleDebtSelection = (debtKey: string) => {
+    setSelectedDebtIds(prev => {
+      const next = new Set(prev);
+      if (next.has(debtKey)) next.delete(debtKey);
+      else next.add(debtKey);
+      return next;
+    });
+  };
+
+  const handleMultiPay = async () => {
+    if (!selectedStudentDebts || selectedDebtIds.size === 0) {
+      toast.error('Hech qanday qarzdorlik tanlanmagan');
+      return;
+    }
+    if (!multiPayAmount || Number(multiPayAmount) <= 0) {
+      toast.error('To\'lov summasini kiriting');
+      return;
+    }
+    const resolvedType = multiPayType === 'boshqa' ? multiPayCustomType : multiPayType;
+    try {
+      setMultiPayLoading(true);
+      const selectedDebts = selectedStudentDebts.debts.filter((d: any) =>
+        selectedDebtIds.has(`${d.month}-${d.year}-${d.group_id}`)
+      );
+      const createdPayments: any[] = [];
+      for (const debt of selectedDebts) {
+        const res = await paymentsApi.create({
+          student_id: selectedStudentDebts.student.id,
+          group_id: debt.group_id,
+          amount: Number(multiPayAmount) / selectedDebts.length,
+          month: debt.month,
+          year: debt.year,
+          status: 'paid',
+          paid_at: new Date().toISOString().split('T')[0],
+          payment_type: resolvedType || undefined,
+          note: multiPayNote || undefined,
+        });
+        createdPayments.push({ ...res, debt });
+      }
+      toast.success("To'lov qabul qilindi");
+      setShowMultiPayModal(false);
+      setShowCreateModal(false);
+      setSelectedDebtIds(new Set());
+
+      // Consolidated receipt
+      const adminRaw = typeof window !== 'undefined' ? localStorage.getItem('admin') : '';
+      let adminName = 'Admin';
+      try { const a = JSON.parse(adminRaw || '{}'); adminName = a.full_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Admin'; } catch {}
+      const settings = academySettings || {};
+      const now = new Date();
+      const paidAtStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const studentPassword = selectedStudentDebts.student.password || '';
+      const items = createdPayments.map(p => ({
+        groupName: p.debt.group_name,
+        paidMonth: monthNames[p.debt.month - 1],
+        paidYear: String(p.debt.year),
+        amount: Math.round(Number(multiPayAmount) / selectedDebts.length),
+      }));
+      printReceipt({
+        receiptNumber: undefined,
+        academyName: settings.academy_name || '',
+        academyLogo: getCenterLogoUrl() || settings.academy_logo || undefined,
+        academyAddress: settings.address || undefined,
+        academyPhones: [settings.phone1, settings.phone2, settings.phone3].filter(Boolean),
+        receiptHeader: settings.receipt_header || undefined,
+        receiptFooter: settings.receipt_footer || undefined,
+        receiptNote: settings.receipt_note || undefined,
+        thankYouText: settings.receipt_thank_you_text || 'Rahmat!',
+        footerText: settings.footer_text || undefined,
+        website: settings.website || undefined,
+        instagram: settings.instagram || undefined,
+        telegramBot: settings.telegram_bot_link || undefined,
+        studentName: `${selectedStudentDebts.student.first_name} ${selectedStudentDebts.student.last_name}`.trim(),
+        studentPhone: selectedStudentDebts.student.phone_number || '',
+        studentPassword: studentPassword,
+        groupName: items.map(i => i.groupName).filter((v, i, a) => a.indexOf(v) === i).join(', '),
+        paidMonth: '',
+        paidYear: '',
+        paidAt: paidAtStr,
+        paymentType: resolvedType === 'naqt' ? 'Naqt' : resolvedType === 'karta' ? 'Karta' : resolvedType === 'click' ? 'Click' : resolvedType || 'Naqt',
+        amount: Number(multiPayAmount),
+        adminName,
+        receiptWidth: settings.receipt_width || 320,
+        fontSize: settings.receipt_font_size || 13,
+        consolidatedItems: items,
+      });
+      createdPayments.forEach(p => {
+        if (p.id) receiptApi.print({ payment_id: p.id }).catch(() => {});
+      });
+
+      loadData();
+      loadYearOverview();
+    } catch (err: any) { toast.error(err.message || 'Xatolik'); }
+    finally { setMultiPayLoading(false); }
   };
 
   const handleSubmitNewPayment = async () => {
@@ -805,6 +952,17 @@ export default function PaymentsPage() {
           </CardHeader>
         </Card>
 
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Ism, familiya yoki telefon bo'yicha qidirish..."
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+            className="pl-10 pr-4 py-2 h-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-xl text-sm w-full"
+          />
+        </div>
+
         {/* Status Tabs */}
         <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
           <span className="text-[10px] md:text-sm text-gray-500 font-medium mr-0.5 md:mr-1">Ko'rinish:</span>
@@ -1064,37 +1222,59 @@ export default function PaymentsPage() {
                 </div>
 
                 {selectedStudentDebts.debts && selectedStudentDebts.debts.length > 0 && (
-                  <div className="space-y-1.5 md:space-y-2">
-                    <h3 className="font-medium text-gray-900 text-xs md:text-sm">Qarzdorliklar</h3>
+                    <div className="space-y-1.5 md:space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-gray-900 text-xs md:text-sm">Qarzdorliklar</h3>
+                      {selectedDebtIds.size > 0 && (
+                        <Button size="sm" onClick={() => {
+                          setSelectedDebtIds(new Set());
+                          setMultiPayAmount('');
+                          setShowMultiPayModal(true);
+                        }} className="h-7 text-[10px] bg-blue-600 hover:bg-blue-700 text-white">
+                          {selectedDebtIds.size} ta to'lash
+                        </Button>
+                      )}
+                    </div>
                     <div className="space-y-1 md:space-y-2 max-h-36 md:max-h-48 overflow-y-auto border rounded-lg p-1.5 md:p-2">
-                      {selectedStudentDebts.debts.map((debt: any) => (
+                      {selectedStudentDebts.debts.map((debt: any) => {
+                        const debtKey = `${debt.month}-${debt.year}-${debt.group_id}`;
+                        const isSelected = selectedDebtIds.has(debtKey);
+                        return (
                         <div
-                          key={`${debt.month}-${debt.year}-${debt.group_id}`}
-                          onClick={() => {
-                            setSelectedPaymentId(debt.id || null);
-                            setSelectedDebt(debt);
-                            setPaymentAmount(debt.amount.toString());
-                            setPaymentNote('');
-                          }}
+                          key={debtKey}
                           className={`p-2 md:p-3 rounded-lg border-2 cursor-pointer transition ${
-                            selectedDebt === debt
+                            isSelected
                               ? 'border-blue-500 bg-blue-50'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          <div className="flex justify-between items-start gap-2">
-                            <div className="min-w-0">
-                              <p className="font-medium text-gray-900 text-xs md:text-sm">
-                                {debt.month_name} {debt.year} - {debt.group_name}
-                              </p>
-                              <p className="text-[10px] md:text-xs text-gray-500">
-                                {debt.is_auto_generated ? 'Avtomatik' : 'To\'lov qo\'shilgan'}
-                              </p>
+                          <div className="flex items-start gap-2">
+                            <input type="checkbox" checked={isSelected}
+                              onChange={() => toggleDebtSelection(debtKey)}
+                              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              onClick={e => e.stopPropagation()}
+                            />
+                            <div className="flex-1 min-w-0" onClick={() => {
+                              setSelectedPaymentId(debt.id || null);
+                              setSelectedDebt(debt);
+                              setPaymentAmount(debt.amount.toString());
+                              setPaymentNote('');
+                            }}>
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="min-w-0">
+                                  <p className="font-medium text-gray-900 text-xs md:text-sm">
+                                    {debt.month_name} {debt.year} - {debt.group_name}
+                                  </p>
+                                  <p className="text-[10px] md:text-xs text-gray-500">
+                                    {debt.is_auto_generated ? 'Avtomatik' : 'To\'lov qo\'shilgan'}
+                                  </p>
+                                </div>
+                                <p className="font-bold text-red-600 text-xs md:text-sm shrink-0">{formatSum(debt.amount)} so'm</p>
+                              </div>
                             </div>
-                            <p className="font-bold text-red-600 text-xs md:text-sm shrink-0">{formatSum(debt.amount)} so'm</p>
                           </div>
                         </div>
-                      ))}
+                      )})}
                     </div>
                   </div>
                 )}
@@ -1327,6 +1507,81 @@ export default function PaymentsPage() {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Multi-debt Payment Modal */}
+        <Dialog open={showMultiPayModal} onOpenChange={setShowMultiPayModal}>
+          <DialogContent className="bg-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-blue-600" /> Bir nechta qarzdorlikni to'lash
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                {selectedStudentDebts?.student?.first_name} {selectedStudentDebts?.student?.last_name} - {selectedDebtIds.size} ta qarzdorlik
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="bg-blue-50 p-2 rounded-lg border border-blue-200">
+                <p className="text-xs text-blue-700">
+                  Tanlangan qarzdorliklar:
+                </p>
+                {selectedStudentDebts?.debts.filter((d: any) =>
+                  selectedDebtIds.has(`${d.month}-${d.year}-${d.group_id}`)
+                ).map((d: any) => (
+                  <p key={`${d.month}-${d.year}-${d.group_id}`} className="text-[11px] text-blue-600 mt-0.5">
+                    • {d.month_name} {d.year} - {d.group_name} ({formatSum(d.amount)} so'm)
+                  </p>
+                ))}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">To'lov summasi (so'm)</Label>
+                <Input
+                  type="number"
+                  value={multiPayAmount}
+                  onChange={e => setMultiPayAmount(e.target.value)}
+                  placeholder="Umumiy to'lov summasini kiriting"
+                  className="h-9 text-sm font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">To'lov turi</Label>
+                <Select value={multiPayType} onValueChange={v => { setMultiPayType(v); if (v !== 'boshqa') setMultiPayCustomType(''); }}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="naqt" className="text-xs">Naqt</SelectItem>
+                    <SelectItem value="karta" className="text-xs">Karta</SelectItem>
+                    <SelectItem value="click" className="text-xs">Click</SelectItem>
+                    <SelectItem value="boshqa" className="text-xs">Boshqa</SelectItem>
+                  </SelectContent>
+                </Select>
+                {multiPayType === 'boshqa' && (
+                  <Input
+                    value={multiPayCustomType}
+                    onChange={e => setMultiPayCustomType(e.target.value)}
+                    placeholder="To'lov turini yozing..."
+                    className="h-8 text-sm mt-1"
+                  />
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Izoh (ixtiyoriy)</Label>
+                <Input
+                  placeholder="To'lov haqida izoh..."
+                  value={multiPayNote}
+                  onChange={e => setMultiPayNote(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setShowMultiPayModal(false)} className="h-8 text-xs">
+                Bekor qilish
+              </Button>
+              <Button size="sm" onClick={handleMultiPay} disabled={multiPayLoading} className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white">
+                {multiPayLoading ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> To'lanmoqda</> : 'To\'lovni qabul qilish'}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

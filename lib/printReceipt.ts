@@ -27,6 +27,12 @@ interface PrintData {
   adminName: string;
   receiptWidth?: number;
   fontSize?: number;
+  consolidatedItems?: Array<{
+    groupName: string;
+    paidMonth: string;
+    paidYear: string;
+    amount: number;
+  }>;
 }
 
 export function printReceipt(data: PrintData) {
@@ -299,10 +305,22 @@ export function printReceipt(data: PrintData) {
         ${data.studentPhone ? `<div class="row"><span class="l">Telefon:</span><span class="r">${data.studentPhone}</span></div>` : ''}
         ${data.studentPassword ? `<div class="row"><span class="l">Parol:</span><span class="r">${data.studentPassword}</span></div>` : ''}
         ${data.groupName ? `<div class="row"><span class="l">Guruh:</span><span class="r">${data.groupName}</span></div>` : ''}
+        ${data.consolidatedItems && data.consolidatedItems.length > 0 ? `
+        <div style="border-top:1px dashed #999;margin:6px 0"></div>
+        <div style="font-size:${fs}px;font-weight:700;text-align:center;margin:4px 0">To'lov tafsilotlari</div>
+        ${data.consolidatedItems.map((item, i) => `
+        <div class="row" style="font-size:${fs - 1}px">
+          <span class="l">${i + 1}. ${item.groupName} (${item.paidMonth} ${item.paidYear}):</span>
+          <span class="r">${item.amount.toLocaleString()} so'm</span>
+        </div>
+        `).join('')}
+        <div style="border-top:1px dashed #999;margin:6px 0"></div>
+        ` : `
         <div class="row">
           <span class="l">To'lov oyi:</span>
           <span class="r">${data.paidMonth} ${data.paidYear}</span>
         </div>
+        `}
         <div class="row">
           <span class="l">To'lov sanasi:</span>
           <span class="r">${data.paidAt}</span>

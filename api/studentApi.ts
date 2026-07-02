@@ -302,6 +302,11 @@ export const studentsApi = {
     return response.data;
   },
 
+  bulkUpdatePassword: async (password: string): Promise<{ message: string }> => {
+    const response = await api.patch('/students/password/bulk', { password });
+    return response.data;
+  },
+
   getSuspicious: async (): Promise<{
     total_suspicious: number;
     total_groups: number;
