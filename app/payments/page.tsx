@@ -51,17 +51,21 @@ export default function PaymentsPage() {
   const [tempDateFrom, setTempDateFrom] = useState('');
   const [tempDateTo, setTempDateTo] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [noteDialog, setNoteDialog] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [studentSearch, setStudentSearch] = useState('');
   
   // Yangi to'lovlar uchun state-lar
   const [selectedStudentDebts, setSelectedStudentDebts] = useState<any>(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null);
-  const [selectedDebt, setSelectedDebt] = useState<any>(null);
+  const [selectedDebtIndex, setSelectedDebtIndex] = useState<number | null>(null);
+  const selectedDebt = selectedDebtIndex !== null && selectedStudentDebts?.debts?.[selectedDebtIndex]
+    ? selectedStudentDebts.debts[selectedDebtIndex] : null;
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
   const [paymentType, setPaymentType] = useState('naqt');
-  const [customPaymentType, setCustomPaymentType] = useState('');
+  const [cashAmount, setCashAmount] = useState('');
+  const [cardAmount, setCardAmount] = useState('');
 
   // Yangi to'lov qo'shish (prepayment)
   const [showNewPayment, setShowNewPayment] = useState(false);
@@ -71,7 +75,8 @@ export default function PaymentsPage() {
   const [newPaymentAmount, setNewPaymentAmount] = useState('');
   const [newPaymentNote, setNewPaymentNote] = useState('');
   const [newPaymentType, setNewPaymentType] = useState('naqt');
-  const [newCustomPaymentType, setNewCustomPaymentType] = useState('');
+  const [newCashAmount, setNewCashAmount] = useState('');
+  const [newCardAmount, setNewCardAmount] = useState('');
   const [submittingNewPayment, setSubmittingNewPayment] = useState(false);
 
   const [academySettings, setAcademySettings] = useState<any>(null);
@@ -121,11 +126,7 @@ export default function PaymentsPage() {
       if (filterStatus !== 'all' && item.status !== filterStatus) return false;
       if (filterPaymentType !== 'all') {
         const pt = item.payment?.payment_type || '';
-        if (filterPaymentType === 'boshqa') {
-          if (['click', 'naqt', 'karta'].includes(pt)) return false;
-        } else {
-          if (pt !== filterPaymentType) return false;
-        }
+        if (pt !== filterPaymentType) return false;
       }
       if (filterDateFrom || filterDateTo) {
         const paidAt = item.payment?.paid_at;
@@ -178,6 +179,27 @@ export default function PaymentsPage() {
     };
   }, [studentSearch, showCreateModal, loadStudents]);
 
+  // Split payment: when cash or card amount changes, update total
+  useEffect(() => {
+    if (paymentType === 'yarim_naqt_yarim_karta') {
+      const cash = Number(cashAmount) || 0;
+      const card = Number(cardAmount) || 0;
+      if (cash > 0 || card > 0) {
+        setPaymentAmount(String(cash + card));
+      }
+    }
+  }, [cashAmount, cardAmount, paymentType]);
+
+  useEffect(() => {
+    if (newPaymentType === 'yarim_naqt_yarim_karta') {
+      const cash = Number(newCashAmount) || 0;
+      const card = Number(newCardAmount) || 0;
+      if (cash > 0 || card > 0) {
+        setNewPaymentAmount(String(cash + card));
+      }
+    }
+  }, [newCashAmount, newCardAmount, newPaymentType]);
+
   const openCreateModal = async () => {
     try {
       setStudentSearch('');
@@ -186,13 +208,15 @@ export default function PaymentsPage() {
       setPaymentAmount('');
       setPaymentNote('');
       setPaymentType('naqt');
-      setCustomPaymentType('');
+      setCashAmount('');
+      setCardAmount('');
+      setNewCashAmount('');
+      setNewCardAmount('');
       setShowNewPayment(false);
       setNewPaymentGroupId(0);
       setNewPaymentAmount('');
       setNewPaymentNote('');
       setNewPaymentType('naqt');
-      setNewCustomPaymentType('');
       setShowCreateModal(true);
       await loadStudents();
     } catch { toast.error("Studentlarni yuklashda xatolik"); }
@@ -209,8 +233,12 @@ export default function PaymentsPage() {
       } catch {}
       setSelectedStudentDebts(debts);
       setSelectedPaymentId(null);
+      setSelectedDebtIndex(null);
       setPaymentAmount('');
       setPaymentNote('');
+      setPaymentType('naqt');
+      setCashAmount('');
+      setCardAmount('');
       setNewPaymentGroupId(0);
       if (debts.student_groups && debts.student_groups.length > 0) {
         setNewPaymentGroupId(debts.student_groups[0].id);
@@ -260,7 +288,7 @@ export default function PaymentsPage() {
       paidMonth: monthNames[month - 1],
       paidYear: String(year),
       paidAt: paidAtStr,
-      paymentType: ptype === 'naqt' ? 'Naqt' : ptype === 'karta' ? 'Karta' : ptype === 'click' ? 'Click' : ptype || 'Naqt',
+      paymentType: ptype === 'naqt' ? 'Naqt' : ptype === 'karta' ? 'Karta' : ptype === 'yarim_naqt_yarim_karta' ? 'Yarim naqt/karta' : ptype || 'Naqt',
       amount,
       adminName,
       receiptWidth: settings.receipt_width || 320,
@@ -277,7 +305,20 @@ export default function PaymentsPage() {
       return;
     }
 
-    const resolvedType = paymentType === 'boshqa' ? customPaymentType : paymentType;
+    const resolvedType = paymentType;
+
+    if (resolvedType === 'yarim_naqt_yarim_karta') {
+      const cash = Number(cashAmount) || 0;
+      const card = Number(cardAmount) || 0;
+      if (cash <= 0 || card <= 0) {
+        toast.error('Naqt va karta summalarini kiriting');
+        return;
+      }
+      if (cash + card !== Number(paymentAmount)) {
+        toast.error('Naqt va karta summalari yig\'indisi umumiy summaga teng bo\'lishi kerak');
+        return;
+      }
+    }
 
     try {
       const res = await paymentsApi.update(selectedPaymentId, {
@@ -285,6 +326,8 @@ export default function PaymentsPage() {
         status: 'paid',
         paid_at: new Date().toISOString().split('T')[0],
         payment_type: resolvedType || undefined,
+        cash_amount: resolvedType === 'yarim_naqt_yarim_karta' ? Number(cashAmount) || 0 : undefined,
+        card_amount: resolvedType === 'yarim_naqt_yarim_karta' ? Number(cardAmount) || 0 : undefined,
         note: paymentNote || undefined,
       });
 
@@ -314,7 +357,20 @@ export default function PaymentsPage() {
       return;
     }
 
-    const resolvedType = paymentType === 'boshqa' ? customPaymentType : paymentType;
+    const resolvedType = paymentType;
+
+    if (resolvedType === 'yarim_naqt_yarim_karta') {
+      const cash = Number(cashAmount) || 0;
+      const card = Number(cardAmount) || 0;
+      if (cash <= 0 || card <= 0) {
+        toast.error('Naqt va karta summalarini kiriting');
+        return;
+      }
+      if (cash + card !== Number(paymentAmount)) {
+        toast.error('Naqt va karta summalari yig\'indisi umumiy summaga teng bo\'lishi kerak');
+        return;
+      }
+    }
 
     try {
       const res = await paymentsApi.create({
@@ -326,6 +382,8 @@ export default function PaymentsPage() {
         status: 'paid',
         paid_at: new Date().toISOString().split('T')[0],
         payment_type: resolvedType || undefined,
+        cash_amount: resolvedType === 'yarim_naqt_yarim_karta' ? Number(cashAmount) || 0 : undefined,
+        card_amount: resolvedType === 'yarim_naqt_yarim_karta' ? Number(cardAmount) || 0 : undefined,
         note: paymentNote || undefined,
       });
 
@@ -353,7 +411,20 @@ export default function PaymentsPage() {
       return;
     }
 
-    const resolvedType = newPaymentType === 'boshqa' ? newCustomPaymentType : newPaymentType;
+    const resolvedType = newPaymentType;
+
+    if (resolvedType === 'yarim_naqt_yarim_karta') {
+      const cash = Number(newCashAmount) || 0;
+      const card = Number(newCardAmount) || 0;
+      if (cash <= 0 || card <= 0) {
+        toast.error('Naqt va karta summalarini kiriting');
+        return;
+      }
+      if (cash + card !== Number(newPaymentAmount)) {
+        toast.error('Naqt va karta summalari yig\'indisi umumiy summaga teng bo\'lishi kerak');
+        return;
+      }
+    }
 
     try {
       setSubmittingNewPayment(true);
@@ -366,6 +437,8 @@ export default function PaymentsPage() {
         status: 'paid',
         paid_at: new Date().toISOString().split('T')[0],
         payment_type: resolvedType || undefined,
+        cash_amount: resolvedType === 'yarim_naqt_yarim_karta' ? Number(newCashAmount) || 0 : undefined,
+        card_amount: resolvedType === 'yarim_naqt_yarim_karta' ? Number(newCardAmount) || 0 : undefined,
         note: newPaymentNote || undefined,
       });
 
@@ -461,7 +534,7 @@ export default function PaymentsPage() {
         paidMonth: monthNames[item.month - 1],
         paidYear: String(item.year),
         paidAt: paidAtStr,
-        paymentType: (item.payment?.payment_type === 'naqt' ? 'Naqt' : item.payment?.payment_type === 'karta' ? 'Karta' : item.payment?.payment_type === 'click' ? 'Click' : item.payment?.payment_type || 'Naqt'),
+        paymentType: (item.payment?.payment_type === 'naqt' ? 'Naqt' : item.payment?.payment_type === 'karta' ? 'Karta' : item.payment?.payment_type === 'yarim_naqt_yarim_karta' ? 'Yarim naqt/karta' : item.payment?.payment_type || 'Naqt'),
         amount: item.paid_amount || item.monthly_price,
         adminName,
         receiptWidth: settings.receipt_width || 320,
@@ -491,9 +564,9 @@ export default function PaymentsPage() {
   const paymentTypeLabel = (type: string | null | undefined) => {
     if (!type) return { label: '-', class: 'text-gray-400' };
     const map: any = {
-      click: { label: 'Click', class: 'text-blue-600 bg-blue-50 border-blue-200' },
       naqt: { label: 'Naqt', class: 'text-green-600 bg-green-50 border-green-200' },
       karta: { label: 'Karta', class: 'text-purple-600 bg-purple-50 border-purple-200' },
+      yarim_naqt_yarim_karta: { label: 'Yarim naqt/karata', class: 'text-orange-600 bg-orange-50 border-orange-200' },
     };
     return map[type] || { label: type, class: 'text-gray-600 bg-gray-50 border-gray-200' };
   };
@@ -716,13 +789,12 @@ export default function PaymentsPage() {
                     </SelectContent>
                   </Select>
                   <Select value={tempPaymentType} onValueChange={v => setTempPaymentType(v)}>
-                    <SelectTrigger className="w-28 md:w-32 h-8 text-xs border-blue-300 focus:ring-blue-500"><SelectValue placeholder="To'lov turi" /></SelectTrigger>
+                    <SelectTrigger className="w-28 md:w-44 h-8 text-xs border-blue-300 focus:ring-blue-500"><SelectValue placeholder="To'lov turi" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all" className="text-xs">Barcha turlar</SelectItem>
                       <SelectItem value="naqt" className="text-xs">Naqt</SelectItem>
                       <SelectItem value="karta" className="text-xs">Karta</SelectItem>
-                      <SelectItem value="click" className="text-xs">Click</SelectItem>
-                      <SelectItem value="boshqa" className="text-xs">Boshqa</SelectItem>
+                      <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqt/karta</SelectItem>
                     </SelectContent>
                   </Select>
                   <div className="flex items-center gap-1">
@@ -869,6 +941,7 @@ export default function PaymentsPage() {
                       <th className="text-center p-2 md:p-3 text-gray-600 font-medium">Holat</th>
                       <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">To'lov turi</th>
                       <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">To'lov sanasi</th>
+                      <th className="hidden lg:table-cell text-left p-2 md:p-3 text-gray-600 font-medium">Izoh</th>
                       <th className="hidden md:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">Kechikish</th>
                       <th className="text-right p-2 md:p-3 text-gray-600 font-medium">Amallar</th>
                     </tr>
@@ -932,6 +1005,9 @@ export default function PaymentsPage() {
                               })()}
                             </div>
                           ) : '-'}
+                        </td>
+                        <td className="hidden lg:table-cell p-2 md:p-3 text-left text-[10px] md:text-xs text-gray-500 max-w-[120px] truncate cursor-pointer hover:text-blue-600 hover:underline" onClick={() => item.payment?.note && setNoteDialog(item.payment.note)} title={item.payment?.note || ''}>
+                          {item.payment?.note || '-'}
                         </td>
                         <td className="hidden md:table-cell p-2 md:p-3 text-center">
                           {item.overdue_lessons > 0 ? (
@@ -1067,33 +1143,39 @@ export default function PaymentsPage() {
                   <div className="space-y-1.5 md:space-y-2">
                     <h3 className="font-medium text-gray-900 text-xs md:text-sm">Qarzdorliklar</h3>
                     <div className="space-y-1 md:space-y-2 max-h-36 md:max-h-48 overflow-y-auto border rounded-lg p-1.5 md:p-2">
-                      {selectedStudentDebts.debts.map((debt: any) => (
-                        <div
+                      {selectedStudentDebts.debts.map((debt: any, idx: number) => (
+                        <label
                           key={`${debt.month}-${debt.year}-${debt.group_id}`}
-                          onClick={() => {
-                            setSelectedPaymentId(debt.id || null);
-                            setSelectedDebt(debt);
-                            setPaymentAmount(debt.amount.toString());
-                            setPaymentNote('');
-                          }}
-                          className={`p-2 md:p-3 rounded-lg border-2 cursor-pointer transition ${
-                            selectedDebt === debt
+                          className={`flex items-start gap-2 p-2 md:p-3 rounded-lg border-2 cursor-pointer transition ${
+                            selectedDebtIndex === idx
                               ? 'border-blue-500 bg-blue-50'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          <div className="flex justify-between items-start gap-2">
+                          <input
+                            type="radio"
+                            name="debtSelection"
+                            checked={selectedDebtIndex === idx}
+                            onChange={() => {
+                              setSelectedDebtIndex(idx);
+                              setSelectedPaymentId(debt.id || null);
+                              setPaymentAmount(debt.amount.toString());
+                              setPaymentNote('');
+                            }}
+                            className="mt-0.5 h-4 w-4 text-blue-600 shrink-0"
+                          />
+                          <div className="flex-1 flex justify-between items-start gap-2 min-w-0">
                             <div className="min-w-0">
                               <p className="font-medium text-gray-900 text-xs md:text-sm">
                                 {debt.month_name} {debt.year} - {debt.group_name}
                               </p>
                               <p className="text-[10px] md:text-xs text-gray-500">
-                                {debt.is_auto_generated ? 'Avtomatik' : 'To\'lov qo\'shilgan'}
+                                {debt.is_auto_generated ? 'Avtomatik' : "To'lov qo'shilgan"}
                               </p>
                             </div>
-                            <p className="font-bold text-red-600 text-xs md:text-sm shrink-0">{formatSum(debt.amount)} so'm</p>
+                            <p className="font-bold text-red-600 text-xs md:text-sm shrink-0 whitespace-nowrap">{formatSum(debt.amount)} so'm</p>
                           </div>
-                        </div>
+                        </label>
                       ))}
                     </div>
                   </div>
@@ -1197,22 +1279,37 @@ export default function PaymentsPage() {
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[10px] md:text-xs">To'lov turi</Label>
-                        <Select value={newPaymentType} onValueChange={v => { setNewPaymentType(v); if (v !== 'boshqa') setNewCustomPaymentType(''); }}>
+                        <Select value={newPaymentType} onValueChange={v => setNewPaymentType(v)}>
                           <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="naqt" className="text-xs">Naqt</SelectItem>
                             <SelectItem value="karta" className="text-xs">Karta</SelectItem>
-                            <SelectItem value="click" className="text-xs">Click</SelectItem>
-                            <SelectItem value="boshqa" className="text-xs">Boshqa</SelectItem>
+                            <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqt/karta</SelectItem>
                           </SelectContent>
                         </Select>
-                        {newPaymentType === 'boshqa' && (
-                          <Input
-                            value={newCustomPaymentType}
-                            onChange={e => setNewCustomPaymentType(e.target.value)}
-                            placeholder="To'lov turini yozing..."
-                            className="h-8 text-sm mt-1"
-                          />
+                        {newPaymentType === 'yarim_naqt_yarim_karta' && (
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                            <div>
+                              <Label className="text-[10px] text-gray-500">Naqt qismi (so'm)</Label>
+                              <Input
+                                type="number"
+                                value={newCashAmount}
+                                onChange={e => setNewCashAmount(e.target.value)}
+                                placeholder="Naqt summa"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-[10px] text-gray-500">Karta qismi (so'm)</Label>
+                              <Input
+                                type="number"
+                                value={newCardAmount}
+                                onChange={e => setNewCardAmount(e.target.value)}
+                                placeholder="Karta summa"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                          </div>
                         )}
                       </div>
                       <div className="space-y-1">
@@ -1252,22 +1349,37 @@ export default function PaymentsPage() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">To'lov turi</Label>
-                      <Select value={paymentType} onValueChange={v => { setPaymentType(v); if (v !== 'boshqa') setCustomPaymentType(''); }}>
+                      <Select value={paymentType} onValueChange={v => setPaymentType(v)}>
                         <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="naqt" className="text-xs">Naqt</SelectItem>
                           <SelectItem value="karta" className="text-xs">Karta</SelectItem>
-                          <SelectItem value="click" className="text-xs">Click</SelectItem>
-                          <SelectItem value="boshqa" className="text-xs">Boshqa</SelectItem>
+                          <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqt/karta</SelectItem>
                         </SelectContent>
                       </Select>
-                      {paymentType === 'boshqa' && (
-                        <Input
-                          value={customPaymentType}
-                          onChange={e => setCustomPaymentType(e.target.value)}
-                          placeholder="To'lov turini yozing..."
-                          className="h-8 text-sm mt-1"
-                        />
+                      {paymentType === 'yarim_naqt_yarim_karta' && (
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          <div>
+                            <Label className="text-[10px] text-gray-500">Naqt qismi (so'm)</Label>
+                            <Input
+                              type="number"
+                              value={cashAmount}
+                              onChange={e => setCashAmount(e.target.value)}
+                              placeholder="Naqt summa"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-gray-500">Karta qismi (so'm)</Label>
+                            <Input
+                              type="number"
+                              value={cardAmount}
+                              onChange={e => setCardAmount(e.target.value)}
+                              placeholder="Karta summa"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-1">
@@ -1290,7 +1402,7 @@ export default function PaymentsPage() {
                     onClick={() => {
                       setSelectedStudentDebts(null);
                       setSelectedPaymentId(null);
-                      setSelectedDebt(null);
+                      setSelectedDebtIndex(null);
                     }}
                     className="flex-1 text-xs h-8"
                   >
@@ -1327,6 +1439,18 @@ export default function PaymentsPage() {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={noteDialog !== null} onOpenChange={(open) => { if (!open) setNoteDialog(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>To'lov izohi</DialogTitle>
+              <DialogDescription />
+            </DialogHeader>
+            <div className="p-2 max-h-60 overflow-y-auto text-sm text-gray-700 whitespace-pre-wrap break-words">
+              {noteDialog || '-'}
+            </div>
           </DialogContent>
         </Dialog>
       </div>

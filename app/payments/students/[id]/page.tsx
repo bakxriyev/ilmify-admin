@@ -8,6 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog';
 import { paymentsApi, type Payment } from '@/api/paymentsApi';
 import { ArrowLeft, Wallet, CheckCircle, XCircle, Clock, DollarSign } from 'lucide-react';
 
@@ -17,6 +20,7 @@ export default function StudentPaymentsPage() {
   const studentId = Number(params.id);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [noteDialog, setNoteDialog] = useState<string | null>(null);
   const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 
   useEffect(() => {
@@ -91,18 +95,28 @@ export default function StudentPaymentsPage() {
                         <td className="p-3 text-center">
                           {(() => {
                             const pt = p.payment_type;
-                            const map: any = { naqt: 'Naqt', karta: 'Karta', click: 'Click' };
+                            const map: any = { naqt: 'Naqt', karta: 'Karta', yarim_naqt_yarim_karta: 'Yarim naqt/karta' };
                             const label = pt ? (map[pt] || pt) : '-';
-                            const cls = pt === 'naqt' ? 'text-green-600 bg-green-50 border-green-200' : pt === 'karta' ? 'text-purple-600 bg-purple-50 border-purple-200' : pt === 'click' ? 'text-blue-600 bg-blue-50 border-blue-200' : 'text-gray-400';
+                            let cls = 'text-gray-400';
+                            if (pt === 'naqt') cls = 'text-green-600 bg-green-50 border-green-200';
+                            else if (pt === 'karta') cls = 'text-purple-600 bg-purple-50 border-purple-200';
+                            else if (pt === 'yarim_naqt_yarim_karta') cls = 'text-orange-600 bg-orange-50 border-orange-200';
                             return pt ? (
-                              <Badge className={`${cls} text-xs px-1.5 py-0.5 border`}>{label}</Badge>
+                              <div>
+                                <Badge className={`${cls} text-xs px-1.5 py-0.5 border`}>{label}</Badge>
+                                {pt === 'yarim_naqt_yarim_karta' && p.cash_amount != null && p.card_amount != null && (
+                                  <div className="text-[9px] text-gray-500 mt-0.5">
+                                    Naqt: {Number(p.cash_amount).toLocaleString()} | Karta: {Number(p.card_amount).toLocaleString()}
+                                  </div>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-gray-400">-</span>
                             );
                           })()}
                         </td>
                         <td className="p-3 text-center text-gray-500">{p.paid_at || '-'}</td>
-                        <td className="p-3 text-gray-500">{p.note || '-'}</td>
+                        <td className="p-3 text-gray-500 cursor-pointer hover:text-blue-600 hover:underline" onClick={() => p.note && setNoteDialog(p.note)} title={p.note || ''}>{p.note || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -111,6 +125,18 @@ export default function StudentPaymentsPage() {
             )}
           </CardContent>
         </Card>
+
+        <Dialog open={noteDialog !== null} onOpenChange={(open) => { if (!open) setNoteDialog(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>To'lov izohi</DialogTitle>
+              <DialogDescription />
+            </DialogHeader>
+            <div className="p-2 max-h-60 overflow-y-auto text-sm text-gray-700 whitespace-pre-wrap break-words">
+              {noteDialog || '-'}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

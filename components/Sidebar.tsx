@@ -150,10 +150,15 @@ const navigationItems: NavigationItem[] = [
   },
   {
     label: "To'lovlar",
-    path: '/payments',
     icon: 'WalletIcon',
     badge: 0,
     permKey: 'payments',
+    children: [
+      { label: "To'lovlar", path: '/payments', icon: 'WalletIcon', permKey: 'payments' },
+      { label: 'Bugungi to\'lovlar', path: '/payments/today', icon: 'CalendarIcon', permKey: 'payments' },
+      { label: "Chek ma'lumotlari", path: '/payments/settings', icon: 'Building2Icon', permKey: 'payments' },
+      { label: 'Cheklar tarixi', path: '/payments/receipts', icon: 'ReceiptIcon', permKey: 'payments' },
+    ],
   },
   {
     label: 'CRM',
@@ -210,20 +215,6 @@ const navigationItems: NavigationItem[] = [
     icon: 'ActivityIcon',
     badge: 0,
     permKey: 'monitoring',
-  },
-  {
-    label: "Chek ma'lumotlari",
-    path: '/payments/settings',
-    icon: 'Building2Icon',
-    badge: 0,
-    permKey: 'payments',
-  },
-  {
-    label: 'Cheklar tarixi',
-    path: '/payments/receipts',
-    icon: 'ReceiptIcon',
-    badge: 0,
-    permKey: 'payments',
   },
 ];
 
@@ -531,10 +522,11 @@ export default function Sidebar({
           <div className="flex items-center justify-around h-16 px-2">
             {priorityItems.map((item) => {
               const isActive = isItemActive(item);
+              const linkPath = item.path || (item.children && item.children.length > 0 ? item.children[0].path : '#');
               return (
                 <Link
                   key={item.label}
-                  href={item.path || '#'}
+                  href={linkPath || '#'}
                   className={cn(
                     'relative flex flex-col items-center justify-center flex-1 h-full transition-colors',
                     isActive ? 'text-white bg-blue-800' : 'text-blue-100 hover:bg-blue-600'
