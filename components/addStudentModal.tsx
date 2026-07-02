@@ -1,4 +1,3 @@
-// components/AddStudentsModal.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,12 +11,13 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserPlus, X, Users, Loader2 } from 'lucide-react';
-import { studentsApi, type Student } from '../api/studentApi';        // ✅ to‘g‘ri import
+import { Search, UserPlus, X, Users, Loader2, Plus, ChevronDown } from 'lucide-react';
+import { studentsApi, type Student } from '../api/studentApi';
 import { groupStudentsApi } from '../api/groupStudentApi';
 import toast from 'react-hot-toast';
 
@@ -43,6 +43,14 @@ export default function AddStudentsModal({
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [joinDate, setJoinDate] = useState(new Date().toISOString().split('T')[0]);
 
+  // Create student form
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newFirstName, setNewFirstName] = useState('');
+  const [newLastName, setNewLastName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newPassword, setNewPassword] = useState('123456');
+  const [creatingStudent, setCreatingStudent] = useState(false);
+
   useEffect(() => {
     if (open) {
       fetchAllStudents();
@@ -50,6 +58,11 @@ export default function AddStudentsModal({
       setSelectedStudents(new Set());
       setSearchTerm('');
       setJoinDate(new Date().toISOString().split('T')[0]);
+      setShowCreateForm(false);
+      setNewFirstName('');
+      setNewLastName('');
+      setNewPhone('');
+      setNewPassword('123456');
     }
   }, [open]);
 
@@ -59,21 +72,56 @@ export default function AddStudentsModal({
       const response = await studentsApi.getAll({ limit: 10000 });
       setStudents(response.data);
     } catch (error) {
-      console.error('Error fetching students:', error);
       toast.error('Studentlarni yuklashda xatolik');
     } finally {
       setLoading(false);
     }
   };
 
+  const normalizeText = (text: string) => {
+    return text.toLowerCase().replace(/[''`´"]/g, '').trim();
+  };
+
   const filteredStudents = students.filter((student) => {
-    const fullName = `${student.first_name || ''} ${student.last_name || ''}`.toLowerCase();
-    const search = searchTerm.toLowerCase();
-    return (
-      fullName.includes(search) ||
-      student.email?.toLowerCase().includes(search) ||
-      (student.phone_number || '').includes(search)
-    );
+    if (!searchTerm.trim()) return true;
+
+    const search = normalizeText(searchTerm);
+    const firstName = normalizeText(student.first_name || '');
+    const lastName = normalizeText(student.last_name || '');
+    const fullName = `${firstName} ${lastName}`;
+    const reversedName = `${lastName} ${firstName}`;
+    const email = (student.email || '').toLowerCase();
+    const phone = (student.phone_number || '').replace(/\D/g, '');
+
+    const searchDigits = search.replace(/\D/g, '');
+    const searchWords = search.split(/\s+/).filter(Boolean);
+
+    if (fullName.includes(search) || reversedName.includes(search)) return true;
+
+    if (searchWords.length >= 2) {
+      const allWordsMatch = searchWords.every(word =>
+        firstName.includes(word) || lastName.includes(word)
+      );
+      if (allWordsMatch) return true;
+
+      const firstWordFirst = searchWords[0];
+      const restWords = searchWords.slice(1).join(' ');
+      if (
+        (firstName.startsWith(firstWordFirst) && lastName.includes(restWords)) ||
+        (lastName.startsWith(firstWordFirst) && firstName.includes(restWords))
+      ) return true;
+    }
+
+    if (searchWords.length === 1) {
+      const word = searchWords[0];
+      if (firstName.startsWith(word) || lastName.startsWith(word)) return true;
+      if (firstName.includes(word) || lastName.includes(word)) return true;
+    }
+
+    if (searchDigits && phone.includes(searchDigits)) return true;
+    if (email.includes(search)) return true;
+
+    return false;
   });
 
   const toggleStudent = (studentId: string) => {
@@ -99,30 +147,57 @@ export default function AddStudentsModal({
       toast.error('Hech qanday student tanlanmagan');
       return;
     }
-
     try {
       setSubmitting(true);
-
       const studentIds = Array.from(selectedStudents).map((id) => Number(id));
-
       await groupStudentsApi.bulkAddStudents(groupId, {
         student_ids: studentIds,
         joined_date: joinDate,
       });
-
       toast.success(`${selectedStudents.size} ta student guruhga qo'shildi`);
       setSelectedStudents(new Set());
       onOpenChange(false);
-
-      if (onSuccess) {
-        onSuccess();
-      }
+      if (onSuccess) onSuccess();
     } catch (error: any) {
-      console.error('Error adding students:', error);
       const errorMessage = error.response?.data?.message || 'Studentlarni qo\'shishda xatolik';
       toast.error(errorMessage);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCreateAndAdd = async () => {
+    if (!newFirstName.trim() || !newLastName.trim()) {
+      toast.error('Ism va familiya majburiy');
+      return;
+    }
+    try {
+      setCreatingStudent(true);
+      const newStudent = await studentsApi.create({
+        first_name: newFirstName.trim(),
+        last_name: newLastName.trim(),
+        phone_number: newPhone.trim() || undefined,
+        password: newPassword,
+        age: 0,
+      });
+      const studentId = newStudent.id;
+      await groupStudentsApi.bulkAddStudents(groupId, {
+        student_ids: [Number(studentId)],
+        joined_date: joinDate,
+      });
+      toast.success(`${newFirstName} ${newLastName} yaratildi va guruhga qo'shildi`);
+      setShowCreateForm(false);
+      setNewFirstName('');
+      setNewLastName('');
+      setNewPhone('');
+      setNewPassword('123456');
+      onOpenChange(false);
+      if (onSuccess) onSuccess();
+    } catch (error: any) {
+      const msg = error.response?.data?.message || error.message || 'Xatolik';
+      toast.error(msg);
+    } finally {
+      setCreatingStudent(false);
     }
   };
 
@@ -132,7 +207,7 @@ export default function AddStudentsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl bg-white rounded-xl shadow-2xl border-0 p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-2xl bg-white rounded-xl shadow-2xl border-0 p-0 overflow-hidden max-h-[90vh]">
         <DialogHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             <UserPlus className="h-6 w-6" />
@@ -149,11 +224,89 @@ export default function AddStudentsModal({
           </button>
         </DialogHeader>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto">
+          {/* Create Student Toggle */}
+          <button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="w-full flex items-center justify-between p-3 mb-4 rounded-xl border-2 border-dashed border-blue-200 hover:border-blue-400 bg-blue-50/50 hover:bg-blue-50 transition-all"
+          >
+            <div className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-blue-600" />
+              <span className="font-medium text-blue-700">Yangi student yaratish va guruhga qo'shish</span>
+            </div>
+            <ChevronDown className={`h-4 w-4 text-blue-500 transition-transform ${showCreateForm ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showCreateForm && (
+            <div className="p-4 mb-4 rounded-xl border border-blue-200 bg-blue-50/80 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm text-gray-700">Ism *</Label>
+                  <Input
+                    value={newFirstName}
+                    onChange={(e) => setNewFirstName(e.target.value)}
+                    placeholder="Ism"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm text-gray-700">Familiya *</Label>
+                  <Input
+                    value={newLastName}
+                    onChange={(e) => setNewLastName(e.target.value)}
+                    placeholder="Familiya"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm text-gray-700">Telefon</Label>
+                  <Input
+                    value={newPhone}
+                    onChange={(e) => setNewPhone(e.target.value)}
+                    placeholder="+998901234567"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm text-gray-700">Parol</Label>
+                  <Input
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="123456"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowCreateForm(false)}
+                >
+                  Bekor qilish
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleCreateAndAdd}
+                  disabled={creatingStudent || !newFirstName.trim() || !newLastName.trim()}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                >
+                  {creatingStudent ? (
+                    <><Loader2 className="h-4 w-4 animate-spin mr-1" />Yaratilmoqda...</>
+                  ) : (
+                    <><UserPlus className="h-4 w-4 mr-1" />Yaratish va qo'shish</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="relative mb-6">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
-              placeholder="Student qidirish (ism, email, telefoni)..."
+              placeholder="Ism, familiya, email yoki telefon..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-3 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-xl text-base"
@@ -181,7 +334,7 @@ export default function AddStudentsModal({
             </Badge>
           </div>
 
-          <ScrollArea className="h-[400px] pr-4 -mr-4">
+          <ScrollArea className="h-[350px] pr-4 -mr-4">
             {loading ? (
               <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

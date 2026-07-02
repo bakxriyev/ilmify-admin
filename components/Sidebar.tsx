@@ -13,7 +13,7 @@ import {
   Award, Target, TrendingUp, Activity, Zap, Heart, Star, Moon, Sun,
   Newspaper, Camera as CameraIcon, Building2, Wallet, Link as LinkIcon,
   PhoneIcon, Bot, PrinterIcon, ReceiptIcon,
-  SparklesIcon, CheckCircle,
+  SparklesIcon, CheckCircle, AlertCircle,
 } from 'lucide-react';
 import { adminApi } from '../api/adminApi';
 import { educationCentersApi, type EducationCenter } from '../api/educationCentersApi';
@@ -85,6 +85,7 @@ const iconMap = {
   ClipboardCheckIcon: CheckCircle, // for Attendance
   PrinterIcon: PrinterIcon,        // for Printer settings
   ReceiptIcon: ReceiptIcon,        // for Receipt history
+  AlertCircle: AlertCircle,        // for Suspicious
 };
 
 const navigationItems: NavigationItem[] = [
@@ -97,10 +98,13 @@ const navigationItems: NavigationItem[] = [
   },
   {
     label: 'Studentlar',
-    path: '/students',
     icon: 'AcademicCapIcon',
     badge: 0,
     permKey: 'students',
+    children: [
+      { label: 'Barcha studentlar', path: '/students', icon: 'UsersIcon', permKey: 'students' },
+      { label: 'Shubhali studentlar', path: '/students/suspicious', icon: 'AlertCircle', permKey: 'students', highlight: true },
+    ],
   },
   {
     label: "O'qituvchilar",

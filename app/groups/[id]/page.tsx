@@ -734,10 +734,22 @@ export default function GroupDetailPage() {
                               });
                               const filtered = search
                                 ? sorted.filter(p => {
-                                    const fn = (p.student?.first_name || '').toLowerCase();
-                                    const ln = (p.student?.last_name || '').toLowerCase();
-                                    const ph = (p.student?.phone_number || '').toLowerCase();
-                                    return fn.includes(search) || ln.includes(search) || ph.includes(search);
+                                    const fn = (p.student?.first_name || '').toLowerCase().replace(/[''`´"]/g, '');
+                                    const ln = (p.student?.last_name || '').toLowerCase().replace(/[''`´"]/g, '');
+                                    const fullName = `${fn} ${ln}`;
+                                    const reversedName = `${ln} ${fn}`;
+                                    const ph = (p.student?.phone_number || '').replace(/\D/g, '');
+                                    const cleanSearch = search.replace(/[''`´"]/g, '');
+                                    const searchDigits = cleanSearch.replace(/\D/g, '');
+                                    if (fullName.includes(cleanSearch)) return true;
+                                    if (reversedName.includes(cleanSearch)) return true;
+                                    const words = cleanSearch.split(/\s+/).filter(Boolean);
+                                    if (words.length >= 2) {
+                                      const allMatch = words.every(w => fn.includes(w) || ln.includes(w));
+                                      if (allMatch) return true;
+                                    }
+                                    if (searchDigits && ph.includes(searchDigits)) return true;
+                                    return fn.includes(cleanSearch) || ln.includes(cleanSearch);
                                   })
                                 : sorted;
                               return filtered.map((payItem, idx) => {

@@ -301,4 +301,22 @@ export const studentsApi = {
     const response = await api.patch('/students/bulk/toggle-active', { isActive });
     return response.data;
   },
+
+  getSuspicious: async (): Promise<{
+    total_suspicious: number;
+    total_groups: number;
+    groups: Array<{
+      type: string;
+      label: string;
+      students: Student[];
+    }>;
+  }> => {
+    const response = await api.get('/students/suspicious/all');
+    return response.data;
+  },
+
+  mergeStudents: async (main_student_id: number, secondary_student_id: number): Promise<{ message: string }> => {
+    const response = await api.post('/students/merge', { main_student_id, secondary_student_id });
+    return response.data;
+  },
 };

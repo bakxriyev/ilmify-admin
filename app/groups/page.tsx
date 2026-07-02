@@ -110,8 +110,20 @@ export default function GroupsListPage() {
   const [teachersLoading, setTeachersLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [page, setPage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('groups_filter_page');
+      return saved ? parseInt(saved) : 1;
+    }
+    return 1;
+  });
+  const [limit, setLimit] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('groups_filter_limit');
+      return saved ? parseInt(saved) : 10;
+    }
+    return 10;
+  });
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -122,17 +134,42 @@ export default function GroupsListPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const [pSearch, setPSearch] = useState('');
-  const [pTeacherId, setPTeacherId] = useState<string>('');
-  const [pParity, setPParity] = useState('all');
-  const [pDay, setPDay] = useState('all');
-  const [pTime, setPTime] = useState('all');
+  const loadFilterState = (key: string, def: string) => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`groups_filter_${key}`);
+      return saved !== null ? saved : def;
+    }
+    return def;
+  };
 
-  const [aSearch, setASearch] = useState('');
-  const [aTeacherId, setATeacherId] = useState<string>('');
-  const [aParity, setAParity] = useState('all');
-  const [aDay, setADay] = useState('all');
-  const [aTime, setATime] = useState('all');
+  const [pSearch, setPSearch] = useState(() => loadFilterState('search', ''));
+  const [pTeacherId, setPTeacherId] = useState<string>(() => loadFilterState('teacherId', ''));
+  const [pParity, setPParity] = useState(() => loadFilterState('parity', 'all'));
+  const [pDay, setPDay] = useState(() => loadFilterState('day', 'all'));
+  const [pTime, setPTime] = useState(() => loadFilterState('time', 'all'));
+
+  const [aSearch, setASearch] = useState(() => loadFilterState('aSearch', ''));
+  const [aTeacherId, setATeacherId] = useState<string>(() => loadFilterState('aTeacherId', ''));
+  const [aParity, setAParity] = useState(() => loadFilterState('aParity', 'all'));
+  const [aDay, setADay] = useState(() => loadFilterState('aDay', 'all'));
+  const [aTime, setATime] = useState(() => loadFilterState('aTime', 'all'));
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('groups_filter_search', pSearch);
+      localStorage.setItem('groups_filter_teacherId', pTeacherId);
+      localStorage.setItem('groups_filter_parity', pParity);
+      localStorage.setItem('groups_filter_day', pDay);
+      localStorage.setItem('groups_filter_time', pTime);
+      localStorage.setItem('groups_filter_aSearch', aSearch);
+      localStorage.setItem('groups_filter_aTeacherId', aTeacherId);
+      localStorage.setItem('groups_filter_aParity', aParity);
+      localStorage.setItem('groups_filter_aDay', aDay);
+      localStorage.setItem('groups_filter_aTime', aTime);
+      localStorage.setItem('groups_filter_page', String(page));
+      localStorage.setItem('groups_filter_limit', String(limit));
+    }
+  }, [pSearch, pTeacherId, pParity, pDay, pTime, aSearch, aTeacherId, aParity, aDay, aTime, page, limit]);
 
   const applyFilters = () => {
     setASearch(pSearch);
