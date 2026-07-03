@@ -20,12 +20,13 @@ import { paymentsApi, type GroupPaymentSummary, type PaymentStats } from '@/api/
 import { receiptApi } from '@/api/receiptApi';
 import { academySettingsApi } from '@/api/academySettingsApi';
 import { printReceipt } from '@/lib/printReceipt';
+import type { ReceiptLineItem } from '@/lib/printReceipt';
 
 import { groupsApi, type Group } from '@/api/groupsApi';
 import { studentsApi, type Student } from '@/api/studentApi';
 import {
   Wallet, CheckCircle, XCircle, Clock, Plus, Search,
-  RefreshCw, ChevronRight, ChevronLeft, Filter, AlertCircle, Users, CalendarDays, Download, Loader2,
+  RefreshCw, ChevronRight, ChevronLeft, ChevronDown, Filter, AlertCircle, Users, CalendarDays, Download, Loader2,
   PrinterIcon, Building2, ReceiptIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -36,12 +37,17 @@ export default function PaymentsPage() {
   const [stats, setStats] = useState<PaymentStats | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancelledPayments, setCancelledPayments] = useState<Payment[]>([]);
+  const [showCancelled, setShowCancelled] = useState(false);
+  const [cancelledLoading, setCancelledLoading] = useState(false);
   const [filterGroup, setFilterGroup] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPaymentType, setFilterPaymentType] = useState('all');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
+  const [tempSearch, setTempSearch] = useState('');
   const [filterMonth, setFilterMonth] = useState(String(new Date().getMonth() + 1));
   const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()));
   const [tempMonth, setTempMonth] = useState(String(new Date().getMonth() + 1));
@@ -52,17 +58,20 @@ export default function PaymentsPage() {
   const [tempDateFrom, setTempDateFrom] = useState('');
   const [tempDateTo, setTempDateTo] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [noteDialog, setNoteDialog] = useState<{ paymentId: number; note: string } | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [studentSearch, setStudentSearch] = useState('');
   
   // Yangi to'lovlar uchun state-lar
   const [selectedStudentDebts, setSelectedStudentDebts] = useState<any>(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null);
-  const [selectedDebt, setSelectedDebt] = useState<any>(null);
+  const [selectedDebtIndices, setSelectedDebtIndices] = useState<number[]>([]);
+  const selectedDebts = selectedDebtIndices.map(idx => selectedStudentDebts?.debts?.[idx]).filter(Boolean);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
   const [paymentType, setPaymentType] = useState('naqt');
-  const [customPaymentType, setCustomPaymentType] = useState('');
+  const [cashAmount, setCashAmount] = useState('');
+  const [cardAmount, setCardAmount] = useState('');
 
   // Multi-debt payment
   const [selectedDebtIds, setSelectedDebtIds] = useState<Set<string>>(new Set());
@@ -81,7 +90,8 @@ export default function PaymentsPage() {
   const [newPaymentAmount, setNewPaymentAmount] = useState('');
   const [newPaymentNote, setNewPaymentNote] = useState('');
   const [newPaymentType, setNewPaymentType] = useState('naqt');
-  const [newCustomPaymentType, setNewCustomPaymentType] = useState('');
+  const [newCashAmount, setNewCashAmount] = useState('');
+  const [newCardAmount, setNewCardAmount] = useState('');
   const [submittingNewPayment, setSubmittingNewPayment] = useState(false);
 
   const [academySettings, setAcademySettings] = useState<any>(null);
@@ -122,6 +132,14 @@ export default function PaymentsPage() {
     } catch {} finally { setYearOverviewLoading(false); }
   };
 
+  const loadCancelledPayments = async () => {
+    try {
+      setCancelledLoading(true);
+      const data = await paymentsApi.getCancelled();
+      setCancelledPayments(data);
+    } catch {} finally { setCancelledLoading(false); }
+  };
+
   useEffect(() => { loadData(); }, [filterMonth, filterYear]);
   useEffect(() => { loadYearOverview(); }, [overviewYear]);
 
@@ -135,17 +153,20 @@ export default function PaymentsPage() {
       if (filterStatus !== 'all' && item.status !== filterStatus) return false;
       if (filterPaymentType !== 'all') {
         const pt = item.payment?.payment_type || '';
-        if (filterPaymentType === 'boshqa') {
-          if (['click', 'naqt', 'karta'].includes(pt)) return false;
-        } else {
-          if (pt !== filterPaymentType) return false;
-        }
+        if (pt !== filterPaymentType) return false;
       }
       if (filterDateFrom || filterDateTo) {
         const paidAt = item.payment?.paid_at;
         if (!paidAt) return false;
         if (filterDateFrom && paidAt < filterDateFrom) return false;
         if (filterDateTo && paidAt > filterDateTo) return false;
+      }
+      if (filterSearch.trim()) {
+        const q = filterSearch.trim().toLowerCase();
+        const fullName = `${item.student.first_name} ${item.student.last_name}`.toLowerCase();
+        const phone = (item.student.phone_number || '').toLowerCase();
+        const groupName = (item.group?.name || '').toLowerCase();
+        if (!fullName.includes(q) && !phone.includes(q) && !groupName.includes(q)) return false;
       }
       return true;
     });
@@ -186,7 +207,7 @@ export default function PaymentsPage() {
     }
 
     return result;
-  }, [items, filterGroup, filterStatus, filterPaymentType, filterDateFrom, filterDateTo, searchQuery]);
+  }, [items, filterGroup, filterStatus, filterPaymentType, filterDateFrom, filterDateTo, filterSearch, searchQuery]);
 
   const totalPages = Math.ceil(filteredItems.length / pageSize);
   const paginatedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
@@ -199,6 +220,7 @@ export default function PaymentsPage() {
     setFilterPaymentType(tempPaymentType);
     setFilterDateFrom(tempDateFrom);
     setFilterDateTo(tempDateTo);
+    setFilterSearch(tempSearch);
   };
 
   const paidCount = items.filter(i => i.status === 'paid').length;
@@ -229,21 +251,58 @@ export default function PaymentsPage() {
     };
   }, [studentSearch, showCreateModal, loadStudents]);
 
+  // Split payment: when cash or card amount changes, update total
+  useEffect(() => {
+    if (paymentType === 'yarim_naqt_yarim_karta') {
+      const cash = Number(cashAmount) || 0;
+      const card = Number(cardAmount) || 0;
+      if (cash > 0 || card > 0) {
+        setPaymentAmount(String(cash + card));
+      }
+    }
+  }, [cashAmount, cardAmount, paymentType]);
+
+  useEffect(() => {
+    if (newPaymentType === 'yarim_naqt_yarim_karta') {
+      const cash = Number(newCashAmount) || 0;
+      const card = Number(newCardAmount) || 0;
+      if (cash > 0 || card > 0) {
+        setNewPaymentAmount(String(cash + card));
+      }
+    }
+  }, [newCashAmount, newCardAmount, newPaymentType]);
+
+  // Auto-calculate total amount from selected debts
+  useEffect(() => {
+    if (selectedDebtIndices.length > 0 && selectedStudentDebts?.debts) {
+      const total = selectedDebtIndices.reduce((sum, idx) => {
+        const debt = selectedStudentDebts.debts[idx];
+        return debt ? sum + Number(debt.amount) : sum;
+      }, 0);
+      if (total > 0) setPaymentAmount(String(total));
+    } else {
+      setPaymentAmount('');
+    }
+  }, [selectedDebtIndices, selectedStudentDebts]);
+
   const openCreateModal = async () => {
     try {
       setStudentSearch('');
       setSelectedStudentDebts(null);
       setSelectedPaymentId(null);
+      setSelectedDebtIndices([]);
       setPaymentAmount('');
       setPaymentNote('');
       setPaymentType('naqt');
-      setCustomPaymentType('');
+      setCashAmount('');
+      setCardAmount('');
+      setNewCashAmount('');
+      setNewCardAmount('');
       setShowNewPayment(false);
       setNewPaymentGroupId(0);
       setNewPaymentAmount('');
       setNewPaymentNote('');
       setNewPaymentType('naqt');
-      setNewCustomPaymentType('');
       setShowCreateModal(true);
       await loadStudents();
     } catch { toast.error("Studentlarni yuklashda xatolik"); }
@@ -260,8 +319,12 @@ export default function PaymentsPage() {
       } catch {}
       setSelectedStudentDebts(debts);
       setSelectedPaymentId(null);
+      setSelectedDebtIndices([]);
       setPaymentAmount('');
       setPaymentNote('');
+      setPaymentType('naqt');
+      setCashAmount('');
+      setCardAmount('');
       setNewPaymentGroupId(0);
       if (debts.student_groups && debts.student_groups.length > 0) {
         setNewPaymentGroupId(debts.student_groups[0].id);
@@ -311,7 +374,7 @@ export default function PaymentsPage() {
       paidMonth: monthNames[month - 1],
       paidYear: String(year),
       paidAt: paidAtStr,
-      paymentType: ptype === 'naqt' ? 'Naqt' : ptype === 'karta' ? 'Karta' : ptype === 'click' ? 'Click' : ptype || 'Naqt',
+      paymentType: ptype === 'naqt' ? 'Naqt' : ptype === 'karta' ? 'Karta' : ptype === 'yarim_naqt_yarim_karta' ? 'Yarim naqt/karta' : ptype || 'Naqt',
       amount,
       adminName,
       receiptWidth: settings.receipt_width || 320,
@@ -322,76 +385,131 @@ export default function PaymentsPage() {
     }
   };
 
-  const handlePayDebt = async () => {
-    if (!selectedPaymentId || !paymentAmount || Number(paymentAmount) <= 0) {
-      toast.error('To\'lov summasini kiriting');
+  const handlePaySelectedDebts = async () => {
+    if (selectedDebts.length === 0 || !paymentAmount || Number(paymentAmount) <= 0) {
+      toast.error('Qarzdorliklarni tanlang yoki to\'lov summasini kiriting');
       return;
     }
 
-    const resolvedType = paymentType === 'boshqa' ? customPaymentType : paymentType;
+    const resolvedType = paymentType;
+    const totalPaidAmount = Number(paymentAmount);
+
+    if (resolvedType === 'yarim_naqt_yarim_karta') {
+      const cash = Number(cashAmount) || 0;
+      const card = Number(cardAmount) || 0;
+      if (cash <= 0 || card <= 0) {
+        toast.error('Naqt va karta summalarini kiriting');
+        return;
+      }
+      if (cash + card !== totalPaidAmount) {
+        toast.error('Naqt va karta summalari yig\'indisi umumiy summaga teng bo\'lishi kerak');
+        return;
+      }
+    }
 
     try {
-      const res = await paymentsApi.update(selectedPaymentId, {
-        amount: Number(paymentAmount),
-        status: 'paid',
-        paid_at: new Date().toISOString().split('T')[0],
-        payment_type: resolvedType || undefined,
-        note: paymentNote || undefined,
-      });
+      const receiptItems: ReceiptLineItem[] = [];
+      const allPaymentIds: number[] = [];
+      const totalDebtAmount = selectedDebts.reduce((sum, d) => sum + Number(d.amount), 0);
+      let remainingToPay = totalPaidAmount;
 
-      toast.success("To'lov qabul qilindi");
-      setShowCreateModal(false);
+      for (const debt of selectedDebts) {
+        const debtAmount = Number(debt.amount);
+        const paidForThisDebt = Math.min(debtAmount, remainingToPay);
+        remainingToPay -= paidForThisDebt;
 
-      if (selectedStudentDebts && selectedDebt) {
-        printAfterPayment(
-          selectedStudentDebts.student,
-          selectedDebt.group_name,
-          selectedDebt.month,
-          selectedDebt.year,
-          Number(paymentAmount),
-          resolvedType || 'naqt',
-          res.id,
-        );
+        if (paidForThisDebt <= 0) continue;
+
+        const isFullyPaid = paidForThisDebt >= debtAmount;
+        const status = isFullyPaid ? 'paid' : 'partial';
+
+        let cashPart: number | undefined = undefined;
+        let cardPart: number | undefined = undefined;
+        if (resolvedType === 'yarim_naqt_yarim_karta') {
+          const totalCash = Number(cashAmount) || 0;
+          const totalCard = Number(cardAmount) || 0;
+          cashPart = Math.round(totalCash * (paidForThisDebt / totalPaidAmount)) || 0;
+          cardPart = Math.round(totalCard * (paidForThisDebt / totalPaidAmount)) || 0;
+        }
+
+        let result: any;
+
+        if (debt.id) {
+          result = await paymentsApi.update(debt.id, {
+            amount: paidForThisDebt,
+            status,
+            paid_at: new Date().toISOString().split('T')[0],
+            payment_type: resolvedType || undefined,
+            cash_amount: cashPart,
+            card_amount: cardPart,
+            note: paymentNote || undefined,
+          });
+        } else {
+          result = await paymentsApi.create({
+            student_id: selectedStudentDebts.student.id,
+            group_id: debt.group_id,
+            amount: paidForThisDebt,
+            month: debt.month,
+            year: debt.year,
+            status,
+            paid_at: new Date().toISOString().split('T')[0],
+            payment_type: resolvedType || undefined,
+            cash_amount: cashPart,
+            card_amount: cardPart,
+            note: paymentNote || undefined,
+          });
+        }
+
+        allPaymentIds.push(result.id);
+        receiptItems.push({
+          groupName: debt.group_name,
+          monthName: monthNames[debt.month - 1],
+          year: debt.year,
+          amount: paidForThisDebt,
+        });
       }
 
-      loadData();
-      loadYearOverview();
-    } catch (err: any) { toast.error(err.message || 'Xatolik'); }
-  };
-
-  const handleCreatePayment = async () => {
-    if (!selectedDebt || !paymentAmount || Number(paymentAmount) <= 0) {
-      toast.error('To\'lov summasini kiriting');
-      return;
-    }
-
-    const resolvedType = paymentType === 'boshqa' ? customPaymentType : paymentType;
-
-    try {
-      const res = await paymentsApi.create({
-        student_id: selectedStudentDebts.student.id,
-        group_id: selectedDebt.group_id,
-        amount: Number(paymentAmount),
-        month: selectedDebt.month,
-        year: selectedDebt.year,
-        status: 'paid',
-        paid_at: new Date().toISOString().split('T')[0],
-        payment_type: resolvedType || undefined,
-        note: paymentNote || undefined,
-      });
-
       toast.success("To'lov qabul qilindi");
       setShowCreateModal(false);
 
-      printAfterPayment(
-        selectedStudentDebts.student,
-        selectedDebt.group_name,
-        selectedDebt.month,
-        selectedDebt.year,
-        Number(paymentAmount),
-        resolvedType || 'naqt',
-        res.id,
-      );
+      const adminRaw = typeof window !== 'undefined' ? localStorage.getItem('admin') : '';
+      let adminName = 'Admin';
+      try { const a = JSON.parse(adminRaw || '{}'); adminName = a.full_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Admin'; } catch {}
+      const settings = academySettings || {};
+      const now = new Date();
+      const paidAtStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const student = selectedStudentDebts.student;
+      const ptypeLabel = resolvedType === 'naqt' ? 'Naqt' : resolvedType === 'karta' ? 'Karta' : resolvedType === 'yarim_naqt_yarim_karta' ? 'Yarim naqt/karta' : resolvedType || 'Naqt';
+
+      printReceipt({
+        receiptNumber: undefined,
+        academyName: settings.academy_name || '',
+        academyLogo: getCenterLogoUrl() || settings.academy_logo || undefined,
+        academyAddress: settings.address || undefined,
+        academyPhones: [settings.phone1, settings.phone2, settings.phone3].filter(Boolean),
+        receiptHeader: settings.receipt_header || undefined,
+        receiptFooter: settings.receipt_footer || undefined,
+        receiptNote: settings.receipt_note || undefined,
+        thankYouText: settings.receipt_thank_you_text || 'Rahmat!',
+        footerText: settings.footer_text || undefined,
+        website: settings.website || undefined,
+        instagram: settings.instagram || undefined,
+        telegramBot: settings.telegram_bot_link || undefined,
+        studentName: `${student.first_name} ${student.last_name}`.trim(),
+        studentPhone: student.phone_number || '',
+        studentPassword: student.password || '',
+        paidAt: paidAtStr,
+        paymentType: ptypeLabel,
+        amount: totalPaidAmount,
+        adminName,
+        receiptWidth: settings.receipt_width || 320,
+        fontSize: settings.receipt_font_size || 13,
+        items: receiptItems,
+      });
+
+      for (const pid of allPaymentIds) {
+        receiptApi.print({ payment_id: pid }).catch(() => {});
+      }
 
       loadData();
       loadYearOverview();
@@ -500,7 +618,20 @@ export default function PaymentsPage() {
       return;
     }
 
-    const resolvedType = newPaymentType === 'boshqa' ? newCustomPaymentType : newPaymentType;
+    const resolvedType = newPaymentType;
+
+    if (resolvedType === 'yarim_naqt_yarim_karta') {
+      const cash = Number(newCashAmount) || 0;
+      const card = Number(newCardAmount) || 0;
+      if (cash <= 0 || card <= 0) {
+        toast.error('Naqt va karta summalarini kiriting');
+        return;
+      }
+      if (cash + card !== Number(newPaymentAmount)) {
+        toast.error('Naqt va karta summalari yig\'indisi umumiy summaga teng bo\'lishi kerak');
+        return;
+      }
+    }
 
     try {
       setSubmittingNewPayment(true);
@@ -513,6 +644,8 @@ export default function PaymentsPage() {
         status: 'paid',
         paid_at: new Date().toISOString().split('T')[0],
         payment_type: resolvedType || undefined,
+        cash_amount: resolvedType === 'yarim_naqt_yarim_karta' ? Number(newCashAmount) || 0 : undefined,
+        card_amount: resolvedType === 'yarim_naqt_yarim_karta' ? Number(newCardAmount) || 0 : undefined,
         note: newPaymentNote || undefined,
       });
 
@@ -560,12 +693,13 @@ export default function PaymentsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("To'lovni o'chirasizmi?")) return;
+    if (!confirm("To'lovni bekor qilasizmi?")) return;
     try {
       await paymentsApi.remove(id);
-      toast.success("To'lov o'chirildi");
+      toast.success("To'lov bekor qilindi");
       loadData();
       loadYearOverview();
+      loadCancelledPayments();
     } catch { toast.error('Xatolik'); }
   };
 
@@ -608,7 +742,7 @@ export default function PaymentsPage() {
         paidMonth: monthNames[item.month - 1],
         paidYear: String(item.year),
         paidAt: paidAtStr,
-        paymentType: (item.payment?.payment_type === 'naqt' ? 'Naqt' : item.payment?.payment_type === 'karta' ? 'Karta' : item.payment?.payment_type === 'click' ? 'Click' : item.payment?.payment_type || 'Naqt'),
+        paymentType: (item.payment?.payment_type === 'naqt' ? 'Naqt' : item.payment?.payment_type === 'karta' ? 'Karta' : item.payment?.payment_type === 'yarim_naqt_yarim_karta' ? 'Yarim naqt/karta' : item.payment?.payment_type || 'Naqt'),
         amount: item.paid_amount || item.monthly_price,
         adminName,
         receiptWidth: settings.receipt_width || 320,
@@ -638,9 +772,9 @@ export default function PaymentsPage() {
   const paymentTypeLabel = (type: string | null | undefined) => {
     if (!type) return { label: '-', class: 'text-gray-400' };
     const map: any = {
-      click: { label: 'Click', class: 'text-blue-600 bg-blue-50 border-blue-200' },
       naqt: { label: 'Naqt', class: 'text-green-600 bg-green-50 border-green-200' },
       karta: { label: 'Karta', class: 'text-purple-600 bg-purple-50 border-purple-200' },
+      yarim_naqt_yarim_karta: { label: 'Yarim naqt/karata', class: 'text-orange-600 bg-orange-50 border-orange-200' },
     };
     return map[type] || { label: type, class: 'text-gray-600 bg-gray-50 border-gray-200' };
   };
@@ -651,93 +785,39 @@ export default function PaymentsPage() {
     catch { return d; }
   };
 
+  const formatDateTime = (d: string | null | undefined) => {
+    if (!d) return '-';
+    try {
+      const dt = new Date(d);
+      const h = String(dt.getHours()).padStart(2, '0');
+      const m = String(dt.getMinutes()).padStart(2, '0');
+      const s = String(dt.getSeconds()).padStart(2, '0');
+      return `${dt.getDate()} ${monthNames[dt.getMonth()]} ${dt.getFullYear()} ${h}:${m}:${s}`;
+    }
+    catch { return d; }
+  };
+
   return (
     <Layout>
       <div className="space-y-4 md:space-y-6 p-4 md:p-6 w-full">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Wallet className="h-5 w-5 md:h-6 md:w-6 text-green-600" /> To'lovlar
-            </h1>
-            <p className="text-xs md:text-sm text-gray-500">{monthNames[Number(filterMonth) - 1]} {filterYear} — oyi uchun to'lov holati</p>
-          </div>
-          <div className="flex gap-1.5 md:gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => { loadData(); loadYearOverview(); }} className="border-gray-300 h-8 text-xs">
-              <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} /> Yangilash
-            </Button>
-            <Button size="sm" onClick={() => paymentsApi.exportToExcel(Number(filterMonth), Number(filterYear))} className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs">
-              <Download className="h-3 w-3 mr-1" /> Excel
-            </Button>
-            <Button size="sm" onClick={openCreateModal} className="bg-green-600 hover:bg-green-700 text-white h-8 text-xs">
-              <Plus className="h-3 w-3 mr-1" /> Qarzdorlikni to'lash
-            </Button>
-          </div>
-        </div>
-
-        {/* Printer & Settings */}
-        <div className="flex items-center gap-2 flex-wrap bg-white rounded-2xl shadow-sm border border-gray-100 p-3 md:p-4">
-          <Link href="/payments/settings" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold transition-colors">
-            <Building2 className="h-3.5 w-3.5" /> Chek ma'lumotlari
-          </Link>
-          <Link href="/payments/receipts" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold transition-colors">
-            <ReceiptIcon className="h-3.5 w-3.5" /> Cheklar tarixi
-          </Link>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
-          <Card className="border-0 shadow-sm md:shadow-md">
-            <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2.5 bg-blue-50 rounded-lg"><Users className="h-4 w-4 md:h-5 md:w-5 text-blue-600" /></div>
-              <div><p className="text-[10px] md:text-xs text-gray-500">Studentlar</p><p className="text-base md:text-lg font-bold text-gray-900">{items.length}</p></div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-sm md:shadow-md">
-            <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2.5 bg-green-50 rounded-lg"><Wallet className="h-4 w-4 md:h-5 md:w-5 text-green-600" /></div>
-              <div><p className="text-[10px] md:text-xs text-gray-500">To'lov qilgan</p><p className="text-base md:text-lg font-bold text-green-600">{paidCount}</p></div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-sm md:shadow-md">
-            <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2.5 bg-amber-50 rounded-lg"><Clock className="h-4 w-4 md:h-5 md:w-5 text-amber-600" /></div>
-              <div><p className="text-[10px] md:text-xs text-gray-500">Qisman</p><p className="text-base md:text-lg font-bold text-amber-600">{partialCount}</p></div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-sm md:shadow-md">
-            <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2.5 bg-red-50 rounded-lg"><XCircle className="h-4 w-4 md:h-5 md:w-5 text-red-600" /></div>
-              <div><p className="text-[10px] md:text-xs text-gray-500">Qarzdorlar</p><p className="text-base md:text-lg font-bold text-red-600">{unpaidCount}</p></div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-sm md:shadow-md col-span-2 sm:col-span-1">
-            <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2.5 bg-red-50 rounded-lg"><AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-red-600" /></div>
-              <div><p className="text-[10px] md:text-xs text-gray-500">Qarzdorlar</p><p className="text-base md:text-lg font-bold text-red-600">{unpaidCount} / {items.length}</p></div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Monthly Overview Grid */}
-        <Card className="border-0 shadow-sm md:shadow-md">
-          <CardHeader className="pb-2 md:pb-3 px-3 md:px-6 pt-3 md:pt-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-gray-800 text-sm md:text-base">{overviewYear} yil oylik to'lov holati</CardTitle>
-              <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm" onClick={() => {
-                  if (overviewYear > 2020) {
-                    setOverviewYear(overviewYear - 1);
-                    setTempYear(String(overviewYear - 1));
-                  }
-                }} disabled={overviewYear <= 2020} className="h-7 md:h-8 px-1.5 md:px-2">
-                  <ChevronLeft className="h-3 w-3 md:h-4 md:w-4" />
+        <Card className="border-0 shadow-md">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <Wallet className="h-5 w-5 md:h-6 md:w-6 text-green-600" /> To'lovlar
+                </h1>
+                <p className="text-xs md:text-sm text-gray-500">{monthNames[Number(filterMonth) - 1]} {filterYear} — oyi uchun to'lov holati</p>
+              </div>
+              <div className="flex gap-1.5 md:gap-2 flex-wrap">
+                <Button variant="outline" size="sm" onClick={() => { loadData(); loadYearOverview(); }} className="border-gray-300 h-8 text-xs">
+                  <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} /> Yangilash
                 </Button>
-                <span className="text-xs md:text-sm font-medium text-gray-700 w-12 md:w-16 text-center">{overviewYear}</span>
-                <Button variant="outline" size="sm" onClick={() => {
-                  setOverviewYear(overviewYear + 1);
-                  setTempYear(String(overviewYear + 1));
-                }} className="h-7 md:h-8 px-1.5 md:px-2">
-                  <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
+                <Button size="sm" onClick={() => paymentsApi.exportToExcel(Number(filterMonth), Number(filterYear))} className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs">
+                  <Download className="h-3 w-3 mr-1" /> Excel
+                </Button>
+                <Button size="sm" onClick={openCreateModal} className="bg-green-600 hover:bg-green-700 text-white h-8 text-xs">
+                  <Plus className="h-3 w-3 mr-1" /> Qarzdorlikni to'lash
                 </Button>
               </div>
             </div>
@@ -863,13 +943,12 @@ export default function PaymentsPage() {
                     </SelectContent>
                   </Select>
                   <Select value={tempPaymentType} onValueChange={v => setTempPaymentType(v)}>
-                    <SelectTrigger className="w-28 md:w-32 h-8 text-xs border-blue-300 focus:ring-blue-500"><SelectValue placeholder="To'lov turi" /></SelectTrigger>
+                    <SelectTrigger className="w-28 md:w-44 h-8 text-xs border-blue-300 focus:ring-blue-500"><SelectValue placeholder="To'lov turi" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all" className="text-xs">Barcha turlar</SelectItem>
                       <SelectItem value="naqt" className="text-xs">Naqt</SelectItem>
                       <SelectItem value="karta" className="text-xs">Karta</SelectItem>
-                      <SelectItem value="click" className="text-xs">Click</SelectItem>
-                      <SelectItem value="boshqa" className="text-xs">Boshqa</SelectItem>
+                      <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqt/karta</SelectItem>
                     </SelectContent>
                   </Select>
                   <div className="flex items-center gap-1">
@@ -897,9 +976,9 @@ export default function PaymentsPage() {
                     const m = String(now.getMonth() + 1);
                     const y = String(now.getFullYear());
                     setTempMonth(m); setTempYear(y); setTempGroup('all'); setTempStatus('all');
-                    setTempPaymentType('all'); setTempDateFrom(''); setTempDateTo('');
+                    setTempPaymentType('all'); setTempDateFrom(''); setTempDateTo(''); setTempSearch('');
                     setFilterMonth(m); setFilterYear(y); setFilterGroup('all'); setFilterStatus('all');
-                    setFilterPaymentType('all'); setFilterDateFrom(''); setFilterDateTo('');
+                    setFilterPaymentType('all'); setFilterDateFrom(''); setFilterDateTo(''); setFilterSearch('');
                   }} className="h-8 text-xs border-gray-300">
                     <Filter className="h-3 w-3 mr-1" /> Tozalash
                   </Button>
@@ -946,6 +1025,19 @@ export default function PaymentsPage() {
                   onChange={e => setTempDateTo(e.target.value)}
                   className="flex-1 h-8 text-xs border-blue-300"
                   placeholder="Sanagacha"
+                />
+              </div>
+            </div>
+            {/* Search qidiruv */}
+            <div className="mt-2 md:mt-3">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400" />
+                <Input
+                  placeholder="Student ismi, telefon yoki guruh nomi bo'yicha qidirish..."
+                  value={tempSearch}
+                  onChange={e => setTempSearch(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleApplyFilters(); }}
+                  className="pl-8 h-9 text-xs md:text-sm border-blue-300"
                 />
               </div>
             </div>
@@ -1027,6 +1119,9 @@ export default function PaymentsPage() {
                       <th className="text-center p-2 md:p-3 text-gray-600 font-medium">Holat</th>
                       <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">To'lov turi</th>
                       <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">To'lov sanasi</th>
+                      <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">Yaratilgan</th>
+                      <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">Yangilangan</th>
+                      <th className="hidden lg:table-cell text-left p-2 md:p-3 text-gray-600 font-medium">Izoh</th>
                       <th className="hidden md:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">Kechikish</th>
                       <th className="text-right p-2 md:p-3 text-gray-600 font-medium">Amallar</th>
                     </tr>
@@ -1090,6 +1185,18 @@ export default function PaymentsPage() {
                               })()}
                             </div>
                           ) : '-'}
+                        </td>
+                        <td className="hidden lg:table-cell p-2 md:p-3 text-center text-[10px] md:text-xs text-gray-500">
+                          {item.payment?.created_at ? formatDateTime(item.payment.created_at) : '-'}
+                        </td>
+                        <td className="hidden lg:table-cell p-2 md:p-3 text-center text-[10px] md:text-xs text-gray-500">
+                          {item.payment?.updated_at ? formatDateTime(item.payment.updated_at) : '-'}
+                        </td>
+                        <td className="hidden lg:table-cell p-2 md:p-3 text-left text-[10px] md:text-xs text-gray-500 max-w-[120px] truncate cursor-pointer hover:text-blue-600 hover:underline" onClick={() => item.payment && setNoteDialog({ paymentId: item.payment.id, note: item.payment.note || '' })} title={item.payment?.note || ''}>
+                          <div className="flex items-center gap-1">
+                            <span className="truncate">{item.payment?.note || '-'}</span>
+                            {item.payment && <span className="text-[8px] text-blue-400 shrink-0">✎</span>}
+                          </div>
                         </td>
                         <td className="hidden md:table-cell p-2 md:p-3 text-center">
                           {item.overdue_lessons > 0 ? (
@@ -1162,6 +1269,80 @@ export default function PaymentsPage() {
                 </div>
               )}
             </CardContent>
+          </Card>
+
+          {/* Bekor qilingan to'lovlar */}
+          <Card className="border-0 shadow-sm md:shadow-md">
+            <CardHeader className="pb-2 md:pb-3 px-3 md:px-6 pt-3 md:pt-4">
+              <div className="flex items-center justify-between">
+                <button onClick={() => { setShowCancelled(!showCancelled); if (!showCancelled && cancelledPayments.length === 0) loadCancelledPayments(); }}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+                  <XCircle className="h-4 w-4 text-red-400" />
+                  <span className="font-medium text-sm">Bekor qilingan to'lovlar ({cancelledPayments.length})</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showCancelled ? 'rotate-180' : ''}`} />
+                </button>
+                {showCancelled && (
+                  <Button size="sm" variant="outline" onClick={() => { loadCancelledPayments(); }} className="h-7 text-xs border-gray-300">
+                    <RefreshCw className={`h-3 w-3 mr-1 ${cancelledLoading ? 'animate-spin' : ''}`} /> Yangilash
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            {showCancelled && (
+              <CardContent className="px-3 md:px-6 pb-3 md:pb-4">
+                {cancelledLoading ? (
+                  <div className="space-y-2">
+                    {[1,2,3].map(i => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
+                  </div>
+                ) : cancelledPayments.length === 0 ? (
+                  <div className="text-center py-6 text-gray-400 text-sm">Bekor qilingan to'lovlar mavjud emas</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs md:text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left p-2 md:p-3 text-gray-600 font-medium">#</th>
+                          <th className="text-left p-2 md:p-3 text-gray-600 font-medium">Student</th>
+                          <th className="text-left p-2 md:p-3 text-gray-600 font-medium">Guruh</th>
+                          <th className="text-center p-2 md:p-3 text-gray-600 font-medium">Oy</th>
+                          <th className="text-right p-2 md:p-3 text-gray-600 font-medium">Summa</th>
+                          <th className="text-center p-2 md:p-3 text-gray-600 font-medium">Holat</th>
+                          <th className="text-center p-2 md:p-3 text-gray-600 font-medium">To'lov turi</th>
+                          <th className="text-center p-2 md:p-3 text-gray-600 font-medium">Bekor qilingan</th>
+                          <th className="text-left p-2 md:p-3 text-gray-600 font-medium">Izoh</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cancelledPayments.map((p, idx) => (
+                          <tr key={p.id} className="border-b border-gray-100 hover:bg-red-50/40">
+                            <td className="p-2 md:p-3 text-gray-400 font-mono">{idx + 1}</td>
+                            <td className="p-2 md:p-3">
+                              <p className="font-medium text-gray-700 text-xs md:text-sm">
+                                {p.student?.first_name} {p.student?.last_name}
+                              </p>
+                              <div className="text-[10px] md:text-xs text-gray-400">{p.student?.phone_number}</div>
+                            </td>
+                            <td className="p-2 md:p-3 text-gray-500 text-xs md:text-sm">{p.group?.name || '-'}</td>
+                            <td className="p-2 md:p-3 text-center text-gray-600 text-xs md:text-sm">{monthNames[p.month - 1]} {p.year}</td>
+                            <td className="p-2 md:p-3 text-right font-medium text-red-500 text-xs md:text-sm">{Number(p.amount).toLocaleString()} so'm</td>
+                            <td className="p-2 md:p-3 text-center">{statusBadge(p.status)}</td>
+                            <td className="p-2 md:p-3 text-center">
+                              {p.payment_type ? (
+                                <Badge className={`${paymentTypeLabel(p.payment_type).class} text-[10px] md:text-xs px-1.5 py-0.5 border`}>
+                                  {paymentTypeLabel(p.payment_type).label}
+                                </Badge>
+                              ) : '-'}
+                            </td>
+                            <td className="p-2 md:p-3 text-center text-[10px] md:text-xs text-gray-500">{formatDateTime(p.cancelled_at)}</td>
+                            <td className="p-2 md:p-3 text-left text-[10px] md:text-xs text-gray-500 max-w-[100px] truncate">{p.note || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            )}
           </Card>
 
           {/* Create Payment Dialog - YANGI SISTEMA */}
@@ -1256,7 +1437,6 @@ export default function PaymentsPage() {
                             />
                             <div className="flex-1 min-w-0" onClick={() => {
                               setSelectedPaymentId(debt.id || null);
-                              setSelectedDebt(debt);
                               setPaymentAmount(debt.amount.toString());
                               setPaymentNote('');
                             }}>
@@ -1377,22 +1557,37 @@ export default function PaymentsPage() {
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[10px] md:text-xs">To'lov turi</Label>
-                        <Select value={newPaymentType} onValueChange={v => { setNewPaymentType(v); if (v !== 'boshqa') setNewCustomPaymentType(''); }}>
+                        <Select value={newPaymentType} onValueChange={v => setNewPaymentType(v)}>
                           <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="naqt" className="text-xs">Naqt</SelectItem>
                             <SelectItem value="karta" className="text-xs">Karta</SelectItem>
-                            <SelectItem value="click" className="text-xs">Click</SelectItem>
-                            <SelectItem value="boshqa" className="text-xs">Boshqa</SelectItem>
+                            <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqt/karta</SelectItem>
                           </SelectContent>
                         </Select>
-                        {newPaymentType === 'boshqa' && (
-                          <Input
-                            value={newCustomPaymentType}
-                            onChange={e => setNewCustomPaymentType(e.target.value)}
-                            placeholder="To'lov turini yozing..."
-                            className="h-8 text-sm mt-1"
-                          />
+                        {newPaymentType === 'yarim_naqt_yarim_karta' && (
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                            <div>
+                              <Label className="text-[10px] text-gray-500">Naqt qismi (so'm)</Label>
+                              <Input
+                                type="number"
+                                value={newCashAmount}
+                                onChange={e => setNewCashAmount(e.target.value)}
+                                placeholder="Naqt summa"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-[10px] text-gray-500">Karta qismi (so'm)</Label>
+                              <Input
+                                type="number"
+                                value={newCardAmount}
+                                onChange={e => setNewCardAmount(e.target.value)}
+                                placeholder="Karta summa"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                          </div>
                         )}
                       </div>
                       <div className="space-y-1">
@@ -1419,8 +1614,11 @@ export default function PaymentsPage() {
                   )}
                 </div>
 
-                {selectedDebt && (
+                {selectedDebts.length > 0 && (
                   <div className="bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-200 space-y-2 md:space-y-3">
+                    <p className="text-xs md:text-sm font-medium text-blue-800">
+                      Tanlangan: {selectedDebts.length} ta | Jami: {formatSum(selectedDebts.reduce((s, d) => s + Number(d.amount), 0))} so'm
+                    </p>
                     <div className="space-y-1">
                       <Label className="text-xs">To'lov summas (so'm)</Label>
                       <Input
@@ -1432,22 +1630,37 @@ export default function PaymentsPage() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">To'lov turi</Label>
-                      <Select value={paymentType} onValueChange={v => { setPaymentType(v); if (v !== 'boshqa') setCustomPaymentType(''); }}>
+                      <Select value={paymentType} onValueChange={v => setPaymentType(v)}>
                         <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="naqt" className="text-xs">Naqt</SelectItem>
                           <SelectItem value="karta" className="text-xs">Karta</SelectItem>
-                          <SelectItem value="click" className="text-xs">Click</SelectItem>
-                          <SelectItem value="boshqa" className="text-xs">Boshqa</SelectItem>
+                          <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqt/karta</SelectItem>
                         </SelectContent>
                       </Select>
-                      {paymentType === 'boshqa' && (
-                        <Input
-                          value={customPaymentType}
-                          onChange={e => setCustomPaymentType(e.target.value)}
-                          placeholder="To'lov turini yozing..."
-                          className="h-8 text-sm mt-1"
-                        />
+                      {paymentType === 'yarim_naqt_yarim_karta' && (
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          <div>
+                            <Label className="text-[10px] text-gray-500">Naqt qismi (so'm)</Label>
+                            <Input
+                              type="number"
+                              value={cashAmount}
+                              onChange={e => setCashAmount(e.target.value)}
+                              placeholder="Naqt summa"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-gray-500">Karta qismi (so'm)</Label>
+                            <Input
+                              type="number"
+                              value={cardAmount}
+                              onChange={e => setCardAmount(e.target.value)}
+                              placeholder="Karta summa"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-1">
@@ -1470,7 +1683,7 @@ export default function PaymentsPage() {
                     onClick={() => {
                       setSelectedStudentDebts(null);
                       setSelectedPaymentId(null);
-                      setSelectedDebt(null);
+                      setSelectedDebtIndices([]);
                     }}
                     className="flex-1 text-xs h-8"
                   >
@@ -1484,19 +1697,9 @@ export default function PaymentsPage() {
                   >
                     Bekor qilish
                   </Button>
-                  {selectedDebt && selectedPaymentId && (
+                  {selectedDebts.length > 0 && (
                     <Button
-                      onClick={handlePayDebt}
-                      size="sm"
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs h-8"
-                    >
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      To'lovni qabul qilish
-                    </Button>
-                  )}
-                  {selectedDebt && !selectedPaymentId && (
-                    <Button
-                      onClick={handleCreatePayment}
+                      onClick={handlePaySelectedDebts}
                       size="sm"
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs h-8"
                     >
@@ -1582,6 +1785,40 @@ export default function PaymentsPage() {
                 {multiPayLoading ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> To'lanmoqda</> : 'To\'lovni qabul qilish'}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Note Edit Dialog */}
+        <Dialog open={noteDialog !== null} onOpenChange={(open) => { if (!open) setNoteDialog(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>To'lov izohini tahrirlash</DialogTitle>
+              <DialogDescription />
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <textarea
+                className="w-full min-h-[80px] p-2 border border-gray-200 rounded-lg text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-200"
+                value={noteDialog?.note || ''}
+                onChange={(e) => setNoteDialog(prev => prev ? { ...prev, note: e.target.value } : null)}
+                placeholder="To'lov haqida izoh..."
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setNoteDialog(null)} className="h-8 text-xs">
+                  Bekor qilish
+                </Button>
+                <Button size="sm" onClick={async () => {
+                  if (!noteDialog) return;
+                  try {
+                    await paymentsApi.update(noteDialog.paymentId, { note: noteDialog.note || '' });
+                    toast.success("Izoh saqlandi");
+                    setNoteDialog(null);
+                    loadData();
+                  } catch { toast.error("Xatolik"); }
+                }} className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white">
+                  Saqlash
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

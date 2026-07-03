@@ -5,6 +5,8 @@ export interface Payment {
   student_id: number;
   group_id: number;
   amount: number;
+  cash_amount?: number | null;
+  card_amount?: number | null;
   month: number;
   year: number;
   status: 'paid' | 'unpaid' | 'partial';
@@ -13,6 +15,8 @@ export interface Payment {
   note: string | null;
   created_by: number | null;
   created_at: string;
+  updated_at: string;
+  cancelled_at: string | null;
   student?: { id: number; first_name: string; last_name: string; phone_number?: string };
   group?: { id: number; name: string; monthly_price?: number };
 }
@@ -41,12 +45,32 @@ export interface PaymentStats {
   total_amount: number;
 }
 
+export interface TodayPaymentStats {
+  date: string;
+  total_count: number;
+  total_amount: number;
+  total_cash: number;
+  total_card: number;
+  split_count: number;
+  split_cash_amount: number;
+  split_card_amount: number;
+  naqt_count: number;
+  naqt_amount: number;
+  karta_count: number;
+  karta_amount: number;
+  click_count: number;
+  other_count: number;
+}
+
 export const paymentsApi = {
-  getAll: (params?: { group_id?: number; student_id?: number; month?: number; year?: number; status?: string; payment_type?: string }) =>
+  getAll: (params?: { group_id?: number; student_id?: number; month?: number; year?: number; status?: string; payment_type?: string; date_from?: string; date_to?: string }) =>
     api.get<Payment[]>('/payments', { params }).then(r => r.data),
 
   getStats: () =>
     api.get<PaymentStats>('/payments/stats').then(r => r.data),
+
+  getTodayStats: () =>
+    api.get<TodayPaymentStats>('/payments/today-stats').then(r => r.data),
 
   findByStudent: (studentId: number) =>
     api.get<Payment[]>(`/payments/students/${studentId}`).then(r => r.data),
@@ -114,14 +138,17 @@ export const paymentsApi = {
       student_groups: Array<{ id: number; name: string }>;
     }>(`/payments/debts/${studentId}`).then(r => r.data),
 
-  create: (data: { student_id: number; group_id: number; amount: number; month: number; year: number; status?: string; payment_type?: string; note?: string; paid_at?: string }) =>
+  create: (data: { student_id: number; group_id: number; amount: number; month: number; year: number; status?: string; payment_type?: string; cash_amount?: number; card_amount?: number; note?: string; paid_at?: string }) =>
     api.post<Payment>('/payments', data).then(r => r.data),
 
-  update: (id: number, data: { amount?: number; status?: string; paid_at?: string; payment_type?: string; note?: string }) =>
+  update: (id: number, data: { amount?: number; status?: string; paid_at?: string; payment_type?: string; cash_amount?: number; card_amount?: number; note?: string }) =>
     api.patch<Payment>(`/payments/${id}`, data).then(r => r.data),
 
   remove: (id: number) =>
     api.delete(`/payments/${id}`).then(r => r.data),
+
+  getCancelled: () =>
+    api.get<Payment[]>('/payments/cancelled').then(r => r.data),
 
   autoGenerate: () =>
     api.get('/payments/auto-generate').then(r => r.data),

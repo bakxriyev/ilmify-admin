@@ -1,5 +1,12 @@
 'use client';
 
+export interface ReceiptLineItem {
+  groupName: string;
+  monthName: string;
+  year: number;
+  amount: number;
+}
+
 interface PrintData {
   receiptNumber?: string;
   academyName: string;
@@ -18,9 +25,9 @@ interface PrintData {
   studentName: string;
   studentPhone: string;
   studentPassword?: string;
-  groupName: string;
-  paidMonth: string;
-  paidYear: string;
+  groupName?: string;
+  paidMonth?: string;
+  paidYear?: string;
   paidAt: string;
   paymentType: string;
   amount: number;
@@ -33,6 +40,7 @@ interface PrintData {
     paidYear: string;
     amount: number;
   }>;
+  items?: ReceiptLineItem[];
 }
 
 export function printReceipt(data: PrintData) {
@@ -333,6 +341,33 @@ export function printReceipt(data: PrintData) {
           <span class="l">Admin:</span>
           <span class="r">${data.adminName}</span>
         </div>
+      </div>
+
+      <div class="dashed"></div>
+
+      <div style="font-size:${fs - 1}px">
+        ${data.items && data.items.length > 0 ? `
+          <div style="display:flex;justify-content:space-between;padding:3px 0;font-weight:700;color:#333;border-bottom:1px solid #ccc;margin-bottom:4px">
+            <span style="flex:1">Guruh / Oy</span>
+            <span style="text-align:right;min-width:80px">Summa</span>
+          </div>
+          ${data.items.map(item => `
+            <div style="display:flex;justify-content:space-between;padding:2px 0">
+              <span style="flex:1">${item.groupName} / ${item.monthName} ${item.year}</span>
+              <span style="text-align:right;min-width:80px;font-weight:600">${item.amount.toLocaleString()} so'm</span>
+            </div>
+          `).join('')}
+        ` : `
+          ${data.groupName ? `<div class="row"><span class="l">Guruh:</span><span class="r">${data.groupName}</span></div>` : ''}
+          <div class="row">
+            <span class="l">To'lov oyi:</span>
+            <span class="r">${data.paidMonth || ''} ${data.paidYear || ''}</span>
+          </div>
+          <div class="row">
+            <span class="l">Summa:</span>
+            <span class="r">${data.amount.toLocaleString()} so'm</span>
+          </div>
+        `}
       </div>
 
       <div class="dashed-thick"></div>

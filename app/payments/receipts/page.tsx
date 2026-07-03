@@ -7,13 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { receiptApi, type Receipt } from '@/api/receiptApi';
 import { ReceiptIcon, RefreshCw, Printer, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
-import { format } from 'date-fns';
 
 const statusColors: Record<string, string> = {
   printed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   pending: 'bg-amber-100 text-amber-700 border-amber-200',
   failed: 'bg-red-100 text-red-700 border-red-200',
   reprinted: 'bg-blue-100 text-blue-700 border-blue-200',
+  cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
 };
 
 const statusLabels: Record<string, string> = {
@@ -21,6 +21,7 @@ const statusLabels: Record<string, string> = {
   pending: 'Kutilmoqda',
   failed: 'Xatolik',
   reprinted: 'Qayta chop etilgan',
+  cancelled: 'Bekor qilingan',
 };
 
 const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
@@ -135,7 +136,7 @@ export default function ReceiptHistoryPage() {
                         </td>
                         <td className="py-3 px-4">
                           <span className="text-xs text-gray-500">
-                            {r.created_at ? format(new Date(r.created_at), 'dd.MM.yyyy HH:mm') : '-'}
+                            {r.created_at ? (() => { const d = new Date(r.created_at); return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`; })() : '-'}
                           </span>
                         </td>
                       </tr>

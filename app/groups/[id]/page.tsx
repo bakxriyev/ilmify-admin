@@ -39,8 +39,18 @@ import toast from 'react-hot-toast';
 const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 
 const formatDate = (dateString: string) => {
+  if (!dateString) return '-';
   const date = new Date(dateString);
   return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+};
+
+const formatDateTime = (dateString: string) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()} ${hours}:${minutes}:${seconds}`;
 };
 
 const getInitials = (firstName: string, lastName: string) =>
@@ -725,6 +735,20 @@ export default function GroupDetailPage() {
                             className="h-9 text-sm max-w-sm"
                           />
                         </div>
+                        {/* Ommaviy qo'shilgan sana o'rnatish */}
+                        <div className="px-3 py-2 bg-blue-50/80 border-b border-blue-100 flex items-center gap-3">
+                          <span className="text-xs font-medium text-blue-700 whitespace-nowrap">
+                            <Calendar className="h-3.5 w-3.5 inline mr-1" />
+                            Barcha studentlarga qo'shilgan sanani o'rnatish:
+                          </span>
+                          <Input type="date" value={bulkJoinDate}
+                            onChange={e => setBulkJoinDate(e.target.value)}
+                            className="h-7 w-[140px] text-xs rounded" />
+                          <Button size="sm" className="h-7 text-[11px] px-3 bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={handleBulkSetJoinDate} disabled={bulkJoinDateLoading}>
+                            {bulkJoinDateLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Qo\'llash'}
+                          </Button>
+                        </div>
                         <Table>
                           <TableHeader className="bg-gray-50/80">
                             <TableRow>
@@ -733,27 +757,7 @@ export default function GroupDetailPage() {
                               <TableHead className="text-gray-500 font-semibold text-[11px] uppercase tracking-wider">Yosh</TableHead>
                               <TableHead className="text-gray-500 font-semibold text-[11px] uppercase tracking-wider">Telefon</TableHead>
                               <TableHead className="text-gray-500 font-semibold text-[11px] uppercase tracking-wider">To'lov</TableHead>
-                              <TableHead className="text-gray-500 font-semibold text-[11px] uppercase tracking-wider">
-                                <div className="flex items-center gap-1">
-                                  <span>Qo'shilgan sana</span>
-                                  <button onClick={() => setShowBulkJoinDate(!showBulkJoinDate)}
-                                    className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200"
-                                    title="Barchasiga sana o'rnatish">
-                                    <Calendar className="h-3 w-3" />
-                                  </button>
-                                </div>
-                                {showBulkJoinDate && (
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <Input type="date" value={bulkJoinDate}
-                                      onChange={e => setBulkJoinDate(e.target.value)}
-                                      className="h-6 w-[120px] text-[10px] rounded" />
-                                    <Button size="sm" className="h-6 text-[10px] px-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-                                      onClick={handleBulkSetJoinDate} disabled={bulkJoinDateLoading}>
-                                      {bulkJoinDateLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Qo\'llash'}
-                                    </Button>
-                                  </div>
-                                )}
-                              </TableHead>
+                              <TableHead className="text-gray-500 font-semibold text-[11px] uppercase tracking-wider">Qo'shilgan sana</TableHead>
                               <TableHead className="text-right text-gray-500 font-semibold text-[11px] uppercase tracking-wider">Amallar</TableHead>
                             </TableRow>
                           </TableHeader>

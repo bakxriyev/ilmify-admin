@@ -8,7 +8,7 @@ export interface Receipt {
   discount: number;
   penalty: number;
   total: number;
-  status: 'pending' | 'printed' | 'failed' | 'reprinted';
+  status: 'pending' | 'printed' | 'failed' | 'reprinted' | 'cancelled';
   printer_id: number | null;
   printer_ip: string | null;
   error_message: string | null;
