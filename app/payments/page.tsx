@@ -41,7 +41,7 @@ export default function PaymentsPage() {
   const [showCancelled, setShowCancelled] = useState(false);
   const [cancelledLoading, setCancelledLoading] = useState(false);
   const [filterGroup, setFilterGroup] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('paid');
   const [filterPaymentType, setFilterPaymentType] = useState('all');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
@@ -53,7 +53,7 @@ export default function PaymentsPage() {
   const [tempMonth, setTempMonth] = useState(String(new Date().getMonth() + 1));
   const [tempYear, setTempYear] = useState(String(new Date().getFullYear()));
   const [tempGroup, setTempGroup] = useState('all');
-  const [tempStatus, setTempStatus] = useState('all');
+  const [tempStatus, setTempStatus] = useState('paid');
   const [tempPaymentType, setTempPaymentType] = useState('all');
   const [tempDateFrom, setTempDateFrom] = useState('');
   const [tempDateTo, setTempDateTo] = useState('');
@@ -65,8 +65,6 @@ export default function PaymentsPage() {
   // Yangi to'lovlar uchun state-lar
   const [selectedStudentDebts, setSelectedStudentDebts] = useState<any>(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null);
-  const [selectedDebtIndices, setSelectedDebtIndices] = useState<number[]>([]);
-  const selectedDebts = selectedDebtIndices.map(idx => selectedStudentDebts?.debts?.[idx]).filter(Boolean);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
   const [paymentType, setPaymentType] = useState('naqt');
@@ -81,6 +79,7 @@ export default function PaymentsPage() {
   const [multiPayCustomType, setMultiPayCustomType] = useState('');
   const [multiPayNote, setMultiPayNote] = useState('');
   const [multiPayLoading, setMultiPayLoading] = useState(false);
+  const [showMultiPayConfirm, setShowMultiPayConfirm] = useState(false);
 
   // Yangi to'lov qo'shish (prepayment)
   const [showNewPayment, setShowNewPayment] = useState(false);
@@ -206,7 +205,12 @@ export default function PaymentsPage() {
       });
     }
 
-    return result;
+    return result.sort((a, b) => {
+      const aTime = a.payment?.created_at ? new Date(a.payment.created_at).getTime() : 0;
+      const bTime = b.payment?.created_at ? new Date(b.payment.created_at).getTime() : 0;
+      if (aTime !== bTime) return bTime - aTime;
+      return (a.student?.last_name || '').localeCompare(b.student?.last_name || '');
+    });
   }, [items, filterGroup, filterStatus, filterPaymentType, filterDateFrom, filterDateTo, filterSearch, searchQuery]);
 
   const totalPages = Math.ceil(filteredItems.length / pageSize);
@@ -274,23 +278,22 @@ export default function PaymentsPage() {
 
   // Auto-calculate total amount from selected debts
   useEffect(() => {
-    if (selectedDebtIndices.length > 0 && selectedStudentDebts?.debts) {
-      const total = selectedDebtIndices.reduce((sum, idx) => {
-        const debt = selectedStudentDebts.debts[idx];
-        return debt ? sum + Number(debt.amount) : sum;
-      }, 0);
+    if (selectedDebtIds.size > 0 && selectedStudentDebts?.debts) {
+      const total = selectedStudentDebts.debts
+        .filter((d: any) => selectedDebtIds.has(`${d.month}-${d.year}-${d.group_id}`))
+        .reduce((sum: number, d: any) => sum + Number(d.amount), 0);
       if (total > 0) setPaymentAmount(String(total));
     } else {
       setPaymentAmount('');
     }
-  }, [selectedDebtIndices, selectedStudentDebts]);
+  }, [selectedDebtIds, selectedStudentDebts]);
 
   const openCreateModal = async () => {
     try {
       setStudentSearch('');
       setSelectedStudentDebts(null);
       setSelectedPaymentId(null);
-      setSelectedDebtIndices([]);
+      setSelectedDebtIds(new Set());
       setPaymentAmount('');
       setPaymentNote('');
       setPaymentType('naqt');
@@ -385,8 +388,8 @@ export default function PaymentsPage() {
     }
   };
 
-  const handlePaySelectedDebts = async () => {
-    if (selectedDebts.length === 0 || !paymentAmount || Number(paymentAmount) <= 0) {
+  const handlePaySelectedDebts = () => {
+    if (selectedDebtIds.size === 0 || !paymentAmount || Number(paymentAmount) <= 0) {
       toast.error('Qarzdorliklarni tanlang yoki to\'lov summasini kiriting');
       return;
     }
@@ -407,10 +410,21 @@ export default function PaymentsPage() {
       }
     }
 
+    setShowMultiPayConfirm(true);
+  };
+
+  const handlePaySelectedDebtsConfirm = async () => {
+    if (!selectedStudentDebts || selectedDebtIds.size === 0) return;
+    const resolvedType = paymentType;
+    const totalPaidAmount = Number(paymentAmount);
+    const selectedDebts = selectedStudentDebts.debts.filter((d: any) =>
+      selectedDebtIds.has(`${d.month}-${d.year}-${d.group_id}`)
+    );
+
     try {
       const receiptItems: ReceiptLineItem[] = [];
       const allPaymentIds: number[] = [];
-      const totalDebtAmount = selectedDebts.reduce((sum, d) => sum + Number(d.amount), 0);
+      const totalDebtAmount = selectedDebts.reduce((sum: number, d: any) => sum + Number(d.amount), 0);
       let remainingToPay = totalPaidAmount;
 
       for (const debt of selectedDebts) {
@@ -445,19 +459,39 @@ export default function PaymentsPage() {
             note: paymentNote || undefined,
           });
         } else {
-          result = await paymentsApi.create({
-            student_id: selectedStudentDebts.student.id,
-            group_id: debt.group_id,
-            amount: paidForThisDebt,
-            month: debt.month,
-            year: debt.year,
-            status,
-            paid_at: new Date().toISOString().split('T')[0],
-            payment_type: resolvedType || undefined,
-            cash_amount: cashPart,
-            card_amount: cardPart,
-            note: paymentNote || undefined,
-          });
+          try {
+            result = await paymentsApi.create({
+              student_id: selectedStudentDebts.student.id,
+              group_id: debt.group_id,
+              amount: paidForThisDebt,
+              month: debt.month,
+              year: debt.year,
+              status,
+              paid_at: new Date().toISOString().split('T')[0],
+              payment_type: resolvedType || undefined,
+              cash_amount: cashPart,
+              card_amount: cardPart,
+              note: paymentNote || undefined,
+            });
+          } catch (createErr: any) {
+            if (createErr.message?.includes?.('allaqachon to\'langan')) {
+              const existingPayments = await paymentsApi.findByStudent(selectedStudentDebts.student.id);
+              const match = existingPayments.find((p: any) =>
+                p.group_id === debt.group_id && p.month === debt.month && p.year === debt.year
+              );
+              if (match?.id) {
+                result = await paymentsApi.update(match.id, {
+                  amount: paidForThisDebt,
+                  status,
+                  paid_at: new Date().toISOString().split('T')[0],
+                  payment_type: resolvedType || undefined,
+                  cash_amount: cashPart,
+                  card_amount: cardPart,
+                  note: paymentNote || undefined,
+                });
+              } else throw createErr;
+            } else throw createErr;
+          }
         }
 
         allPaymentIds.push(result.id);
@@ -471,6 +505,10 @@ export default function PaymentsPage() {
 
       toast.success("To'lov qabul qilindi");
       setShowCreateModal(false);
+      setShowMultiPayConfirm(false);
+      setSelectedDebtIds(new Set());
+      setPaymentAmount('');
+      setPaymentNote('');
 
       const adminRaw = typeof window !== 'undefined' ? localStorage.getItem('admin') : '';
       let adminName = 'Admin';
@@ -525,7 +563,7 @@ export default function PaymentsPage() {
     });
   };
 
-  const handleMultiPay = async () => {
+  const handleMultiPay = () => {
     if (!selectedStudentDebts || selectedDebtIds.size === 0) {
       toast.error('Hech qanday qarzdorlik tanlanmagan');
       return;
@@ -534,6 +572,11 @@ export default function PaymentsPage() {
       toast.error('To\'lov summasini kiriting');
       return;
     }
+    setShowMultiPayConfirm(true);
+  };
+
+  const handleMultiPayConfirm = async () => {
+    if (!selectedStudentDebts || selectedDebtIds.size === 0) return;
     const resolvedType = multiPayType === 'boshqa' ? multiPayCustomType : multiPayType;
     try {
       setMultiPayLoading(true);
@@ -542,23 +585,59 @@ export default function PaymentsPage() {
       );
       const createdPayments: any[] = [];
       for (const debt of selectedDebts) {
-        const res = await paymentsApi.create({
-          student_id: selectedStudentDebts.student.id,
-          group_id: debt.group_id,
-          amount: Number(multiPayAmount) / selectedDebts.length,
-          month: debt.month,
-          year: debt.year,
-          status: 'paid',
-          paid_at: new Date().toISOString().split('T')[0],
-          payment_type: resolvedType || undefined,
-          note: multiPayNote || undefined,
-        });
-        createdPayments.push({ ...res, debt });
+        const amount = Math.round(Number(multiPayAmount) / selectedDebts.length);
+        if (debt.id) {
+          const res = await paymentsApi.update(debt.id, {
+            amount,
+            status: 'paid',
+            paid_at: new Date().toISOString().split('T')[0],
+            payment_type: resolvedType || undefined,
+            note: multiPayNote || undefined,
+          });
+          createdPayments.push({ ...res, debt });
+        } else {
+          try {
+            const res = await paymentsApi.create({
+              student_id: selectedStudentDebts.student.id,
+              group_id: debt.group_id,
+              amount,
+              month: debt.month,
+              year: debt.year,
+              status: 'paid',
+              paid_at: new Date().toISOString().split('T')[0],
+              payment_type: resolvedType || undefined,
+              note: multiPayNote || undefined,
+            });
+            createdPayments.push({ ...res, debt });
+          } catch (createErr: any) {
+            if (createErr.message?.includes?.('allaqachon to\'langan')) {
+              const existingPayments = await paymentsApi.findByStudent(selectedStudentDebts.student.id);
+              const match = existingPayments.find((p: any) =>
+                p.group_id === debt.group_id && p.month === debt.month && p.year === debt.year
+              );
+              if (match?.id) {
+                const res = await paymentsApi.update(match.id, {
+                  amount,
+                  status: 'paid',
+                  paid_at: new Date().toISOString().split('T')[0],
+                  payment_type: resolvedType || undefined,
+                  note: multiPayNote || undefined,
+                });
+                createdPayments.push({ ...res, debt });
+              } else throw createErr;
+            } else throw createErr;
+          }
+        }
       }
       toast.success("To'lov qabul qilindi");
       setShowMultiPayModal(false);
+      setShowMultiPayConfirm(false);
       setShowCreateModal(false);
       setSelectedDebtIds(new Set());
+      setMultiPayAmount('');
+      setMultiPayNote('');
+      setMultiPayType('naqt');
+      setMultiPayCustomType('');
 
       // Consolidated receipt
       const adminRaw = typeof window !== 'undefined' ? localStorage.getItem('admin') : '';
@@ -1408,8 +1487,10 @@ export default function PaymentsPage() {
                       <h3 className="font-medium text-gray-900 text-xs md:text-sm">Qarzdorliklar</h3>
                       {selectedDebtIds.size > 0 && (
                         <Button size="sm" onClick={() => {
-                          setSelectedDebtIds(new Set());
-                          setMultiPayAmount('');
+                          const sum = selectedStudentDebts.debts
+                            .filter((d: any) => selectedDebtIds.has(`${d.month}-${d.year}-${d.group_id}`))
+                            .reduce((acc: number, d: any) => acc + Number(d.amount), 0);
+                          setMultiPayAmount(String(sum));
                           setShowMultiPayModal(true);
                         }} className="h-7 text-[10px] bg-blue-600 hover:bg-blue-700 text-white">
                           {selectedDebtIds.size} ta to'lash
@@ -1423,23 +1504,19 @@ export default function PaymentsPage() {
                         return (
                         <div
                           key={debtKey}
+                          onClick={() => toggleDebtSelection(debtKey)}
                           className={`p-2 md:p-3 rounded-lg border-2 cursor-pointer transition ${
                             isSelected
                               ? 'border-blue-500 bg-blue-50'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          <div className="flex items-start gap-2">
+                          <div className="flex items-start gap-2 pointer-events-none">
                             <input type="checkbox" checked={isSelected}
-                              onChange={() => toggleDebtSelection(debtKey)}
-                              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                              onClick={e => e.stopPropagation()}
+                              readOnly
+                              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
                             />
-                            <div className="flex-1 min-w-0" onClick={() => {
-                              setSelectedPaymentId(debt.id || null);
-                              setPaymentAmount(debt.amount.toString());
-                              setPaymentNote('');
-                            }}>
+                            <div className="flex-1 min-w-0">
                               <div className="flex justify-between items-start gap-2">
                                 <div className="min-w-0">
                                   <p className="font-medium text-gray-900 text-xs md:text-sm">
@@ -1614,10 +1691,14 @@ export default function PaymentsPage() {
                   )}
                 </div>
 
-                {selectedDebts.length > 0 && (
+                {selectedDebtIds.size > 0 && (() => {
+                  const selDebts = selectedStudentDebts?.debts.filter((d: any) =>
+                    selectedDebtIds.has(`${d.month}-${d.year}-${d.group_id}`)
+                  ) || [];
+                  return (
                   <div className="bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-200 space-y-2 md:space-y-3">
                     <p className="text-xs md:text-sm font-medium text-blue-800">
-                      Tanlangan: {selectedDebts.length} ta | Jami: {formatSum(selectedDebts.reduce((s, d) => s + Number(d.amount), 0))} so'm
+                      Tanlangan: {selDebts.length} ta | Jami: {formatSum(selDebts.reduce((s: number, d: any) => s + Number(d.amount), 0))} so'm
                     </p>
                     <div className="space-y-1">
                       <Label className="text-xs">To'lov summas (so'm)</Label>
@@ -1673,7 +1754,7 @@ export default function PaymentsPage() {
                       />
                     </div>
                   </div>
-                )}
+                )})()}
 
                 <div className="flex gap-1.5 md:gap-2">
                   <Button
@@ -1683,7 +1764,7 @@ export default function PaymentsPage() {
                     onClick={() => {
                       setSelectedStudentDebts(null);
                       setSelectedPaymentId(null);
-                      setSelectedDebtIndices([]);
+                      setSelectedDebtIds(new Set());
                     }}
                     className="flex-1 text-xs h-8"
                   >
@@ -1697,7 +1778,7 @@ export default function PaymentsPage() {
                   >
                     Bekor qilish
                   </Button>
-                  {selectedDebts.length > 0 && (
+                  {selectedDebtIds.size > 0 && (
                     <Button
                       onClick={handlePaySelectedDebts}
                       size="sm"
@@ -1725,17 +1806,28 @@ export default function PaymentsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
-              <div className="bg-blue-50 p-2 rounded-lg border border-blue-200">
-                <p className="text-xs text-blue-700">
-                  Tanlangan qarzdorliklar:
-                </p>
-                {selectedStudentDebts?.debts.filter((d: any) =>
-                  selectedDebtIds.has(`${d.month}-${d.year}-${d.group_id}`)
-                ).map((d: any) => (
-                  <p key={`${d.month}-${d.year}-${d.group_id}`} className="text-[11px] text-blue-600 mt-0.5">
-                    • {d.month_name} {d.year} - {d.group_name} ({formatSum(d.amount)} so'm)
-                  </p>
-                ))}
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <p className="text-xs font-medium text-blue-700 mb-1.5">Tanlangan qarzdorliklar:</p>
+                <div className="space-y-1">
+                  {selectedStudentDebts?.debts.filter((d: any) =>
+                    selectedDebtIds.has(`${d.month}-${d.year}-${d.group_id}`)
+                  ).map((d: any) => (
+                    <div key={`${d.month}-${d.year}-${d.group_id}`} className="flex justify-between items-center text-[11px]">
+                      <span className="text-blue-600">• {d.month_name} {d.year} - {d.group_name}</span>
+                      <span className="font-medium text-blue-700">{formatSum(d.amount)} so'm</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 pt-2 border-t border-blue-200 flex justify-between items-center">
+                  <span className="text-xs font-bold text-blue-800">Jami:</span>
+                  <span className="text-sm font-bold text-blue-800">
+                    {formatSum(
+                      (selectedStudentDebts?.debts.filter((d: any) =>
+                        selectedDebtIds.has(`${d.month}-${d.year}-${d.group_id}`)
+                      ) || []).reduce((s: number, d: any) => s + Number(d.amount), 0)
+                    )} so'm
+                  </span>
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">To'lov summasi (so'm)</Label>
@@ -1781,10 +1873,104 @@ export default function PaymentsPage() {
               <Button variant="outline" size="sm" onClick={() => setShowMultiPayModal(false)} className="h-8 text-xs">
                 Bekor qilish
               </Button>
-              <Button size="sm" onClick={handleMultiPay} disabled={multiPayLoading} className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white">
-                {multiPayLoading ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> To'lanmoqda</> : 'To\'lovni qabul qilish'}
+              <Button size="sm" onClick={handleMultiPay} className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white">
+                <CheckCircle className="h-3 w-3 mr-1" /> To'lovni qabul qilish
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Multi-debt Confirmation Dialog */}
+        <Dialog open={showMultiPayConfirm} onOpenChange={setShowMultiPayConfirm}>
+          <DialogContent className="bg-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600" /> To'lovni tasdiqlash
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Quyidagi ma'lumotlarni tekshiring va tasdiqlang
+              </DialogDescription>
+            </DialogHeader>
+            {(() => {
+              const isMultiPay = !!multiPayAmount;
+              const confirmAmount = isMultiPay ? multiPayAmount : paymentAmount;
+              const confirmType = isMultiPay ? (multiPayType === 'boshqa' ? multiPayCustomType : multiPayType) : paymentType;
+              const confirmNote = isMultiPay ? multiPayNote : paymentNote;
+              const confirmHandler = isMultiPay ? handleMultiPayConfirm : handlePaySelectedDebtsConfirm;
+              return (<>
+              <div className="space-y-3 py-2">
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2 border">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-[10px] text-gray-500">Student</p>
+                    <p className="font-medium text-gray-900">
+                      {selectedStudentDebts?.student?.first_name} {selectedStudentDebts?.student?.last_name}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-500">Telefon</p>
+                    <p className="font-medium text-gray-900">{selectedStudentDebts?.student?.phone_number || '-'}</p>
+                  </div>
+                </div>
+                <div className="border-t pt-2">
+                  <p className="text-[10px] text-gray-500 mb-1">To'lanadigan qarzdorliklar</p>
+                  <div className="space-y-0.5">
+                    {selectedStudentDebts?.debts.filter((d: any) =>
+                      selectedDebtIds.has(`${d.month}-${d.year}-${d.group_id}`)
+                    ).map((d: any) => (
+                      <div key={`${d.month}-${d.year}-${d.group_id}`} className="flex justify-between text-xs">
+                        <span className="text-gray-700">{d.month_name} {d.year} - {d.group_name}</span>
+                        <span className="font-medium text-red-600">{formatSum(d.amount)} so'm</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-sm font-bold mt-2 pt-2 border-t border-gray-200">
+                    <span>Jami summa:</span>
+                    <span className="text-green-600">{formatSum(Number(confirmAmount))} so'm</span>
+                  </div>
+                </div>
+                <div className="border-t pt-2 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-[10px] text-gray-500">To'lov turi</p>
+                    <p className="font-medium text-gray-900">
+                      {confirmType === 'naqt' ? 'Naqt' : confirmType === 'karta' ? 'Karta' : confirmType === 'click' ? 'Click' : confirmType === 'yarim_naqt_yarim_karta' ? 'Yarim naqt/karta' : confirmType || 'Naqt'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-500">Har biriga</p>
+                    <p className="font-medium text-gray-900">
+                      {formatSum(Math.round(Number(confirmAmount) / Math.max(1, selectedDebtIds.size)))} so'm
+                    </p>
+                  </div>
+                </div>
+                {isMultiPay && multiPayType === 'boshqa' && multiPayCustomType && (
+                  <div className="border-t pt-2">
+                    <p className="text-[10px] text-gray-500">Maxsus to'lov turi</p>
+                    <p className="text-sm text-gray-700">{multiPayCustomType}</p>
+                  </div>
+                )}
+                {confirmNote && (
+                  <div className="border-t pt-2">
+                    <p className="text-[10px] text-gray-500">Izoh</p>
+                    <p className="text-sm text-gray-700">{confirmNote}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowMultiPayConfirm(false)} className="h-8 text-xs">
+                Bekor qilish
+              </Button>
+              <Button size="sm" onClick={confirmHandler} disabled={multiPayLoading} className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white">
+                {multiPayLoading ? (
+                  <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> To'lanmoqda...</>
+                ) : (
+                  <><CheckCircle className="h-3 w-3 mr-1" /> Tasdiqlash</>
+                )}
+              </Button>
+            </DialogFooter>
+            </>);
+            })()}
           </DialogContent>
         </Dialog>
 

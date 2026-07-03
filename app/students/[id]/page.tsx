@@ -216,8 +216,8 @@ export default function StudentDetailPage() {
   const upcomingLessons = sortedLessons.filter((l: any) => new Date(l.date) > new Date());
 
   const parents = student.parent_links?.map((pl: any) => pl.parent).filter(Boolean) || [];
-  const totalPaid = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
-  const totalUnpaid = payments.filter(p => p.status === 'unpaid').reduce((s, p) => s + p.amount, 0);
+  const totalPaid = payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount || 0), 0);
+  const totalUnpaid = payments.filter(p => p.status === 'unpaid').reduce((s, p) => s + Number(p.amount || 0), 0);
 
   const statCards = [
     { label: "To'lovlar", value: `${payments.length} ta`, icon: Wallet, color: 'blue' },
@@ -626,7 +626,7 @@ export default function StudentDetailPage() {
                       </TableHeader>
                       <TableBody>
                         {debtData.debts.map((d: any) => (
-                          <TableRow key={`${d.year}-${d.month}`} className="hover:bg-red-50">
+                          <TableRow key={`${d.year}-${d.month}-${d.group_id}`} className="hover:bg-red-50">
                             <TableCell className="text-xs py-2">{d.month_name} {d.year}</TableCell>
                             <TableCell className="text-xs py-2">{d.group_name}</TableCell>
                             <TableCell className="text-right font-bold text-red-600 text-xs py-2">{Number(d.amount).toLocaleString()} so'm</TableCell>
@@ -794,7 +794,7 @@ export default function StudentDetailPage() {
                       {debtData?.debts?.length > 0 ? (
                         debtData.debts.map((d: any) => (
                           <div
-                            key={`${d.year}-${d.month}`}
+                            key={`${d.year}-${d.month}-${d.group_id}`}
                             onClick={() => { setSelectedDebtId(d.id || 0); setPaymentAmount(d.amount.toString()); setPaymentStep(3); }}
                             className="p-3 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all"
                           >
