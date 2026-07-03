@@ -213,8 +213,34 @@ export default function PaymentsPage() {
     });
   }, [items, filterGroup, filterStatus, filterPaymentType, filterDateFrom, filterDateTo, filterSearch, searchQuery]);
 
-  const totalPages = Math.ceil(filteredItems.length / pageSize);
-  const paginatedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
+  // Group items by student+month so one student with multiple groups shows as one row
+  const groupedRows = useMemo(() => {
+    const groups = new Map<string, typeof filteredItems>();
+    for (const item of filteredItems) {
+      const key = `${item.student.id}-${item.month}-${item.year}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(item);
+    }
+    return Array.from(groups.entries()).map(([, items]) => {
+      if (items.length === 1) return items[0];
+      return {
+        ...items[0],
+        group_names: items.map(i => i.group?.name).filter(Boolean),
+        monthly_price: items.reduce((s, i) => s + i.monthly_price, 0),
+        paid_amount: items.reduce((s, i) => s + i.paid_amount, 0),
+        debt: items.reduce((s, i) => s + i.debt, 0),
+        status: items.every(i => i.status === 'paid') ? 'paid'
+              : items.some(i => i.status === 'paid' || i.status === 'partial') ? 'partial'
+              : 'unpaid',
+        payment: items.find(i => i.payment)?.payment || items[0].payment,
+        overdue_lessons: Math.max(...items.map(i => i.overdue_lessons)),
+        _items: items,
+      } as any;
+    });
+  }, [filteredItems]);
+
+  const totalPages = Math.ceil(groupedRows.length / pageSize);
+  const paginatedItems = groupedRows.slice((page - 1) * pageSize, page * pageSize);
 
   const handleApplyFilters = () => {
     setFilterMonth(tempMonth);
@@ -748,24 +774,26 @@ export default function PaymentsPage() {
     finally { setSubmittingNewPayment(false); }
   };
 
-  const handleMarkPaid = async (item: GroupPaymentSummary) => {
+  const handleMarkPaid = async (item: any) => {
     try {
-      if (item.payment) {
-        await paymentsApi.update(item.payment.id, { status: 'paid' });
-        toast.success("To'lov tasdiqlandi");
-      } else {
-        await paymentsApi.create({
-          student_id: item.student.id,
-          group_id: item.group?.id || 0,
-          amount: item.monthly_price,
-          month: Number(filterMonth),
-          year: Number(filterYear),
-          status: 'paid',
-          payment_type: 'naqt',
-        });
-        toast.success("To'lov qo'shildi");
+      const subItems = item._items || [item];
+      for (const sub of subItems) {
+        if (sub.payment) {
+          await paymentsApi.update(sub.payment.id, { status: 'paid' });
+        } else {
+          await paymentsApi.create({
+            student_id: sub.student.id,
+            group_id: sub.group?.id || 0,
+            amount: sub.monthly_price,
+            month: Number(sub.month || filterMonth),
+            year: Number(sub.year || filterYear),
+            status: 'paid',
+            payment_type: 'naqt',
+          });
+        }
       }
-      handlePrintReceipt(item);
+      toast.success("To'lov qo'shildi");
+      handlePrintReceipt(subItems[0]);
       loadData();
       loadYearOverview();
     } catch { toast.error('Xatolik'); }
@@ -782,7 +810,7 @@ export default function PaymentsPage() {
     } catch { toast.error('Xatolik'); }
   };
 
-  const handlePrintReceipt = async (item: GroupPaymentSummary) => {
+  const handlePrintReceipt = async (item: any) => {
     try {
       const adminRaw = typeof window !== 'undefined' ? localStorage.getItem('admin') : '';
       let adminName = 'Admin';
@@ -799,6 +827,8 @@ export default function PaymentsPage() {
       const settings = academySettings || {};
       const now = new Date();
       const paidAtStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+      const groupNames: string[] = item.group_names || (item.group?.name ? [item.group.name] : []);
 
       printReceipt({
         receiptNumber: undefined,
@@ -817,7 +847,7 @@ export default function PaymentsPage() {
         studentName: `${item.student.first_name} ${item.student.last_name}`.trim(),
         studentPhone: item.student.phone_number || '',
         studentPassword: studentPassword,
-        groupName: item.group?.name || '',
+        groupName: groupNames.join(', ') || '',
         paidMonth: monthNames[item.month - 1],
         paidYear: String(item.year),
         paidAt: paidAtStr,
@@ -1198,7 +1228,7 @@ export default function PaymentsPage() {
                       <th className="text-center p-2 md:p-3 text-gray-600 font-medium">Holat</th>
                       <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">To'lov turi</th>
                       <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">To'lov sanasi</th>
-                      <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">Yaratilgan</th>
+                      <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">To'langan</th>
                       <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">Yangilangan</th>
                       <th className="hidden lg:table-cell text-left p-2 md:p-3 text-gray-600 font-medium">Izoh</th>
                       <th className="hidden md:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">Kechikish</th>
@@ -1206,8 +1236,12 @@ export default function PaymentsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedItems.map((item, idx) => (
-                      <tr key={`${item.student.id}-${item.group?.id || idx}`} className="border-b border-gray-100 hover:bg-gray-50">
+                    {paginatedItems.map((item: any, idx) => {
+                      const groupNames: string[] = item.group_names || (item.group?.name ? [item.group.name] : []);
+                      const isMultiGroup = groupNames.length > 1;
+                      const firstGroup = isMultiGroup ? null : groupNames[0];
+                      return (
+                      <tr key={`${item.student.id}-${item.month}-${item.year}`} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="p-2 md:p-3 text-center text-gray-400 font-mono">{(page - 1) * pageSize + idx + 1}</td>
                         <td className="p-2 md:p-3">
                           <Link href={`/students/${item.student.id}`} className="font-medium text-gray-900 hover:text-blue-600 text-xs md:text-sm">
@@ -1216,9 +1250,17 @@ export default function PaymentsPage() {
                           <div className="text-[10px] md:text-xs text-gray-400 truncate max-w-[100px] md:max-w-none">{item.student.phone_number}</div>
                         </td>
                         <td className="hidden md:table-cell p-3 text-gray-600 text-xs md:text-sm">
-                          <Link href={`/groups/${item.group?.id}`} className="hover:text-blue-600">
-                            {item.group?.name || '-'}
-                          </Link>
+                          {isMultiGroup ? (
+                            <div className="space-y-0.5">
+                              {groupNames.map((gn, gi) => (
+                                <a key={gi} className="block hover:text-blue-600">{gn}</a>
+                              ))}
+                            </div>
+                          ) : firstGroup ? (
+                            <span className="hover:text-blue-600">{firstGroup}</span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </td>
                         <td className="hidden sm:table-cell p-2 md:p-3 text-center text-gray-600 text-xs md:text-sm">{monthNames[item.month - 1]} {item.year}</td>
                         <td className="p-2 md:p-3 text-right font-medium text-gray-900 text-xs md:text-sm">{formatSum(item.monthly_price)} so'm</td>
@@ -1266,7 +1308,15 @@ export default function PaymentsPage() {
                           ) : '-'}
                         </td>
                         <td className="hidden lg:table-cell p-2 md:p-3 text-center text-[10px] md:text-xs text-gray-500">
-                          {item.payment?.created_at ? formatDateTime(item.payment.created_at) : '-'}
+                          {item.payment?.paid_at ? (() => {
+                            try {
+                              const dt = new Date(item.payment!.paid_at!);
+                              const h = String(dt.getHours()).padStart(2, '0');
+                              const min = String(dt.getMinutes()).padStart(2, '0');
+                              const s = String(dt.getSeconds()).padStart(2, '0');
+                              return `${dt.getDate()} ${monthNames[dt.getMonth()]} ${dt.getFullYear()} ${h}:${min}:${s}`;
+                            } catch { return item.payment!.paid_at || '-'; }
+                          })() : '-'}
                         </td>
                         <td className="hidden lg:table-cell p-2 md:p-3 text-center text-[10px] md:text-xs text-gray-500">
                           {item.payment?.updated_at ? formatDateTime(item.payment.updated_at) : '-'}
@@ -1303,14 +1353,14 @@ export default function PaymentsPage() {
                               <PrinterIcon className="h-3 w-3 md:h-4 md:w-4" />
                             </Button>
                             {item.payment && (
-                              <Button variant="ghost" size="sm" onClick={() => handleDelete(item.payment!.id)} className="text-red-600 h-7 md:h-8 w-7 md:w-8 p-0" title="O'chirish">
+                              <Button variant="ghost" size="sm" onClick={() => handleDelete(item.payment.id)} className="text-red-600 h-7 md:h-8 w-7 md:w-8 p-0" title="O'chirish">
                                 <XCircle className="h-3 w-3 md:h-4 md:w-4" />
                               </Button>
                             )}
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>

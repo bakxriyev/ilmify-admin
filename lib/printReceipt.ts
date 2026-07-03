@@ -324,10 +324,11 @@ export function printReceipt(data: PrintData) {
         `).join('')}
         <div style="border-top:1px dashed #999;margin:6px 0"></div>
         ` : `
+        ${data.paidMonth || data.paidYear ? `
         <div class="row">
           <span class="l">To'lov oyi:</span>
-          <span class="r">${data.paidMonth} ${data.paidYear}</span>
-        </div>
+          <span class="r">${data.paidMonth || ''} ${data.paidYear || ''}</span>
+        </div>` : ''}
         `}
         <div class="row">
           <span class="l">To'lov sanasi:</span>

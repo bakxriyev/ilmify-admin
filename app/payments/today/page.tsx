@@ -329,6 +329,7 @@ export default function TodayPaymentsPage() {
                         <th className="text-center p-2 md:p-3 text-gray-600 font-medium">To'lov turi</th>
                         <th className="text-right p-2 md:p-3 text-gray-600 font-medium">Naqt</th>
                         <th className="text-right p-2 md:p-3 text-gray-600 font-medium">Karta</th>
+                        <th className="hidden lg:table-cell text-center p-2 md:p-3 text-gray-600 font-medium">To'langan</th>
                         <th className="hidden lg:table-cell text-left p-2 md:p-3 text-gray-600 font-medium">Izoh</th>
                       </tr>
                     </thead>
@@ -370,6 +371,17 @@ export default function TodayPaymentsPage() {
                               : p.payment_type === 'karta'
                                 ? formatSum(Number(p.amount))
                                 : '-'}
+                          </td>
+                          <td className="hidden lg:table-cell p-2 md:p-3 text-center text-[10px] md:text-xs text-gray-500">
+                            {p.paid_at ? (() => {
+                              try {
+                                const dt = new Date(p.paid_at!);
+                                const h = String(dt.getHours()).padStart(2, '0');
+                                const min = String(dt.getMinutes()).padStart(2, '0');
+                                const s = String(dt.getSeconds()).padStart(2, '0');
+                                return `${dt.getDate()} ${monthNames[dt.getMonth()]} ${dt.getFullYear()} ${h}:${min}:${s}`;
+                              } catch { return p.paid_at; }
+                            })() : '-'}
                           </td>
                           <td className="hidden lg:table-cell p-2 md:p-3 text-left text-[10px] text-gray-500 max-w-[120px] truncate cursor-pointer hover:text-blue-600 hover:underline" onClick={() => setNoteDialog({ paymentId: p.id, note: p.note || '' })} title={p.note || ''}>
                             <div className="flex items-center gap-1">
