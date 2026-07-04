@@ -59,6 +59,7 @@ export default function PaymentsPage() {
   const [tempDateTo, setTempDateTo] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [noteDialog, setNoteDialog] = useState<{ paymentId: number; note: string } | null>(null);
+  const [paidAt, setPaidAt] = useState(() => new Date().toISOString().split('T')[0]);
   const [students, setStudents] = useState<Student[]>([]);
   const [studentSearch, setStudentSearch] = useState('');
   
@@ -332,6 +333,7 @@ export default function PaymentsPage() {
       setNewPaymentAmount('');
       setNewPaymentNote('');
       setNewPaymentType('naqt');
+      setPaidAt(new Date().toISOString().split('T')[0]);
       setShowCreateModal(true);
       await loadStudents();
     } catch { toast.error("Studentlarni yuklashda xatolik"); }
@@ -478,7 +480,7 @@ export default function PaymentsPage() {
           result = await paymentsApi.update(debt.id, {
             amount: paidForThisDebt,
             status,
-            paid_at: new Date().toISOString().split('T')[0],
+            paid_at: paidAt,
             payment_type: resolvedType || undefined,
             cash_amount: cashPart,
             card_amount: cardPart,
@@ -493,7 +495,7 @@ export default function PaymentsPage() {
               month: debt.month,
               year: debt.year,
               status,
-              paid_at: new Date().toISOString().split('T')[0],
+              paid_at: paidAt,
               payment_type: resolvedType || undefined,
               cash_amount: cashPart,
               card_amount: cardPart,
@@ -509,7 +511,7 @@ export default function PaymentsPage() {
                 result = await paymentsApi.update(match.id, {
                   amount: paidForThisDebt,
                   status,
-                  paid_at: new Date().toISOString().split('T')[0],
+                  paid_at: paidAt,
                   payment_type: resolvedType || undefined,
                   cash_amount: cashPart,
                   card_amount: cardPart,
@@ -616,7 +618,7 @@ export default function PaymentsPage() {
           const res = await paymentsApi.update(debt.id, {
             amount,
             status: 'paid',
-            paid_at: new Date().toISOString().split('T')[0],
+            paid_at: paidAt,
             payment_type: resolvedType || undefined,
             note: multiPayNote || undefined,
           });
@@ -630,7 +632,7 @@ export default function PaymentsPage() {
               month: debt.month,
               year: debt.year,
               status: 'paid',
-              paid_at: new Date().toISOString().split('T')[0],
+              paid_at: paidAt,
               payment_type: resolvedType || undefined,
               note: multiPayNote || undefined,
             });
@@ -645,7 +647,7 @@ export default function PaymentsPage() {
                 const res = await paymentsApi.update(match.id, {
                   amount,
                   status: 'paid',
-                  paid_at: new Date().toISOString().split('T')[0],
+                  paid_at: paidAt,
                   payment_type: resolvedType || undefined,
                   note: multiPayNote || undefined,
                 });
@@ -747,7 +749,7 @@ export default function PaymentsPage() {
         month: Number(newPaymentMonth),
         year: Number(newPaymentYear),
         status: 'paid',
-        paid_at: new Date().toISOString().split('T')[0],
+        paid_at: paidAt,
         payment_type: resolvedType || undefined,
         cash_amount: resolvedType === 'yarim_naqt_yarim_karta' ? Number(newCashAmount) || 0 : undefined,
         card_amount: resolvedType === 'yarim_naqt_yarim_karta' ? Number(newCardAmount) || 0 : undefined,
@@ -1718,6 +1720,15 @@ export default function PaymentsPage() {
                         )}
                       </div>
                       <div className="space-y-1">
+                        <Label className="text-[10px] md:text-xs">To'lov sanasi</Label>
+                        <Input
+                          type="date"
+                          value={paidAt}
+                          onChange={e => setPaidAt(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
                         <Label className="text-[10px] md:text-xs">Izoh (ixtiyoriy)</Label>
                         <Input
                           placeholder="To'lov haqida izoh..."
@@ -1793,6 +1804,15 @@ export default function PaymentsPage() {
                           </div>
                         </div>
                       )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">To'lov sanasi</Label>
+                      <Input
+                        type="date"
+                        value={paidAt}
+                        onChange={e => setPaidAt(e.target.value)}
+                        className="h-9 text-sm"
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Izoh (ixtiyoriy)</Label>
@@ -1908,6 +1928,15 @@ export default function PaymentsPage() {
                     className="h-8 text-sm mt-1"
                   />
                 )}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">To'lov sanasi</Label>
+                <Input
+                  type="date"
+                  value={paidAt}
+                  onChange={e => setPaidAt(e.target.value)}
+                  className="h-8 text-sm"
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Izoh (ixtiyoriy)</Label>

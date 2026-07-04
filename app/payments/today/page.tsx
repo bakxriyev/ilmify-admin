@@ -24,21 +24,9 @@ export default function TodayPaymentsPage() {
   const [noteDialog, setNoteDialog] = useState<{ paymentId: number; note: string } | null>(null);
 
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [isDirector, setIsDirector] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem('admin');
-      if (raw) {
-        const admin = JSON.parse(raw);
-        setIsDirector(admin.role === 'director' || admin.role === 'super_admin');
-      }
-    } catch {}
-  }, []);
 
   const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 
@@ -69,7 +57,6 @@ export default function TodayPaymentsPage() {
   const displayDate = `${selectedDateObj.getDate().toString().padStart(2, '0')}.${(selectedDateObj.getMonth() + 1).toString().padStart(2, '0')}.${selectedDateObj.getFullYear()}`;
 
   const navigateDate = (delta: number) => {
-    if (!isDirector) return;
     const d = new Date(selectedDate + 'T00:00:00');
     d.setDate(d.getDate() + delta);
     setSelectedDate(d.toISOString().split('T')[0]);
@@ -145,35 +132,29 @@ export default function TodayPaymentsPage() {
         {/* Header with date filter */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
-              {isDirector ? 'To\'lovlar' : 'Bugungi to\'lovlar'}
-            </h1>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
+                Kunlik to'lovlar
+              </h1>
             <p className="text-xs md:text-sm text-gray-500">
               {displayDate} — sanasida to'langan barcha to'lovlar
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {isDirector ? (
-              <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
-                <button onClick={() => navigateDate(-1)} className="p-1 rounded hover:bg-gray-100 text-gray-500">
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={e => setSelectedDate(e.target.value)}
-                  className="text-sm text-gray-800 font-medium border-0 outline-none bg-transparent w-[130px] text-center cursor-pointer"
-                />
-                <button onClick={() => navigateDate(1)} className="p-1 rounded hover:bg-gray-100 text-gray-500">
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="text-sm text-gray-600 font-medium bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
-                {displayDate}
-              </div>
-            )}
+            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
+              <button onClick={() => navigateDate(-1)} className="p-1 rounded hover:bg-gray-100 text-gray-500">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                className="text-sm text-gray-800 font-medium border-0 outline-none bg-transparent w-[130px] text-center cursor-pointer"
+              />
+              <button onClick={() => navigateDate(1)} className="p-1 rounded hover:bg-gray-100 text-gray-500">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
             <Button variant="outline" size="sm" onClick={() => loadData(selectedDate)} className="border-gray-300 h-8 text-xs">
               <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} /> Yangilash
             </Button>
