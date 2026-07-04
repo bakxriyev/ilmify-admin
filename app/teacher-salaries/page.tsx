@@ -209,7 +209,7 @@ export default function TeacherSalariesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRows.map(({ teacher, tid, commission, salary }) => {
+                  {filteredRows.map(({ teacher, tid, commission, salary }, idx) => {
                     const isExpanded = expandedTeacher === tid;
                     const pct = commission?.percentage || 0;
                     const expected = salary?.total_expected || 0;

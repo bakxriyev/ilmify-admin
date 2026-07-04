@@ -395,6 +395,7 @@ export default function Sidebar({
   };
 
   const isItemActive = (item: NavigationItem): boolean => {
+    if (!mounted) return false;
     if (item.path) return pathname === item.path;
     if (item.children) {
       return item.children.some((child) => pathname === child.path);
