@@ -12,7 +12,7 @@ import {
 import { paymentsApi, type Payment } from '@/api/paymentsApi';
 import {
   Wallet, RefreshCw, Banknote, CreditCard, SplitSquareHorizontal,
-  CalendarDays, DollarSign, ChevronRight,
+  CalendarDays, DollarSign, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -23,16 +23,32 @@ export default function TodayPaymentsPage() {
   const [error, setError] = useState('');
   const [noteDialog, setNoteDialog] = useState<{ paymentId: number; note: string } | null>(null);
 
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [isDirector, setIsDirector] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem('admin');
+      if (raw) {
+        const admin = JSON.parse(raw);
+        setIsDirector(admin.role === 'director' || admin.role === 'super_admin');
+      }
+    } catch {}
+  }, []);
+
   const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 
-  const loadData = async () => {
+  const loadData = async (date: string) => {
     try {
       setLoading(true);
       setError('');
-      const today = new Date().toISOString().split('T')[0];
       const data = await paymentsApi.getAll({
-        date_from: today,
-        date_to: today,
+        date_from: date,
+        date_to: date,
       });
       setPayments(data);
     } catch (err: any) {
@@ -44,13 +60,20 @@ export default function TodayPaymentsPage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (mounted) loadData(selectedDate);
+  }, [selectedDate, mounted]);
 
   const formatSum = (n: number) => Math.floor(n).toLocaleString();
 
-  const today = new Date();
-  const todayStr = `${today.getDate().toString().padStart(2, '0')}.${(today.getMonth() + 1).toString().padStart(2, '0')}.${today.getFullYear()}`;
+  const selectedDateObj = new Date(selectedDate + 'T00:00:00');
+  const displayDate = `${selectedDateObj.getDate().toString().padStart(2, '0')}.${(selectedDateObj.getMonth() + 1).toString().padStart(2, '0')}.${selectedDateObj.getFullYear()}`;
+
+  const navigateDate = (delta: number) => {
+    if (!isDirector) return;
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() + delta);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
 
   // Calculate stats from payments
   const stats = (() => {
@@ -114,21 +137,47 @@ export default function TodayPaymentsPage() {
     return <Badge className={`${m.class} text-xs px-1.5 py-0.5 border`}>{m.label}</Badge>;
   };
 
+  if (!mounted) return <Layout><div className="p-4 md:p-6" /></Layout>;
+
   return (
     <Layout>
       <div className="space-y-4 md:space-y-6 p-4 md:p-6 w-full">
+        {/* Header with date filter */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 md:h-6 md:w-6 text-blue-600" /> Bugungi to'lovlar
+              <CalendarDays className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
+              {isDirector ? 'To\'lovlar' : 'Bugungi to\'lovlar'}
             </h1>
             <p className="text-xs md:text-sm text-gray-500">
-              {todayStr} — sanasida to'langan barcha to'lovlar (avvalgi oylar uchun ham)
+              {displayDate} — sanasida to'langan barcha to'lovlar
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={loadData} className="border-gray-300 h-8 text-xs">
-            <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} /> Yangilash
-          </Button>
+          <div className="flex items-center gap-2">
+            {isDirector ? (
+              <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
+                <button onClick={() => navigateDate(-1)} className="p-1 rounded hover:bg-gray-100 text-gray-500">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="text-sm text-gray-800 font-medium border-0 outline-none bg-transparent w-[130px] text-center cursor-pointer"
+                />
+                <button onClick={() => navigateDate(1)} className="p-1 rounded hover:bg-gray-100 text-gray-500">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-600 font-medium bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+                {displayDate}
+              </div>
+            )}
+            <Button variant="outline" size="sm" onClick={() => loadData(selectedDate)} className="border-gray-300 h-8 text-xs">
+              <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} /> Yangilash
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -144,15 +193,15 @@ export default function TodayPaymentsPage() {
           <Card className="border-0 shadow-sm border-red-200 bg-red-50">
             <CardContent className="p-6 text-center">
               <p className="text-red-600 font-medium">{error}</p>
-              <Button variant="outline" size="sm" onClick={loadData} className="mt-3">Qayta yuklash</Button>
+              <Button variant="outline" size="sm" onClick={() => loadData(selectedDate)} className="mt-3">Qayta yuklash</Button>
             </CardContent>
           </Card>
         ) : payments.length === 0 ? (
           <Card className="border-0 shadow-sm">
             <CardContent className="p-8 md:p-12 text-center">
               <Wallet className="h-12 w-12 md:h-16 md:w-16 mx-auto text-gray-300 mb-3" />
-              <p className="text-sm md:text-base text-gray-500 font-medium">Bugun hech qanday to'lov bo'lmagan</p>
-              <p className="text-xs md:text-sm text-gray-400 mt-1">{todayStr} sanasida to'lovlar mavjud emas</p>
+              <p className="text-sm md:text-base text-gray-500 font-medium">{displayDate} sanasida to'lovlar mavjud emas</p>
+              <p className="text-xs md:text-sm text-gray-400 mt-1">Bu sanada hech qanday to'lov bo'lmagan</p>
             </CardContent>
           </Card>
         ) : (
@@ -313,7 +362,7 @@ export default function TodayPaymentsPage() {
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-4">
                 <CardTitle className="text-gray-800 text-sm md:text-base flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-gray-600" /> Bugun to'langan to'lovlar ({payments.length} ta)
+                  <Wallet className="h-4 w-4 text-gray-600" /> {displayDate} to'langan to'lovlar ({payments.length} ta)
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -422,7 +471,7 @@ export default function TodayPaymentsPage() {
                     await paymentsApi.update(noteDialog.paymentId, { note: noteDialog.note || '' });
                     toast.success("Izoh saqlandi");
                     setNoteDialog(null);
-                    loadData();
+                    loadData(selectedDate);
                   } catch { toast.error("Xatolik"); }
                 }} className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white">
                   Saqlash

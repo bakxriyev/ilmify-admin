@@ -106,7 +106,6 @@ export default function CreateGroupPage() {
       if (formData.support_teacher_id) payload.support_teacher_id = Number(formData.support_teacher_id);
       if (formData.room_id) payload.room_id = Number(formData.room_id);
       if (formData.monthly_price) payload.monthly_price = formData.monthly_price;
-      if (formData.kp) payload.kp = formData.kp;
       if (formData.start_date) payload.start_date = formData.start_date;
       if (formData.duration_months) payload.duration_months = formData.duration_months;
       if (formData.time) payload.time = formData.time;
@@ -224,21 +223,6 @@ export default function CreateGroupPage() {
                           )}
                         </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="kp" className="text-gray-900 font-medium text-sm flex items-center gap-1">
-                            <Wallet className="h-3.5 w-3.5 text-gray-400" /> O'quvchi narxi (KP)
-                          </Label>
-                          <Input
-                            id="kp"
-                            type="text"
-                            inputMode="numeric"
-                            value={formData.kp ? String(formData.kp) : ''}
-                            onChange={(e) => setFormData({ ...formData, kp: e.target.value.replace(/\D/g, '') ? Number(e.target.value.replace(/\D/g, '')) : undefined })}
-                            placeholder="Masalan, 150000"
-                            className="h-11 text-sm rounded-xl border-gray-300 focus:border-blue-400 focus:ring-blue-400 transition-all"
-                          />
-                          <p className="text-xs text-gray-500">Ustozga beriladigan KP summasi</p>
-                        </div>
                       </div>
                     </div>
 

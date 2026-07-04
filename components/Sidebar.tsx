@@ -13,7 +13,7 @@ import {
   Award, Target, TrendingUp, Activity, Zap, Heart, Star, Moon, Sun,
   Newspaper, Camera as CameraIcon, Building2, Wallet, Link as LinkIcon,
   PhoneIcon, Bot, PrinterIcon, ReceiptIcon,
-  SparklesIcon, CheckCircle, AlertCircle,
+  SparklesIcon, CheckCircle, AlertCircle, DollarSign,
 } from 'lucide-react';
 import { adminApi } from '../api/adminApi';
 import { educationCentersApi, type EducationCenter } from '../api/educationCentersApi';
@@ -86,6 +86,7 @@ const iconMap = {
   PrinterIcon: PrinterIcon,        // for Printer settings
   ReceiptIcon: ReceiptIcon,        // for Receipt history
   AlertCircle: AlertCircle,        // for Suspicious
+  DollarSignIcon: DollarSign,      // for Teacher Salaries
 };
 
 const navigationItems: NavigationItem[] = [
@@ -205,6 +206,14 @@ const navigationItems: NavigationItem[] = [
     icon: 'BarChart3Icon',
     badge: 0,
     permKey: 'reports',
+  },
+  {
+    label: 'Ustoz oyliklari',
+    path: '/teacher-salaries',
+    icon: 'DollarSignIcon',
+    badge: 0,
+    permKey: 'reports',
+    roleRequired: 'director',
   },
   {
     label: 'Adminlar',
@@ -505,13 +514,13 @@ export default function Sidebar({
 
   // Hydration error kelmasligi uchun: serverda hamma itemlarni ko'rsat,
   // mount bo'lgandan keyin permission asosida filtrla
-  const visibleItems = !mounted
-    ? navigationItems
-    : navigationItems.filter(item => {
-        if (effectiveRole === 'director') return true;
-        if (!item.permKey || !effectivePerms) return true;
-        return effectivePerms[item.permKey] === true;
-      });
+  const visibleItems = navigationItems.filter(item => {
+    if (item.roleRequired === 'director' && effectiveRole !== 'director') return false;
+    if (!mounted) return true;
+    if (effectiveRole === 'director') return true;
+    if (!item.permKey || !effectivePerms) return true;
+    return effectivePerms[item.permKey] === true;
+  });
 
   // Priority labels for mobile: always show these + "..." for rest
   const priorityLabels = ['Dashboard', 'Studentlar', "O'qituvchilar", 'Davomat', "O'qituvchi davomati", "To'lovlar"];

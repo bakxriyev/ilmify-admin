@@ -49,7 +49,6 @@ export default function EditGroupPage() {
   const [mainTeacherSearch, setMainTeacherSearch] = useState('');
   const [supportTeacherSearch, setSupportTeacherSearch] = useState('');
   const [priceText, setPriceText] = useState('');
-  const [kpText, setKpText] = useState('');
 
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonsLoading, setLessonsLoading] = useState(false);
@@ -84,10 +83,8 @@ export default function EditGroupPage() {
           support_teacher_id: groupData.support_teacher_id ? String(groupData.support_teacher_id) : '',
           room_id: groupData.room_id ? String(groupData.room_id) : '',
           monthly_price: groupData.monthly_price,
-          kp: groupData.kp,
         });
         setPriceText(groupData.monthly_price ? String(groupData.monthly_price) : '');
-        setKpText(groupData.kp ? String(groupData.kp) : '');
 
         const teachers = teachersRes.data;
         setMainTeachers(teachers.filter(t => t.teacher_type === 'MAIN_TEACHER'));
@@ -142,7 +139,6 @@ export default function EditGroupPage() {
       }
       payload.room_id = formData.room_id ? Number(formData.room_id) : null;
       payload.monthly_price = priceText ? Number(priceText) : undefined;
-      payload.kp = kpText ? Number(kpText) : undefined;
 
       await groupsApi.update(groupId, payload);
       toast.success('Guruh muvaffaqiyatli yangilandi!');
@@ -314,25 +310,6 @@ export default function EditGroupPage() {
                           )}
                         </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="kp" className="text-gray-900 font-medium text-sm flex items-center gap-1">
-                            <Wallet className="h-3.5 w-3.5 text-gray-400" /> O'quvchi narxi (KP)
-                          </Label>
-                          <Input
-                            id="kp"
-                            type="text"
-                            inputMode="numeric"
-                            value={kpText}
-                            onChange={(e) => {
-                              const digits = e.target.value.replace(/\D/g, '');
-                              setKpText(digits);
-                              setFormData({ ...formData, kp: digits ? Number(digits) : undefined });
-                            }}
-                            placeholder="Masalan, 150000"
-                            className="h-11 text-sm rounded-xl border-gray-300 focus:border-blue-400 focus:ring-blue-400 transition-all"
-                          />
-                          <p className="text-xs text-gray-500">Ustozga beriladigan KP summasi</p>
-                        </div>
                       </div>
                     </div>
 
