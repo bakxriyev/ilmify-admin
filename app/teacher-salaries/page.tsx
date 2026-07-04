@@ -4,9 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { teacherCommissionsApi, type TeacherSalary, type TeacherCommission } from '@/api/teacherCommissionsApi';
 import { teachersApi, type Teacher } from '@/api/teachersApi';
-import { Search, ChevronDown, ChevronUp, ChevronRight, ChevronLeft, DollarSign } from 'lucide-react';
+import { educationCentersApi } from '@/api/educationCentersApi';
+import { Search, ChevronDown, ChevronUp, ChevronRight, ChevronLeft, DollarSign, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const monthNames = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
@@ -31,15 +33,20 @@ export default function TeacherSalariesPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
 
+  const [salaryVisible, setSalaryVisible] = useState(true);
+  const [salaryVisLoading, setSalaryVisLoading] = useState(false);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [t, c] = await Promise.all([
+      const [t, c, vis] = await Promise.all([
         teachersApi.getAll({ limit: 200 }),
         teacherCommissionsApi.getAll(),
+        educationCentersApi.getSalaryVisibility().catch(() => ({ salary_visible: true })),
       ]);
       setTeachers(t.data || []);
       setCommissions(c);
+      setSalaryVisible(vis.salary_visible);
     } catch {
       toast.error('Ma\'lumotlarni yuklashda xatolik');
     } finally {
@@ -63,6 +70,19 @@ export default function TeacherSalariesPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { loadSalaries(); }, [loadSalaries]);
+
+  const handleToggleSalaryVisibility = async (checked: boolean) => {
+    try {
+      setSalaryVisLoading(true);
+      await educationCentersApi.updateSalaryVisibility(checked);
+      setSalaryVisible(checked);
+      toast.success(checked ? 'Oylik ko\'rindi' : 'Oylik yashirildi');
+    } catch {
+      toast.error('Xatolik yuz berdi');
+    } finally {
+      setSalaryVisLoading(false);
+    }
+  };
 
   const handleSavePercentage = async (teacherId: number) => {
     const pct = parseFloat(editValue);
@@ -138,6 +158,17 @@ export default function TeacherSalariesPage() {
             <button onClick={() => navigateMonth(1)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
               <ChevronRight className="h-4 w-4" />
             </button>
+            <div className="w-px h-6 bg-gray-200 mx-1" />
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <EyeOff className="h-3.5 w-3.5" />
+              <Switch
+                checked={salaryVisible}
+                onCheckedChange={handleToggleSalaryVisibility}
+                disabled={salaryVisLoading}
+                className="data-[state=checked]:bg-green-500"
+              />
+              <Eye className="h-3.5 w-3.5" />
+            </div>
             <div className="w-px h-6 bg-gray-200 mx-1" />
             <Button variant="outline" size="sm" onClick={() => { loadData(); loadSalaries(); }}
               className="text-xs h-8 border-gray-300">

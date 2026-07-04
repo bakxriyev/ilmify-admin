@@ -114,6 +114,12 @@ export const educationCentersApi = {
     api.get<{ token: string }>('/education-centers/my-public-token').then(r => r.data),
   updateServerCost: (id: number, cost: number) =>
     api.patch(`/education-centers/${id}/server-cost`, { cost }).then(r => r.data),
+  getSalaryVisibility: () =>
+    api.get<{ salary_visible: boolean }>('/education-centers/settings/salary-visibility').then(r => r.data),
+
+  updateSalaryVisibility: (salaryVisible: boolean) =>
+    api.put('/education-centers/settings/salary-visibility', { salary_visible: salaryVisible }).then(r => r.data),
+
   uploadLogo: async (id: number, file: File) => {
     // Rasmni compress qilish (katta fayllarni server qabul qilmasligi mumkin)
     let uploadFile = file;
