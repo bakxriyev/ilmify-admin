@@ -33,7 +33,7 @@ const formatSum = (n: number) => {
 
 const paymentTypeLabel = (type: string | null) => {
   if (!type) return '-';
-  const map: any = { click: 'Click', naqt: 'Naqt', karta: 'Karta' };
+  const map: any = { click: 'Click', naqt: 'Naqd', karta: 'Karta' };
   return map[type] || type;
 };
 

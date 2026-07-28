@@ -115,10 +115,10 @@ export default function TodayPaymentsPage() {
 
   const paymentTypeBadge = (type: string | null | undefined) => {
     const map: any = {
-      naqt: { label: 'Naqt', class: 'text-green-700 bg-green-50 border-green-200' },
+      naqt: { label: 'Naqd', class: 'text-green-700 bg-green-50 border-green-200' },
       karta: { label: 'Karta', class: 'text-purple-700 bg-purple-50 border-purple-200' },
-      yarim_naqt_yarim_karta: { label: 'Yarim naqt/karta', class: 'text-orange-700 bg-orange-50 border-orange-200' },
       click: { label: 'Click', class: 'text-blue-700 bg-blue-50 border-blue-200' },
+      yarim_naqt_yarim_karta: { label: 'Yarim naqd/karta', class: 'text-orange-700 bg-orange-50 border-orange-200' },
     };
     const m = map[type || ''] || { label: type || '-', class: 'text-gray-600 bg-gray-50 border-gray-200' };
     return <Badge className={`${m.class} text-xs px-1.5 py-0.5 border`}>{m.label}</Badge>;
@@ -208,7 +208,7 @@ export default function TodayPaymentsPage() {
                 <CardContent className="p-4 md:p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs md:text-sm text-green-600 font-medium">Naqt tushum</p>
+                      <p className="text-xs md:text-sm text-green-600 font-medium">Naqd tushum</p>
                       <p className="text-xl md:text-3xl font-bold text-green-800 mt-1">{stats.naqt_count + stats.split_count} ta</p>
                     </div>
                     <div className="p-2.5 md:p-3 bg-green-200 rounded-full">
@@ -239,7 +239,7 @@ export default function TodayPaymentsPage() {
                   <CardContent className="p-4 md:p-5">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs md:text-sm text-orange-600 font-medium">Yarim naqt/karta</p>
+                        <p className="text-xs md:text-sm text-orange-600 font-medium">Yarim naqd/karta</p>
                         <p className="text-xl md:text-3xl font-bold text-orange-800 mt-1">{stats.split_count} ta</p>
                       </div>
                       <div className="p-2.5 md:p-3 bg-orange-200 rounded-full">
@@ -247,7 +247,7 @@ export default function TodayPaymentsPage() {
                       </div>
                     </div>
                     <div className="flex gap-3 mt-2 text-xs">
-                      <span className="text-green-700">Naqt: {formatSum(stats.split_cash_amount)} so'm</span>
+                      <span className="text-green-700">Naqd: {formatSum(stats.split_cash_amount)} so'm</span>
                       <span className="text-purple-700">Karta: {formatSum(stats.split_card_amount)} so'm</span>
                     </div>
                   </CardContent>
@@ -263,7 +263,7 @@ export default function TodayPaymentsPage() {
                     <Banknote className="h-5 w-5 md:h-6 md:w-6 text-green-700" />
                   </div>
                   <div>
-                    <p className="text-xs md:text-sm text-green-700 font-medium">Jami naqt tushum</p>
+                    <p className="text-xs md:text-sm text-green-700 font-medium">Jami naqd tushum</p>
                     <p className="text-xl md:text-3xl font-bold text-green-900 mt-0.5">{formatSum(stats.total_cash)} so'm</p>
                   </div>
                 </CardContent>
@@ -302,7 +302,7 @@ export default function TodayPaymentsPage() {
                     </thead>
                     <tbody>
                       <tr className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="p-2 md:p-3 font-medium text-green-700">Naqt</td>
+                        <td className="p-2 md:p-3 font-medium text-green-700">Naqd</td>
                         <td className="p-2 md:p-3 text-center">{stats.naqt_count} ta</td>
                         <td className="p-2 md:p-3 text-right font-medium">{formatSum(stats.naqt_amount)} so'm</td>
                         <td className="p-2 md:p-3 text-right font-medium">{formatSum(stats.naqt_amount)} so'm</td>
@@ -317,7 +317,7 @@ export default function TodayPaymentsPage() {
                       </tr>
                       {stats.split_count > 0 && (
                         <tr className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="p-2 md:p-3 font-medium text-orange-700">Yarim naqt/karta</td>
+                          <td className="p-2 md:p-3 font-medium text-orange-700">Yarim naqd/karta</td>
                           <td className="p-2 md:p-3 text-center">{stats.split_count} ta</td>
                           <td className="p-2 md:p-3 text-right font-medium">{formatSum(stats.split_cash_amount + stats.split_card_amount)} so'm</td>
                           <td className="p-2 md:p-3 text-right font-medium">{formatSum(stats.split_cash_amount)} so'm</td>

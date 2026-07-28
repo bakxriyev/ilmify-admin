@@ -95,18 +95,19 @@ export default function StudentPaymentsPage() {
                         <td className="p-3 text-center">
                           {(() => {
                             const pt = p.payment_type;
-                            const map: any = { naqt: 'Naqt', karta: 'Karta', yarim_naqt_yarim_karta: 'Yarim naqt/karta' };
+                            const map: any = { naqt: 'Naqd', karta: 'Karta', click: 'Click', yarim_naqt_yarim_karta: 'Yarim naqd/karta' };
                             const label = pt ? (map[pt] || pt) : '-';
                             let cls = 'text-gray-400';
                             if (pt === 'naqt') cls = 'text-green-600 bg-green-50 border-green-200';
                             else if (pt === 'karta') cls = 'text-purple-600 bg-purple-50 border-purple-200';
+                            else if (pt === 'click') cls = 'text-blue-600 bg-blue-50 border-blue-200';
                             else if (pt === 'yarim_naqt_yarim_karta') cls = 'text-orange-600 bg-orange-50 border-orange-200';
                             return pt ? (
                               <div>
                                 <Badge className={`${cls} text-xs px-1.5 py-0.5 border`}>{label}</Badge>
                                 {pt === 'yarim_naqt_yarim_karta' && p.cash_amount != null && p.card_amount != null && (
                                   <div className="text-[9px] text-gray-500 mt-0.5">
-                                    Naqt: {Number(p.cash_amount).toLocaleString()} | Karta: {Number(p.card_amount).toLocaleString()}
+                                    Naqd: {Number(p.cash_amount).toLocaleString()} | Karta: {Number(p.card_amount).toLocaleString()}
                                   </div>
                                 )}
                               </div>

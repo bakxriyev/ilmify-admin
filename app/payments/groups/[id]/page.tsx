@@ -115,7 +115,7 @@ export default function GroupPaymentsPage() {
         paidMonth: monthNames[Number(month) - 1],
         paidYear: String(year),
         paidAt: paidAtStr,
-        paymentType: 'Naqt',
+        paymentType: 'Naqd',
         amount: group?.monthly_price || 0,
         adminName,
         receiptWidth: settings.receipt_width || 320,
@@ -161,7 +161,7 @@ export default function GroupPaymentsPage() {
       paidMonth: monthNames[Number(month) - 1],
       paidYear: String(year),
       paidAt: paidAtStr,
-      paymentType: item.payment?.payment_type === 'naqt' ? 'Naqt' : item.payment?.payment_type === 'karta' ? 'Karta' : item.payment?.payment_type === 'click' ? 'Click' : item.payment?.payment_type || 'Naqt',
+      paymentType: item.payment?.payment_type === 'naqt' ? 'Naqd' : item.payment?.payment_type === 'karta' ? 'Karta' : item.payment?.payment_type === 'click' ? 'Click' : item.payment?.payment_type || 'Naqd',
       amount: item.payment?.amount || group?.monthly_price || 0,
       adminName,
       receiptWidth: settings.receipt_width || 320,
@@ -275,7 +275,7 @@ export default function GroupPaymentsPage() {
                         <td className="p-3 text-center">
                           {(() => {
                             const pt = item.payment?.payment_type;
-                            const map: any = { naqt: 'Naqt', karta: 'Karta', click: 'Click' };
+                            const map: any = { naqt: 'Naqd', karta: 'Karta', click: 'Click' };
                             const label = pt ? (map[pt] || pt) : '-';
                             const cls = pt === 'naqt' ? 'text-green-600 bg-green-50 border-green-200' : pt === 'karta' ? 'text-purple-600 bg-purple-50 border-purple-200' : pt === 'click' ? 'text-blue-600 bg-blue-50 border-blue-200' : 'text-gray-400';
                             return pt ? (

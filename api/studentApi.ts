@@ -324,4 +324,9 @@ export const studentsApi = {
     const response = await api.post('/students/merge', { main_student_id, secondary_student_id });
     return response.data;
   },
+
+  transferStudent: async (data: { student_id: number; from_group_id: number; to_group_id: number }): Promise<{ message: string }> => {
+    const response = await api.post('/students/transfer', data);
+    return response.data;
+  },
 };

@@ -405,7 +405,7 @@ export default function PaymentsPage() {
       paidMonth: monthNames[month - 1],
       paidYear: String(year),
       paidAt: paidAtStr,
-      paymentType: ptype === 'naqt' ? 'Naqt' : ptype === 'karta' ? 'Karta' : ptype === 'yarim_naqt_yarim_karta' ? 'Yarim naqt/karta' : ptype || 'Naqt',
+      paymentType: ptype === 'naqt' ? 'Naqd' : ptype === 'karta' ? 'Karta' : ptype === 'click' ? 'Click' : ptype === 'yarim_naqt_yarim_karta' ? 'Yarim naqd/karta' : ptype || 'Naqd',
       amount,
       adminName,
       receiptWidth: settings.receipt_width || 320,
@@ -545,7 +545,7 @@ export default function PaymentsPage() {
       const now = new Date();
       const paidAtStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       const student = selectedStudentDebts.student;
-      const ptypeLabel = resolvedType === 'naqt' ? 'Naqt' : resolvedType === 'karta' ? 'Karta' : resolvedType === 'yarim_naqt_yarim_karta' ? 'Yarim naqt/karta' : resolvedType || 'Naqt';
+      const ptypeLabel = resolvedType === 'naqt' ? 'Naqd' : resolvedType === 'karta' ? 'Karta' : resolvedType === 'click' ? 'Click' : resolvedType === 'yarim_naqt_yarim_karta' ? 'Yarim naqd/karta' : resolvedType || 'Naqd';
 
       printReceipt({
         receiptNumber: undefined,
@@ -702,7 +702,7 @@ export default function PaymentsPage() {
         paidMonth: '',
         paidYear: '',
         paidAt: paidAtStr,
-        paymentType: resolvedType === 'naqt' ? 'Naqt' : resolvedType === 'karta' ? 'Karta' : resolvedType === 'click' ? 'Click' : resolvedType || 'Naqt',
+        paymentType: resolvedType === 'naqt' ? 'Naqd' : resolvedType === 'karta' ? 'Karta' : resolvedType === 'click' ? 'Click' : resolvedType || 'Naqd',
         amount: Number(multiPayAmount),
         adminName,
         receiptWidth: settings.receipt_width || 320,
@@ -853,7 +853,7 @@ export default function PaymentsPage() {
         paidMonth: monthNames[item.month - 1],
         paidYear: String(item.year),
         paidAt: paidAtStr,
-        paymentType: (item.payment?.payment_type === 'naqt' ? 'Naqt' : item.payment?.payment_type === 'karta' ? 'Karta' : item.payment?.payment_type === 'yarim_naqt_yarim_karta' ? 'Yarim naqt/karta' : item.payment?.payment_type || 'Naqt'),
+        paymentType: (item.payment?.payment_type === 'naqt' ? 'Naqd' : item.payment?.payment_type === 'karta' ? 'Karta' : item.payment?.payment_type === 'click' ? 'Click' : item.payment?.payment_type === 'yarim_naqt_yarim_karta' ? 'Yarim naqd/karta' : item.payment?.payment_type || 'Naqd'),
         amount: item.paid_amount || item.monthly_price,
         adminName,
         receiptWidth: settings.receipt_width || 320,
@@ -883,9 +883,10 @@ export default function PaymentsPage() {
   const paymentTypeLabel = (type: string | null | undefined) => {
     if (!type) return { label: '-', class: 'text-gray-400' };
     const map: any = {
-      naqt: { label: 'Naqt', class: 'text-green-600 bg-green-50 border-green-200' },
+      naqt: { label: 'Naqd', class: 'text-green-600 bg-green-50 border-green-200' },
       karta: { label: 'Karta', class: 'text-purple-600 bg-purple-50 border-purple-200' },
-      yarim_naqt_yarim_karta: { label: 'Yarim naqt/karata', class: 'text-orange-600 bg-orange-50 border-orange-200' },
+      click: { label: 'Click', class: 'text-blue-600 bg-blue-50 border-blue-200' },
+      yarim_naqt_yarim_karta: { label: 'Yarim naqd/karta', class: 'text-orange-600 bg-orange-50 border-orange-200' },
     };
     return map[type] || { label: type, class: 'text-gray-600 bg-gray-50 border-gray-200' };
   };
@@ -1057,9 +1058,10 @@ export default function PaymentsPage() {
                     <SelectTrigger className="w-28 md:w-44 h-8 text-xs border-blue-300 focus:ring-blue-500"><SelectValue placeholder="To'lov turi" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all" className="text-xs">Barcha turlar</SelectItem>
-                      <SelectItem value="naqt" className="text-xs">Naqt</SelectItem>
+                      <SelectItem value="naqt" className="text-xs">Naqd</SelectItem>
                       <SelectItem value="karta" className="text-xs">Karta</SelectItem>
-                      <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqt/karta</SelectItem>
+                      <SelectItem value="click" className="text-xs">Click</SelectItem>
+                      <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqd/karta</SelectItem>
                     </SelectContent>
                   </Select>
                   <div className="flex items-center gap-1">
@@ -1689,20 +1691,21 @@ export default function PaymentsPage() {
                         <Select value={newPaymentType} onValueChange={v => setNewPaymentType(v)}>
                           <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="naqt" className="text-xs">Naqt</SelectItem>
+                            <SelectItem value="naqt" className="text-xs">Naqd</SelectItem>
                             <SelectItem value="karta" className="text-xs">Karta</SelectItem>
-                            <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqt/karta</SelectItem>
+                            <SelectItem value="click" className="text-xs">Click</SelectItem>
+                            <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqd/karta</SelectItem>
                           </SelectContent>
                         </Select>
                         {newPaymentType === 'yarim_naqt_yarim_karta' && (
                           <div className="grid grid-cols-2 gap-2 mt-1">
                             <div>
-                              <Label className="text-[10px] text-gray-500">Naqt qismi (so'm)</Label>
+                              <Label className="text-[10px] text-gray-500">Naqd qismi (so'm)</Label>
                               <Input
                                 type="number"
                                 value={newCashAmount}
                                 onChange={e => setNewCashAmount(e.target.value)}
-                                placeholder="Naqt summa"
+                                placeholder="Naqd summa"
                                 className="h-8 text-sm"
                               />
                             </div>
@@ -1775,20 +1778,21 @@ export default function PaymentsPage() {
                       <Select value={paymentType} onValueChange={v => setPaymentType(v)}>
                         <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="naqt" className="text-xs">Naqt</SelectItem>
+                          <SelectItem value="naqt" className="text-xs">Naqd</SelectItem>
                           <SelectItem value="karta" className="text-xs">Karta</SelectItem>
-                          <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqt/karta</SelectItem>
+                          <SelectItem value="click" className="text-xs">Click</SelectItem>
+                          <SelectItem value="yarim_naqt_yarim_karta" className="text-xs">Yarim naqd/karta</SelectItem>
                         </SelectContent>
                       </Select>
                       {paymentType === 'yarim_naqt_yarim_karta' && (
                         <div className="grid grid-cols-2 gap-2 mt-1">
                           <div>
-                            <Label className="text-[10px] text-gray-500">Naqt qismi (so'm)</Label>
+                            <Label className="text-[10px] text-gray-500">Naqd qismi (so'm)</Label>
                             <Input
                               type="number"
                               value={cashAmount}
                               onChange={e => setCashAmount(e.target.value)}
-                              placeholder="Naqt summa"
+                              placeholder="Naqd summa"
                               className="h-8 text-sm"
                             />
                           </div>
@@ -1914,7 +1918,7 @@ export default function PaymentsPage() {
                 <Select value={multiPayType} onValueChange={v => { setMultiPayType(v); if (v !== 'boshqa') setMultiPayCustomType(''); }}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="naqt" className="text-xs">Naqt</SelectItem>
+                    <SelectItem value="naqt" className="text-xs">Naqd</SelectItem>
                     <SelectItem value="karta" className="text-xs">Karta</SelectItem>
                     <SelectItem value="click" className="text-xs">Click</SelectItem>
                     <SelectItem value="boshqa" className="text-xs">Boshqa</SelectItem>
@@ -2012,7 +2016,7 @@ export default function PaymentsPage() {
                   <div>
                     <p className="text-[10px] text-gray-500">To'lov turi</p>
                     <p className="font-medium text-gray-900">
-                      {confirmType === 'naqt' ? 'Naqt' : confirmType === 'karta' ? 'Karta' : confirmType === 'click' ? 'Click' : confirmType === 'yarim_naqt_yarim_karta' ? 'Yarim naqt/karta' : confirmType || 'Naqt'}
+                      {confirmType === 'naqt' ? 'Naqd' : confirmType === 'karta' ? 'Karta' : confirmType === 'click' ? 'Click' : confirmType === 'yarim_naqt_yarim_karta' ? 'Yarim naqd/karta' : confirmType || 'Naqd'}
                     </p>
                   </div>
                   <div>

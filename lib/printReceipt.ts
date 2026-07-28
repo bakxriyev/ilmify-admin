@@ -55,6 +55,7 @@ export function printReceipt(data: PrintData) {
 <head>
   <meta charset="utf-8">
   <title>Chek - ${receiptNo}</title>
+  <base href="about:blank">
   <style>
     @media print {
       @page { margin: 8mm; size: auto; }
@@ -415,11 +416,18 @@ export function printReceipt(data: PrintData) {
 </body>
 </html>`;
 
-  const win = window.open('', '_blank', `width=${Math.min(width + 100, 800)},height=700,scrollbars=yes,resizable=yes`);
-  if (!win) {
-    alert('Brauzer yangi oynani ochishga ruxsat bermadi. Qalqib chiquvchi oynalarga ruxsat bering.');
-    return;
+  try {
+    const win = window.open('about:blank', '_blank', `width=${Math.min(width + 100, 800)},height=700,scrollbars=yes,resizable=yes`);
+    if (!win) {
+      alert('Brauzer yangi oynani ochishga ruxsat bermadi. Qalqib chiquvchi oynalarga ruxsat bering.');
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+  } catch (e) {
+    console.error('Chek oynasini ochishda xatolik:', e);
+    alert('Chek oynasini ochishda xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
   }
-  win.document.write(html);
-  win.document.close();
 }

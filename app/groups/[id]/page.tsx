@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -32,6 +33,14 @@ import { groupStudentsApi, type GroupStudent } from '@/api/groupStudentApi';
 import { attendanceApi, type MonthlyStats, type AttendanceCell } from '@/api/attendanceApi';
 import { paymentsApi, type GroupPaymentSummary } from '@/api/paymentsApi';
 import { lessonsApi } from '@/api/lessonsApi';
+import { studentsApi } from '@/api/studentApi';
+import { teachersApi, type Teacher } from '@/api/teachersApi';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
 import AddStudentsModal from '@/components/addStudentModal';
 import GenerateLessonsModal from '@/components/generateLessonsModal';
 import toast from 'react-hot-toast';
@@ -102,6 +111,15 @@ export default function GroupDetailPage() {
   const [showCloseGroup, setShowCloseGroup] = useState(false);
   const [closeDate, setCloseDate] = useState(now.toISOString().split('T')[0]);
   const [closingGroup, setClosingGroup] = useState(false);
+
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferStudentData, setTransferStudentData] = useState<{ id: number; first_name: string; last_name: string } | null>(null);
+  const [transferTargetGroupId, setTransferTargetGroupId] = useState<string>('');
+  const [transferTeacherId, setTransferTeacherId] = useState<string>('');
+  const [transferTargetGroups, setTransferTargetGroups] = useState<Group[]>([]);
+  const [transferTeachers, setTransferTeachers] = useState<Teacher[]>([]);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [targetGroupsLoading, setTargetGroupsLoading] = useState(false);
 
   const [gridYear, setGridYear] = useState(now.getFullYear());
   const [gridMonth, setGridMonth] = useState(now.getMonth());
@@ -199,6 +217,42 @@ export default function GroupDetailPage() {
     } finally {
       setDeletingLessons(false);
       setShowDeleteLessons(false);
+    }
+  };
+
+  const loadTeachersAndGroups = async () => {
+    try {
+      const [teachersRes, groupsRes] = await Promise.all([
+        teachersApi.getAll(),
+        groupsApi.getAll({ include: 'mainTeacher', limit: 1000 }),
+      ]);
+      setTransferTeachers(Array.isArray(teachersRes) ? teachersRes : teachersRes?.data || []);
+      setTransferTargetGroups(Array.isArray(groupsRes) ? groupsRes : groupsRes?.data || []);
+    } catch {
+      toast.error('Ma\'lumotlarni yuklashda xatolik');
+    }
+  };
+
+  const handleTransferStudent = async () => {
+    if (!transferStudentData || !transferTargetGroupId) {
+      toast.error('Guruhni tanlang');
+      return;
+    }
+    try {
+      setTransferLoading(true);
+      await studentsApi.transferStudent({
+        student_id: transferStudentData.id,
+        from_group_id: groupId,
+        to_group_id: Number(transferTargetGroupId),
+      });
+      toast.success(`${transferStudentData.first_name} ${transferStudentData.last_name} muvaffaqiyatli ko'chirildi`);
+      setShowTransferModal(false);
+      setTransferStudentData(null);
+      await fetchGroupStudents();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Xatolik yuz berdi');
+    } finally {
+      setTransferLoading(false);
     }
   };
 
@@ -894,7 +948,20 @@ export default function GroupDetailPage() {
                                       </div>
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-right py-4">
+                                  <TableCell className="text-right py-4 space-x-1">
+                                    <Button variant="ghost" size="sm"
+                                      className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 h-9 w-9 p-0 rounded-lg"
+                                      onClick={() => {
+                                        setTransferStudentData({ id: Number(student.id), first_name: student.first_name, last_name: student.last_name });
+                                        setTransferTargetGroupId('');
+                                        setTransferTeacherId('');
+                                        setTransferTargetGroups([]);
+                                        setTransferTeachers([]);
+                                        setShowTransferModal(true);
+                                        loadTeachersAndGroups();
+                                      }}>
+                                      <Users className="h-4 w-4" />
+                                    </Button>
                                     <Button variant="ghost" size="sm"
                                       className="text-red-400 hover:text-red-600 hover:bg-red-50 h-9 w-9 p-0 rounded-lg"
                                       onClick={async () => {
@@ -1505,6 +1572,75 @@ export default function GroupDetailPage() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Transfer student dialog */}
+      <Dialog open={showTransferModal} onOpenChange={setShowTransferModal}>
+        <DialogContent className="bg-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" /> Studentni ko'chirish
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {transferStudentData ? `${transferStudentData.first_name} ${transferStudentData.last_name} — boshqa guruhga ko'chirish` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-700">O'qituvchi (ixtiyoriy)</Label>
+              <Select value={transferTeacherId} onValueChange={v => setTransferTeacherId(v)}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="O'qituvchini tanlang" />
+                </SelectTrigger>
+                <SelectContent>
+                  {transferTeachers.map(t => (
+                    <SelectItem key={t.id} value={String(t.id)} className="text-sm">
+                      {t.first_name} {t.last_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-700">Yangi guruh <span className="text-red-500">*</span></Label>
+              <Select value={transferTargetGroupId} onValueChange={v => setTransferTargetGroupId(v)}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Guruhni tanlang" />
+                </SelectTrigger>
+                <SelectContent>
+                  {transferTargetGroups
+                    .filter(g => !transferTeacherId || g.teacher_id === transferTeacherId || g.support_teacher_id === transferTeacherId)
+                    .filter(g => String(g.id) !== String(groupId))
+                    .map(g => (
+                      <SelectItem key={g.id} value={String(g.id)} className="text-sm">
+                        {g.name} {g.mainTeacher ? `(${g.mainTeacher.first_name} ${g.mainTeacher.last_name})` : ''}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {transferTargetGroupId && (() => {
+              const target = transferTargetGroups.find(g => String(g.id) === transferTargetGroupId);
+              return target ? (
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                  <p className="text-xs text-blue-700 font-medium">Tanlangan guruh</p>
+                  <p className="text-sm font-bold text-blue-900 mt-0.5">{target.name}</p>
+                  {target.mainTeacher && (
+                    <p className="text-xs text-blue-600 mt-0.5">O'qituvchi: {target.mainTeacher.first_name} {target.mainTeacher.last_name}</p>
+                  )}
+                </div>
+              ) : null;
+            })()}
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setShowTransferModal(false); setTransferStudentData(null); }} className="h-9 text-xs flex-1">
+              Bekor qilish
+            </Button>
+            <Button size="sm" onClick={handleTransferStudent} disabled={transferLoading || !transferTargetGroupId} className="h-9 text-xs flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+              {transferLoading ? <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> Ko'chirilmoqda...</> : <><Users className="h-3 w-3 mr-1.5" /> Ko'chirish</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Close group dialog */}
       <AlertDialog open={showCloseGroup} onOpenChange={setShowCloseGroup}>

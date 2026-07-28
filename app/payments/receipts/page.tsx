@@ -123,7 +123,7 @@ export default function ReceiptHistoryPage() {
                               r.payment.payment_type === 'click' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                               'bg-gray-50 text-gray-600 border-gray-200'
                             }`}>
-                              {r.payment.payment_type === 'naqt' ? 'Naqt' : r.payment.payment_type === 'karta' ? 'Karta' : r.payment.payment_type === 'click' ? 'Click' : r.payment.payment_type}
+                              {r.payment.payment_type === 'naqt' ? 'Naqd' : r.payment.payment_type === 'karta' ? 'Karta' : r.payment.payment_type === 'click' ? 'Click' : r.payment.payment_type}
                             </Badge>
                           ) : (
                             <span className="text-xs text-gray-400">-</span>
