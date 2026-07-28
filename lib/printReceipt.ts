@@ -410,24 +410,47 @@ export function printReceipt(data: PrintData) {
     window.onload = function() {
       setTimeout(function() {
         window.print();
-      }, 500);
+      }, 600);
     };
   </script>
 </body>
 </html>`;
 
   try {
-    const win = window.open('about:blank', '_blank', `width=${Math.min(width + 100, 800)},height=700,scrollbars=yes,resizable=yes`);
-    if (!win) {
-      alert('Brauzer yangi oynani ochishga ruxsat bermadi. Qalqib chiquvchi oynalarga ruxsat bering.');
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-9999px';
+    iframe.style.left = '-9999px';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      console.error('Iframe documenti ochilmadi');
+      document.body.removeChild(iframe);
       return;
     }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    win.focus();
+
+    iframeDoc.open();
+    iframeDoc.write(html);
+    iframeDoc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (printErr) {
+        console.error('Chop etishda xatolik:', printErr);
+      }
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 1000);
+    }, 600);
   } catch (e) {
-    console.error('Chek oynasini ochishda xatolik:', e);
-    alert('Chek oynasini ochishda xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
+    console.error('Chek yaratishda xatolik:', e);
   }
 }
