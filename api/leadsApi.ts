@@ -40,7 +40,7 @@ export const leadsApi = {
   createPublic: (data: { first_name: string; last_name: string; phone_number: string; comment?: string; source_id?: number; source_platform?: string; token?: string; center_id?: number }) =>
     api.post<Lead>('/leads/public', data).then(r => r.data),
   getCenterByToken: (token: string) =>
-    api.get<{ id: number; name: string }>(`/leads/public/center/${token}`).then(r => r.data),
+    api.get<{ id: number; name: string; logo?: string | null }>(`/leads/public/center/${token}`).then(r => r.data),
   update: (id: number, data: { status?: string; notes?: string; callback_date?: string }) =>
     api.patch<Lead>(`/leads/${id}`, data).then(r => r.data),
   remove: (id: number) => api.delete(`/leads/${id}`).then(r => r.data),

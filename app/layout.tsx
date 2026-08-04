@@ -13,10 +13,6 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Ilmify Edu',
   description: 'Ilmify Education - ta\'lim boshqaruv tizimi',
-  icons: {
-    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
-    apple: [{ url: '/logo.jpg' }],
-  },
 };
 
 export default function RootLayout({

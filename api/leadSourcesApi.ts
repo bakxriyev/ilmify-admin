@@ -9,6 +9,8 @@ export interface LeadSource {
   platform: string;
   code: string;
   is_active: boolean;
+  comment?: string;
+  courses?: string;
   createdAt: string;
 }
 
@@ -17,15 +19,17 @@ export interface LeadSourceWithCenter {
   name: string;
   platform: string;
   code: string;
-  center: { id: number; name: string } | null;
+  comment?: string;
+  courses?: string;
+  center: { id: number; name: string; logo?: string | null } | null;
 }
 
 export const leadSourcesApi = {
   getAll: () => api.get<LeadSource[]>('/lead-sources').then(r => r.data),
   getById: (id: number) => api.get<LeadSource>(`/lead-sources/${id}`).then(r => r.data),
-  create: (data: { name: string; platform: string; code: string }) =>
+  create: (data: { name: string; platform: string; code: string; comment?: string; courses?: string }) =>
     api.post<LeadSource>('/lead-sources', data).then(r => r.data),
-  update: (id: number, data: { name?: string; platform?: string; is_active?: boolean }) =>
+  update: (id: number, data: { name?: string; platform?: string; is_active?: boolean; comment?: string; courses?: string }) =>
     api.patch<LeadSource>(`/lead-sources/${id}`, data).then(r => r.data),
   remove: (id: number) => api.delete(`/lead-sources/${id}`).then(r => r.data),
   getByCode: (code: string): Promise<LeadSourceWithCenter> =>
