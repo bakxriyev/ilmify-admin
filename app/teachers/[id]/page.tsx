@@ -180,12 +180,6 @@ export default function TeacherDetailPage() {
             <p className="text-xs text-amber-600 font-medium">Asosiy/Yordamchi</p>
             <p className="text-xl font-bold text-gray-900">{mainGroups.length}/{supportGroups.length}</p>
           </div>
-          <div className="bg-emerald-50 rounded-xl p-3">
-            <p className="text-xs text-emerald-600 font-medium">Oylik daromad</p>
-            <p className="text-xl font-bold text-emerald-600">
-              {allGroups.reduce((s: number, g: any) => s + ((g.kp || 0) * (g.student_count || 0)), 0).toLocaleString()} so'm
-            </p>
-          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -350,6 +344,9 @@ export default function TeacherDetailPage() {
         </Tabs>
 
         <div className="flex gap-2">
+          <Button variant="outline" asChild className="border-emerald-300 text-emerald-700 hover:bg-emerald-50">
+            <Link href={`/teachers/${id}/payments`}><Wallet className="h-4 w-4 mr-2" /> To'lovlar hisoboti</Link>
+          </Button>
           <Button variant="outline" asChild className="border-blue-200 text-blue-600">
             <Link href={`/teachers/${id}/edit`}><Edit className="h-4 w-4 mr-2" /> Tahrirlash</Link>
           </Button>

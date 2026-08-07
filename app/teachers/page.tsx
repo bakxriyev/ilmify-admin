@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import {
   Users, Plus, Search, RefreshCw, ChevronLeft, ChevronRight,
-  Eye, Edit, Trash2, MoreVertical, Upload, X, AlertCircle, CheckCircle,
+  Eye, Edit, Trash2, MoreVertical, Upload, X, AlertCircle, CheckCircle, XCircle,
   Phone, Mail, Calendar, Building, Loader2, Filter,
   UserPlus, Download, Grid, List, Clock, MapPin, 
   BookOpen, MessageSquare, Settings, BarChart3, ChevronDown, ChevronUp,
-  GraduationCap, BookMarked, School, BadgeCheck, Users as UsersIcon, KeyRound
+  GraduationCap, BookMarked, School, BadgeCheck, Users as UsersIcon, KeyRound, Wallet
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +64,8 @@ interface FilterParams {
   email?: string;
   phone_number?: string;
   group_id?: number | 'notnull' | 0;
+  month?: number;
+  year?: number;
 }
 
 export default function TeachersPage() {
@@ -113,6 +115,10 @@ export default function TeachersPage() {
     sort_order: 'desc',
   });
 
+  const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+  const [reportMonth, setReportMonth] = useState<number>(new Date().getMonth() + 1);
+  const [reportYear, setReportYear] = useState<number>(new Date().getFullYear());
+
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
@@ -160,6 +166,10 @@ export default function TeachersPage() {
         params.group_id = 0;
       }
 
+      // Month/Year for payment stats
+      if (reportMonth) params.month = reportMonth;
+      if (reportYear) params.year = reportYear;
+
       const response = await teachersApi.getAll(params);
       
       setTeachers(response.data ?? []);
@@ -188,7 +198,7 @@ export default function TeachersPage() {
       setLoading(false);
       setTableLoading(false);
     }
-  }, [filters, activeTab]);
+  }, [filters, activeTab, reportMonth, reportYear]);
 
   useEffect(() => {
     fetchTeachers();
@@ -301,6 +311,12 @@ export default function TeachersPage() {
         'Mutaxassislik': t.specialization || '-',
         'Oʻquvchilar soni': t.students_count || 0,
         'Guruhlar soni': getTeacherGroups(t).length,
+        [`To'langan (${monthNames[reportMonth - 1]})`]: t.paid_count || 0,
+        [`To'lanmagan (${monthNames[reportMonth - 1]})`]: t.unpaid_count || 0,
+        'Qisman': t.partial_count || 0,
+        'To\'lov foizi': t.paid_percent != null ? `${t.paid_percent}%` : '0%',
+        "Jami to'langan summa": t.total_paid_amount || 0,
+        'Jami qarz': t.total_debt || 0,
       }));
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
@@ -308,7 +324,7 @@ export default function TeachersPage() {
       const colWidths = [
         { wch: 8 }, { wch: 20 }, { wch: 20 }, { wch: 30 },
         { wch: 18 }, { wch: 8 }, { wch: 10 }, { wch: 25 },
-        { wch: 14 }, { wch: 14 },
+        { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 10 }, { wch: 10 }, { wch: 18 }, { wch: 16 },
       ];
       ws['!cols'] = colWidths;
       XLSX.writeFile(wb, `oqituvchilar_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -532,7 +548,41 @@ export default function TeachersPage() {
                         </div>
                       </div>
 
+                      {/* Report month */}
+                      <div>
+                        <Label htmlFor="reportMonth" className="text-gray-700 dark:text-gray-300">Hisobot oyi</Label>
+                        <Select
+                          value={reportMonth.toString()}
+                          onValueChange={(v) => { setReportMonth(parseInt(v)); setFilters(prev => ({ ...prev, page: 1 })); }}
+                        >
+                          <SelectTrigger className="mt-1 border-gray-300 dark:border-gray-700 focus:ring-blue-500 dark:bg-gray-800 dark:text-white transition-all duration-300 w-full">
+                            <SelectValue placeholder="Oy tanlang" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-xl">
+                            {monthNames.map((name, i) => (
+                              <SelectItem key={i + 1} value={String(i + 1)}>{name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
+                      {/* Report year */}
+                      <div>
+                        <Label htmlFor="reportYear" className="text-gray-700 dark:text-gray-300">Hisobot yili</Label>
+                        <Select
+                          value={reportYear.toString()}
+                          onValueChange={(v) => { setReportYear(parseInt(v)); setFilters(prev => ({ ...prev, page: 1 })); }}
+                        >
+                          <SelectTrigger className="mt-1 border-gray-300 dark:border-gray-700 focus:ring-blue-500 dark:bg-gray-800 dark:text-white transition-all duration-300 w-full">
+                            <SelectValue placeholder="Yil tanlang" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-xl">
+                            {[2023, 2024, 2025, 2026, 2027].map(y => (
+                              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
                       {/* Items per page */}
                       <div>
@@ -676,9 +726,11 @@ export default function TeachersPage() {
                             <TableHead className="w-16 text-gray-700 dark:text-gray-300">#</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Oʻqituvchi</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Aloqa</TableHead>
-                            <TableHead className="text-gray-700 dark:text-gray-300">Parol</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Guruhlar</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300">Oʻquvchilar</TableHead>
+                            <TableHead className="text-gray-700 dark:text-gray-300">Toʻlagan</TableHead>
+                            <TableHead className="text-gray-700 dark:text-gray-300">Toʻlamagan</TableHead>
+                            <TableHead className="text-gray-700 dark:text-gray-300">Toʻlov foizi</TableHead>
                             <TableHead className="text-gray-700 dark:text-gray-300 text-right">Amallar</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -746,13 +798,7 @@ export default function TeachersPage() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                                  <KeyRound className="h-3 w-3 text-amber-500" />
-                                  <span className="font-mono text-xs truncate max-w-[150px]">{teacher.password || '-'}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                <div className="flex flex-wrap gap-1 max-w-[180px]">
                                   {(() => { const g = getTeacherGroups(teacher); return g.length > 0 ? (
                                     <>
                                       {g.slice(0, 2).map(group => (
@@ -774,8 +820,26 @@ export default function TeachersPage() {
                               <TableCell>
                                 <Badge variant="outline" className="border-blue-300 text-blue-800 dark:text-blue-400">
                                   <UsersIcon className="h-3 w-3 mr-1" />
-                                  {teacher.students_count || 0}
+                                  {teacher.students_count ?? getTeacherGroups(teacher).reduce((acc, g: any) => acc + (g.student_count || 0), 0)}
                                 </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  {teacher.paid_count ?? 0}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0">
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  {(teacher.unpaid_count ?? 0) + (teacher.partial_count ?? 0)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2 min-w-[90px]">
+                                  <Progress value={teacher.paid_percent || 0} className="h-2 w-16 bg-gray-200 dark:bg-gray-700" />
+                                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{teacher.paid_percent ?? 0}%</span>
+                                </div>
                               </TableCell>
                               <TableCell className="text-right dropdown-trigger" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-end gap-2">
@@ -799,6 +863,13 @@ export default function TeachersPage() {
                                       >
                                         <Eye className="h-4 w-4 mr-2 text-blue-600" />
                                         Koʻrish
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem 
+                                        onClick={() => router.push(`/teachers/${teacher.id}/payments`)}
+                                        className="cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-all duration-300"
+                                      >
+                                        <Wallet className="h-4 w-4 mr-2 text-emerald-600" />
+                                        Toʻlovlar hisoboti
                                       </DropdownMenuItem>
                                       <DropdownMenuItem 
                                         onClick={() => router.push(`/teachers/${teacher.id}/edit`)}
@@ -882,6 +953,10 @@ export default function TeachersPage() {
                                     <Eye className="h-4 w-4 mr-2 text-blue-600" />
                                     Koʻrish
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => router.push(`/teachers/${teacher.id}/payments`)}>
+                                    <Wallet className="h-4 w-4 mr-2 text-emerald-600" />
+                                    Toʻlovlar hisoboti
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => router.push(`/teachers/${teacher.id}/edit`)}>
                                     <Edit className="h-4 w-4 mr-2 text-emerald-600" />
                                     Tahrirlash
@@ -925,7 +1000,7 @@ export default function TeachersPage() {
                             )}
 
                             {(() => { const g = getTeacherGroups(teacher); return (<>
-                            <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
+                                                        <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
                               <div className="flex items-center gap-2">
                                 {g.length > 0 ? (
                                   <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-0">
@@ -940,8 +1015,23 @@ export default function TeachersPage() {
                                 
                                 <Badge variant="outline" className="border-blue-300 text-blue-800 dark:text-blue-400">
                                   <UsersIcon className="h-3 w-3 mr-1" />
-                                  {teacher.students_count || 0} oʻquvchi
+                                  {teacher.students_count ?? 0} oʻquvchi
                                 </Badge>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
+                                <p className="text-xs font-bold text-green-700 dark:text-green-400">{teacher.paid_count ?? 0}</p>
+                                <p className="text-[10px] text-gray-500">Toʻlagan</p>
+                              </div>
+                              <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-2 text-center">
+                                <p className="text-xs font-bold text-red-700 dark:text-red-400">{(teacher.unpaid_count ?? 0) + (teacher.partial_count ?? 0)}</p>
+                                <p className="text-[10px] text-gray-500">Toʻlamagan</p>
+                              </div>
+                              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 text-center">
+                                <p className="text-xs font-bold text-blue-700 dark:text-blue-400">{teacher.paid_percent ?? 0}%</p>
+                                <p className="text-[10px] text-gray-500">Foiz</p>
                               </div>
                             </div>
 
@@ -1067,7 +1157,7 @@ export default function TeachersPage() {
                           </div>
                           
                           {(() => { const g = getTeacherGroups(teacher); return (<>
-                          <div className="flex items-center gap-2 mb-4">
+                                                    <div className="flex items-center gap-2 mb-4">
                             <Badge className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0 px-3 py-1">
                               <Building className="h-3 w-3 mr-1" />
                               {g.length} guruh
@@ -1075,7 +1165,21 @@ export default function TeachersPage() {
                             
                             <Badge className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-0 px-3 py-1">
                               <UsersIcon className="h-3 w-3 mr-1" />
-                              {teacher.students_count || 0} oʻquvchi
+                              {teacher.students_count ?? 0} oʻquvchi
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center gap-2 mb-4 w-full justify-center">
+                            <Badge className="bg-green-100 text-green-700 border-0 px-2 py-1 text-xs">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              {teacher.paid_count ?? 0} toʻlagan
+                            </Badge>
+                            <Badge className="bg-red-100 text-red-700 border-0 px-2 py-1 text-xs">
+                              <XCircle className="h-3 w-3 mr-1" />
+                              {(teacher.unpaid_count ?? 0) + (teacher.partial_count ?? 0)} toʻlamagan
+                            </Badge>
+                            <Badge className="bg-blue-100 text-blue-700 border-0 px-2 py-1 text-xs">
+                              {teacher.paid_percent ?? 0}% toʻlov
                             </Badge>
                           </div>
                           
@@ -1102,6 +1206,15 @@ export default function TeachersPage() {
                             >
                               <Eye className="h-4 w-4 mr-1" />
                               Ko'rish
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => router.push(`/teachers/${teacher.id}/payments`)}
+                              className="flex-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-all duration-300 hover:scale-105"
+                            >
+                              <Wallet className="h-4 w-4 mr-1" />
+                              Hisobot
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>

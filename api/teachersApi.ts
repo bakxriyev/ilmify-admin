@@ -14,6 +14,13 @@ export interface Teacher {
   age?: string;
   specialization?: string;
   students_count?: number;
+  groups_count?: number;
+  paid_count?: number;
+  unpaid_count?: number;
+  partial_count?: number;
+  paid_percent?: number;
+  total_paid_amount?: number;
+  total_debt?: number;
   mainGroups?: Array<{
     id: number;
     name: string;
@@ -66,6 +73,8 @@ export interface GetAllTeachersParams {
   gmail?: string;                        // backendda email o'rniga gmail
   phone_number?: string;
   group_id?: number | 'notnull' | 0;
+  month?: number;
+  year?: number;
 }
 
 export interface TeachersResponse {
@@ -270,4 +279,138 @@ create: async (data: CreateTeacherRequest | FormData): Promise<Teacher> => {
       throw error;
     }
   },
+
+  /**
+   * Barcha o'qituvchilar to'lov hisoboti
+   */
+  getPaymentReport: async (month?: number, year?: number): Promise<TeacherPaymentReport> => {
+    try {
+      const response = await api.get('/teachers/payment-report', { params: { month, year } });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching teacher payment report:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Bitta o'qituvchining to'lov hisoboti (barcha o'quvchilari)
+   */
+  getTeacherPaymentReport: async (
+    id: string,
+    month?: number,
+    year?: number,
+    group_id?: number,
+  ): Promise<TeacherPaymentDetail> => {
+    try {
+      const response = await api.get(`/teachers/${id}/payment-report`, { params: { month, year, group_id } });
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching teacher ${id} payment report:`, error);
+      throw error;
+    }
+  },
 };
+
+export interface TeacherPaymentRow {
+  student: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    password?: string;
+  };
+  group: {
+    id: number;
+    name: string;
+    monthly_price: number;
+    parity?: string;
+    weekdays?: string;
+    lesson_time?: string;
+  };
+  payment: {
+    id: number;
+    amount: number;
+    status: string;
+    paid_at: string | null;
+    payment_type: string | null;
+    cash_amount?: number | null;
+    card_amount?: number | null;
+    note: string | null;
+  } | null;
+  status: 'paid' | 'unpaid' | 'partial';
+  month: number;
+  year: number;
+  monthly_price: number;
+  effective_price: number;
+  paid_amount: number;
+  debt: number;
+  joined_date?: string | null;
+  left_date?: string | null;
+}
+
+export interface TeacherPaymentDetail {
+  teacher: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    gmail: string;
+    photo: string | null;
+    teacher_type: string;
+    center_id?: number;
+  };
+  month: number;
+  year: number;
+  groups: Array<{ id: number; name: string; monthly_price: number }>;
+  summary: {
+    students_count: number;
+    paid_count: number;
+    unpaid_count: number;
+    partial_count: number;
+    paid_percent: number;
+    total_paid_amount: number;
+    total_debt: number;
+    total_monthly_price: number;
+  };
+  rows: TeacherPaymentRow[];
+}
+
+export interface TeacherReportRow {
+  teacher: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    gmail: string;
+    photo: string | null;
+    teacher_type: string;
+  };
+  month: number;
+  year: number;
+  groups_count: number;
+  students_count: number;
+  paid_count: number;
+  unpaid_count: number;
+  partial_count: number;
+  paid_percent: number;
+  total_paid_amount: number;
+  total_debt: number;
+  groups: Array<{ id: number; name: string; monthly_price: number; parity?: string; weekdays?: string }>;
+}
+
+export interface TeacherPaymentReport {
+  month: number;
+  year: number;
+  summary: {
+    teachers_count: number;
+    students_count: number;
+    paid_count: number;
+    unpaid_count: number;
+    partial_count: number;
+    paid_percent: number;
+    total_paid_amount: number;
+    total_debt: number;
+  };
+  data: TeacherReportRow[];
+}
