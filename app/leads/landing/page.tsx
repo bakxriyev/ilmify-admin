@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { leadsApi } from '@/api/leadsApi';
 import { leadSourcesApi } from '@/api/leadSourcesApi';
+import { coursesApi } from '@/api/coursesApi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ilmify-edu.uz';
 
@@ -208,7 +209,6 @@ function LeadLandingPage() {
   const coursesParam = searchParams.get('courses');
   const urlCenterName = searchParams.get('cname');
   const urlCenterLogo = searchParams.get('clogo');
-  const urlComment = searchParams.get('comment');
 
   const [centerName, setCenterName] = useState<string | null>(urlCenterName || null);
   const [centerLogo, setCenterLogo] = useState<string | null>(urlCenterLogo || null);
@@ -220,14 +220,17 @@ function LeadLandingPage() {
   const [sourcePlatform, setSourcePlatform] = useState<string | null>(null);
   const [sourceName, setSourceName] = useState<string | null>(null);
   const [courses, setCourses] = useState<string[]>([]);
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
 
   const [form, setForm] = useState({
-    first_name: '', last_name: '', phone_number: '', comment: '',
+    first_name: '', last_name: '', phone_number: '',
   });
 
   useEffect(() => {
     if (coursesParam) {
-      setCourses(coursesParam.split(',').filter(Boolean));
+      const list = coursesParam.split(',').filter(Boolean);
+      setCourses(list);
+      setSelectedCourses(list);
     }
   }, [coursesParam]);
 
@@ -240,12 +243,15 @@ function LeadLandingPage() {
 
     const load = async () => {
       try {
+        let resolvedToken = token;
+
         if (token && !centerName) {
           const c = await leadsApi.getCenterByToken(token);
           setCenterName(c.name);
           if (c.logo && !centerLogo) setCenterLogo(c.logo);
         }
 
+        let sourceCourses: string[] = [];
         if (sourceCode) {
           const src = await leadSourcesApi.getByCode(sourceCode);
           if (src.center) {
@@ -254,8 +260,37 @@ function LeadLandingPage() {
           }
           setSourcePlatform(src.platform);
           setSourceName(src.name);
-          if (src.courses && courses.length === 0) {
-            setCourses(src.courses.split(',').filter(Boolean));
+          if (src.courses) {
+            sourceCourses = src.courses.split(',').filter(Boolean);
+          }
+        }
+
+        let availableCourses = sourceCourses;
+
+        const urlCourseList = coursesParam ? coursesParam.split(',').filter(Boolean) : [];
+
+        if (token) {
+          try {
+            const centerCourses = await coursesApi.getByToken(token);
+            if (centerCourses.length > 0) {
+              const names = centerCourses.map(c => c.name);
+              availableCourses = Array.from(new Set([...names, ...sourceCourses]));
+            }
+          } catch {}
+        }
+
+        const finalCourses = urlCourseList.length > 0
+          ? Array.from(new Set([...urlCourseList, ...availableCourses]))
+          : availableCourses;
+
+        if (finalCourses.length > 0) {
+          setCourses(finalCourses);
+          if (urlCourseList.length > 0) {
+            setSelectedCourses(urlCourseList);
+          } else if (sourceCourses.length > 0) {
+            setSelectedCourses(sourceCourses);
+          } else {
+            setSelectedCourses(finalCourses);
           }
         }
 
@@ -281,7 +316,7 @@ function LeadLandingPage() {
         first_name: form.first_name,
         last_name: form.last_name,
         phone_number: form.phone_number,
-        comment: form.comment || undefined,
+        courses: selectedCourses.length > 0 ? selectedCourses.join(', ') : undefined,
         source_platform: sourceCode || undefined,
         token: token || undefined,
       });
@@ -392,13 +427,6 @@ function LeadLandingPage() {
               </div>
             )}
 
-            {/* Source comment */}
-            {urlComment && (
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', fontWeight: 500, marginTop: courses.length > 0 ? '4px' : '12px', marginBottom: '6px', position: 'relative', zIndex: 2, animation: 'fadeUp 0.5s ease 0.4s both' }}>
-                {urlComment}
-              </p>
-            )}
-
             <Wave color="white" />
           </div>
 
@@ -440,19 +468,52 @@ function LeadLandingPage() {
                   onChange={e => setForm({ ...form, phone_number: e.target.value })} required />
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
+<div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748B', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '6px' }}>
-                  {courses.length > 0 ? (
-                    <>Kurslar: <span style={{ fontWeight: 700, textTransform: 'none', color: '#6366F1', fontSize: '13px' }}>{courses.join(', ')}</span></>
-                  ) : (
-                    'Izoh'
-                  )}
+                  Kurslar
                 </label>
-                <textarea className="landing-input"
-                  style={{ ...inputS, minHeight: '80px', resize: 'vertical', fontSize: '14px' }}
-                  placeholder={courses.length > 0 ? `${courses.join(', ')} kurslari haqida savolingiz yoki izohingiz bormi?` : 'Izoh qoldiring...'}
-                  value={form.comment}
-                  onChange={e => setForm({ ...form, comment: e.target.value })} />
+                {courses.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {courses.map((c, i) => {
+                      const selected = selectedCourses.includes(c);
+                      return (
+                        <button key={i} type="button" onClick={() => {
+                          setSelectedCourses(prev =>
+                            prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
+                          );
+                        }}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            padding: '10px 14px', borderRadius: '12px', cursor: 'pointer',
+                            fontFamily: 'inherit', fontSize: '13px', fontWeight: 700,
+                            border: selected ? '2px solid #6366F1' : '1.5px solid #E2E8F0',
+                            background: selected ? '#EEF2FF' : '#F8FAFC',
+                            color: selected ? '#4F46E5' : '#64748B',
+                            transition: 'all 0.2s',
+                          }}>
+                          <span style={{
+                            width: '18px', height: '18px', borderRadius: '6px', display: 'flex',
+                            alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                            background: selected ? '#6366F1' : 'white',
+                            border: selected ? 'none' : '2px solid #CBD5E1',
+                            transition: 'all 0.2s',
+                          }}>
+                            {selected && (
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </span>
+                          {c}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '13px', color: '#94A3B8', fontWeight: 600, background: '#F8FAFC', border: '1.5px dashed #CBD5E1', borderRadius: '12px', padding: '14px' }}>
+                    Ushbu manbadan kurslar ro'yxati mavjud emas
+                  </p>
+                )}
               </div>
 
               <button className="submit-btn" type="submit" disabled={submitting}

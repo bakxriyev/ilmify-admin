@@ -325,7 +325,7 @@ export default function LeadsPage() {
                       <TableHead className="text-xs">Ism / Familiya</TableHead>
                       <TableHead className="text-xs">Telefon</TableHead>
                       <TableHead className="text-xs">Manba</TableHead>
-                      <TableHead className="text-xs">Izoh</TableHead>
+                      <TableHead className="text-xs">Kurslar</TableHead>
                       <TableHead className="text-xs">Holat</TableHead>
                       <TableHead className="text-xs">Sana</TableHead>
                       <TableHead className="text-xs text-right">Amallar</TableHead>
@@ -344,7 +344,7 @@ export default function LeadsPage() {
                         <TableCell>
                           <Badge variant="outline" className="bg-gray-50 text-xs">{lead.source?.name || lead.source_platform || 'Organic'}</Badge>
                         </TableCell>
-                        <TableCell className="text-gray-500 max-w-[120px] truncate text-xs">{lead.comment || '-'}</TableCell>
+                        <TableCell className="text-gray-500 max-w-[140px] truncate text-xs">{lead.courses || lead.comment || '-'}</TableCell>
                         <TableCell>
                           <StatusCell lead={lead} />
                         </TableCell>

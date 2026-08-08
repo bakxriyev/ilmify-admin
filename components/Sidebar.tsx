@@ -80,6 +80,7 @@ const iconMap = {
   LinkIcon: LinkIcon,         // for Lead Sources
   SparklesIcon: Sparkles,     // for Trial Lessons
   PhoneIcon: Phone,           // for Call Center
+  GraduationCapIcon: GraduationCap, // for Courses
   BotIcon: Bot,               // for Telegram Bot
   AutoBellIcon: Bell,         // for Auto Notification
   ClipboardCheckIcon: CheckCircle, // for Attendance
@@ -174,6 +175,7 @@ const navigationItems: NavigationItem[] = [
       { label: 'Leadlar', path: '/leads', icon: 'UsersIcon', permKey: 'crm' },
       { label: 'Call Center', path: '/leads/call-center', icon: 'PhoneIcon', permKey: 'crm' },
       { label: 'Probniy darslar', path: '/leads/trial', icon: 'SparklesIcon', permKey: 'crm' },
+      { label: 'Kurslar', path: '/leads/courses', icon: 'GraduationCapIcon', permKey: 'crm' },
       { label: 'Manbalar', path: '/leads/sources', icon: 'LinkIcon', permKey: 'crm' },
     ],
   },

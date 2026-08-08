@@ -7,6 +7,7 @@ export interface Lead {
   last_name: string;
   phone_number: string;
   comment: string | null;
+  courses: string | null;
   status: string;
   source_id: number | null;
   source_platform: string | null;
@@ -16,7 +17,7 @@ export interface Lead {
   trial_group_id: number | null;
   student_id: number | null;
   created_at: string;
-  source?: { id: number; name: string; platform: string };
+  source?: { id: number; name: string; platform: string; comment?: string; courses?: string };
 }
 
 export interface LeadStats {
@@ -35,9 +36,9 @@ export const leadsApi = {
     api.get<Lead[]>('/leads', { params }).then(r => r.data),
   getStats: () => api.get<LeadStats>('/leads/stats').then(r => r.data),
   getById: (id: number) => api.get<Lead>(`/leads/${id}`).then(r => r.data),
-  create: (data: { first_name: string; last_name: string; phone_number: string; comment?: string; source_id?: number; source_platform?: string }) =>
+  create: (data: { first_name: string; last_name: string; phone_number: string; comment?: string; courses?: string; source_id?: number; source_platform?: string }) =>
     api.post<Lead>('/leads', data).then(r => r.data),
-  createPublic: (data: { first_name: string; last_name: string; phone_number: string; comment?: string; source_id?: number; source_platform?: string; token?: string; center_id?: number }) =>
+  createPublic: (data: { first_name: string; last_name: string; phone_number: string; comment?: string; courses?: string; source_id?: number; source_platform?: string; token?: string; center_id?: number }) =>
     api.post<Lead>('/leads/public', data).then(r => r.data),
   getCenterByToken: (token: string) =>
     api.get<{ id: number; name: string; logo?: string | null }>(`/leads/public/center/${token}`).then(r => r.data),

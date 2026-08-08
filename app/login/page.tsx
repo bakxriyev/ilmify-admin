@@ -188,10 +188,10 @@ export default function LoginPage() {
           </div>
           <div className="brand-text">
             <span className="brand-name">Ilmify</span>
-            <span className="brand-tag">1.0</span>
+            <span className="brand-tag">2.0</span>
           </div>
           <div className="brand-divider" />
-          <span className="brand-panel-label">Admin Panel</span>
+          <span className="brand-panel-label">Admin Panel Sistemasi</span>
         </div>
 
         {/* ─── Card ─── */}

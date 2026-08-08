@@ -232,7 +232,7 @@ export default function CallCenterPage() {
                       <TableHead className="text-xs">#</TableHead>
                       <TableHead className="text-xs">Ism / Familiya</TableHead>
                       <TableHead className="text-xs">Telefon</TableHead>
-                      <TableHead className="text-xs">Izoh</TableHead>
+                      <TableHead className="text-xs">Kurslar</TableHead>
                       <TableHead className="text-xs">Holat</TableHead>
                       <TableHead className="text-xs">Sana</TableHead>
                       <TableHead className="text-xs text-right">Amallar</TableHead>
@@ -248,7 +248,7 @@ export default function CallCenterPage() {
                             <Phone className="h-3.5 w-3.5" /> {lead.phone_number}
                           </a>
                         </TableCell>
-                        <TableCell className="text-gray-500 max-w-[120px] truncate text-xs">{lead.comment || '-'}</TableCell>
+                        <TableCell className="text-gray-500 max-w-[140px] truncate text-xs">{lead.courses || lead.comment || '-'}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1.5">
                             {statusLoadingId === lead.id ? (

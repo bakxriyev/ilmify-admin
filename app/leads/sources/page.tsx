@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { leadSourcesApi, type LeadSource } from '@/api/leadSourcesApi';
-import { levelsApi } from '@/api/levelsApi';
+import { coursesApi, type Course } from '@/api/coursesApi';
 import { educationCentersApi } from '@/api/educationCentersApi';
 import {
   Link, Plus, Trash2, Copy, Check, Globe,
@@ -82,22 +82,22 @@ export default function LeadSourcesPage() {
   const [sources, setSources] = useState<LeadSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: '', platform: 'instagram', code: '', courses: '', comment: '' });
+  const [form, setForm] = useState({ name: '', platform: 'instagram', code: '', courses: '' });
   const [copied, setCopied] = useState<number | null>(null);
   const [publicToken, setPublicToken] = useState<string | null>(null);
   const [centerName, setCenterName] = useState<string>('');
   const [centerLogo, setCenterLogo] = useState<string>('');
-  const [levels, setLevels] = useState<any[]>([]);
-  const [showLevelDropdown, setShowLevelDropdown] = useState(false);
-  const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
-  const [searchLevel, setSearchLevel] = useState('');
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [searchCourse, setSearchCourse] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowLevelDropdown(false);
+        setShowCourseDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
@@ -107,16 +107,16 @@ export default function LeadSourcesPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [sourcesData, tokenData, levelsData] = await Promise.all([
+      const [sourcesData, tokenData, coursesData] = await Promise.all([
         leadSourcesApi.getAll(),
         educationCentersApi.getMyPublicToken().catch(() => null),
-        levelsApi.getAll({ limit: 100 }).catch(() => ({ data: [] })),
+        coursesApi.getAll().catch(() => []),
       ]);
       setSources(sourcesData);
       const tk = tokenData?.token || null;
       setPublicToken(tk);
       if (!tk) toast.error('Markaz tokeni olinmadi. Linklarda token bo\'lmaydi.');
-      setLevels(levelsData?.data || []);
+      setCourses(coursesData);
 
       try {
         const adminRaw = localStorage.getItem('admin');
@@ -145,18 +145,17 @@ export default function LeadSourcesPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const coursesStr = selectedLevels.join(',');
+      const coursesStr = selectedCourses.join(',');
       await leadSourcesApi.create({
         name: form.name,
         platform: form.platform,
         code: form.code,
-        comment: form.comment || undefined,
         courses: coursesStr || undefined,
       });
       toast.success("Manba yaratildi");
       setShowCreate(false);
-      setForm({ name: '', platform: 'instagram', code: '', courses: '', comment: '' });
-      setSelectedLevels([]);
+      setForm({ name: '', platform: 'instagram', code: '', courses: '' });
+      setSelectedCourses([]);
       loadData();
     } catch (err: any) { toast.error(err?.response?.data?.message || 'Xatolik'); }
   };
@@ -170,7 +169,7 @@ export default function LeadSourcesPage() {
     } catch { toast.error('Xatolik'); }
   };
 
-  const buildUrl = (code: string, courses?: string, comment?: string) => {
+  const buildUrl = (code: string, courses?: string) => {
     const base = window.location.origin;
     const params = new URLSearchParams();
     if (publicToken) params.set('token', publicToken);
@@ -178,28 +177,24 @@ export default function LeadSourcesPage() {
     if (courses) params.set('courses', courses);
     if (centerName) params.set('cname', centerName);
     if (centerLogo) params.set('clogo', centerLogo);
-    if (comment) params.set('comment', comment);
     return `${base}/leads/landing?${params.toString()}`;
   };
 
-  const copyToClipboard = (code: string, id: number, courses?: string, comment?: string) => {
-    const link = buildUrl(code, courses, comment);
+  const copyToClipboard = (code: string, id: number, courses?: string) => {
+    const link = buildUrl(code, courses);
     navigator.clipboard.writeText(link);
     setCopied(id);
     setTimeout(() => setCopied(null), 2000);
     toast.success('Link nusxalandi');
   };
 
-  const toggleLevel = (levelName: string) => {
-    setSelectedLevels(prev =>
-      prev.includes(levelName) ? prev.filter(l => l !== levelName) : [...prev, levelName]
+  const toggleCourse = (courseName: string) => {
+    setSelectedCourses(prev =>
+      prev.includes(courseName) ? prev.filter(c => c !== courseName) : [...prev, courseName]
     );
   };
 
-  const filteredLevels = levels.filter(l =>
-    l.name?.toLowerCase().includes(searchLevel.toLowerCase()) ||
-    l.title?.toLowerCase().includes(searchLevel.toLowerCase())
-  );
+  const filteredCourses = courses.filter(c => c.name?.toLowerCase().includes(searchCourse.toLowerCase()));
 
   return (
     <Layout>
@@ -336,14 +331,14 @@ export default function LeadSourcesPage() {
 
                       <div className="flex items-center gap-1.5 mt-2">
                         <code className="flex-1 text-[11px] bg-gray-50 text-gray-600 p-2.5 rounded-xl border border-gray-200 truncate font-mono leading-relaxed group-hover:bg-gray-100 transition-colors">
-                          {buildUrl(s.code, s.courses, s.comment)}
+                          {buildUrl(s.code, s.courses)}
                         </code>
                         <div className="flex items-center gap-1 shrink-0">
-                          <Button variant="ghost" size="sm" onClick={() => copyToClipboard(s.code, s.id, s.courses, s.comment)}
+                          <Button variant="ghost" size="sm" onClick={() => copyToClipboard(s.code, s.id, s.courses)}
                             className={`copy-btn h-8 w-8 p-0 rounded-lg ${copied === s.id ? 'text-emerald-600 bg-emerald-50' : 'text-blue-600 hover:bg-blue-50'}`}>
                             {copied === s.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => { window.open(buildUrl(s.code, s.courses, s.comment), '_blank'); }}
+                          <Button variant="ghost" size="sm" onClick={() => { window.open(buildUrl(s.code, s.courses), '_blank'); }}
                             className="copy-btn h-8 w-8 p-0 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50">
                             <ExternalLink className="h-4 w-4" />
                           </Button>
@@ -404,40 +399,66 @@ export default function LeadSourcesPage() {
               <div className="space-y-1.5" ref={dropdownRef}>
                 <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Kurslar</Label>
                 <div className="relative">
-                  <div onClick={() => setShowLevelDropdown(!showLevelDropdown)}
+                  <div onClick={() => setShowCourseDropdown(!showCourseDropdown)}
                     className="w-full min-h-[42px] flex items-center flex-wrap gap-1.5 p-2 border border-gray-200 rounded-xl cursor-pointer hover:border-blue-300 transition-colors bg-white">
-                    {selectedLevels.length === 0 ? (
+                    {selectedCourses.length === 0 ? (
                       <span className="text-sm text-gray-400 px-2">Kurslarni tanlang...</span>
                     ) : (
-                      selectedLevels.map(name => (
+                      selectedCourses.map(name => (
                         <span key={name} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-lg border border-blue-200">
                           {name}
-                          <button type="button" onClick={(e) => { e.stopPropagation(); toggleLevel(name); }} className="hover:text-red-500 transition-colors"><X className="h-3 w-3" /></button>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); toggleCourse(name); }} className="hover:text-red-500 transition-colors"><X className="h-3 w-3" /></button>
                         </span>
                       ))
                     )}
-                    <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform shrink-0 ${showLevelDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform shrink-0 ${showCourseDropdown ? 'rotate-180' : ''}`} />
                   </div>
-                  {showLevelDropdown && (
+                  {showCourseDropdown && (
                     <div className="absolute z-50 mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-52 overflow-hidden">
                       <div className="p-2 border-b border-gray-100">
                         <div className="relative">
                           <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
-                          <Input value={searchLevel} onChange={e => setSearchLevel(e.target.value)}
-                            placeholder="Qidirish..." className="pl-8 h-8 text-xs rounded-lg border-gray-200" />
+                          <Input value={searchCourse} onChange={e => setSearchCourse(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const name = searchCourse.trim();
+                                if (name && !selectedCourses.includes(name)) {
+                                  setSelectedCourses(prev => [...prev, name]);
+                                }
+                                setSearchCourse('');
+                              }
+                            }}
+                            placeholder="Qidirish yoki yozib qo'shish (Enter)..." className="pl-8 h-8 text-xs rounded-lg border-gray-200" />
                         </div>
                       </div>
                       <div className="max-h-36 overflow-y-auto p-1">
-                        {filteredLevels.length === 0 ? (
+                        <div onClick={() => { setShowCourseDropdown(false); window.open('/leads/courses', '_blank'); }}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm transition-colors hover:bg-indigo-50 text-indigo-600 font-semibold border-b border-gray-100">
+                          <Plus className="h-3.5 w-3.5" /> Kurslar bo&apos;limiga o&apos;tish (yangi kurs yaratish)
+                        </div>
+                        {searchCourse.trim() && !filteredCourses.some(c => c.name.toLowerCase() === searchCourse.trim().toLowerCase()) && (
+                          <div onClick={() => {
+                            const name = searchCourse.trim();
+                            if (name && !selectedCourses.includes(name)) {
+                              setSelectedCourses(prev => [...prev, name]);
+                            }
+                            setSearchCourse('');
+                          }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm transition-colors hover:bg-blue-50 text-blue-600 font-medium">
+                            <Plus className="h-3.5 w-3.5" /> &quot;{searchCourse.trim()}&quot; kursini qo&apos;shish
+                          </div>
+                        )}
+                        {filteredCourses.length === 0 ? (
                           <p className="text-xs text-gray-400 text-center py-4">Kurslar topilmadi</p>
                         ) : (
-                          filteredLevels.map(level => (
-                            <div key={level.id} onClick={() => toggleLevel(level.name || level.title)}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm transition-colors ${selectedLevels.includes(level.name || level.title) ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50 text-gray-700'}`}>
-                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${selectedLevels.includes(level.name || level.title) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
-                                {selectedLevels.includes(level.name || level.title) && <Check className="h-2.5 w-2.5 text-white" />}
+                          filteredCourses.map(course => (
+                            <div key={course.id} onClick={() => toggleCourse(course.name)}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm transition-colors ${selectedCourses.includes(course.name) ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50 text-gray-700'}`}>
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${selectedCourses.includes(course.name) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                                {selectedCourses.includes(course.name) && <Check className="h-2.5 w-2.5 text-white" />}
                               </div>
-                              <span className="truncate">{level.name || level.title}</span>
+                              <span className="truncate">{course.name}</span>
                             </div>
                           ))
                         )}
@@ -447,14 +468,8 @@ export default function LeadSourcesPage() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Izoh</Label>
-                <Input value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })}
-                  placeholder="Manba haqida qo'shimcha ma'lumot..." className="rounded-xl h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500" />
-              </div>
-
               <DialogFooter className="gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => { setShowCreate(false); setSelectedLevels([]); }} className="rounded-xl border-gray-200 hover:bg-gray-50">
+                <Button type="button" variant="outline" onClick={() => { setShowCreate(false); setSelectedCourses([]); setSearchCourse(''); }} className="rounded-xl border-gray-200 hover:bg-gray-50">
                   Bekor qilish
                 </Button>
                 <Button type="submit" className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-md shadow-blue-500/25">
