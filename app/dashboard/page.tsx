@@ -1,75 +1,79 @@
 'use client';
 
-import { ReactNode, useState, useEffect, useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
-import CenterStatusChecker from '../../components/CenterStatusChecker';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTheme } from 'next-themes';
+import { motion } from 'framer-motion';
 import {
-  Users, GraduationCap, BookOpen, DoorOpen, Calendar, UserPlus,
-  UserCircle, School, BarChart3, TrendingUp, Clock, CheckCircle,
-  XCircle, Loader2, RefreshCw, Trophy, ArrowUpRight, Eye, Building, DollarSign, AlertTriangle,
+  RefreshCw, UserPlus, Users, CheckCircle2, AlertTriangle, Wallet, CalendarDays,
+  Trophy, ArrowUpRight,
 } from 'lucide-react';
-import { dashboardApi, type DashboardStats, type ChartData, type TeacherStats, type StudentAttendance, type Activity } from '@/api/dashboard';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, Legend,
+  ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, PieChart, Pie, Cell,
 } from 'recharts';
-import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
+import Layout from '@/components/Layout';
+import CenterStatusChecker from '@/components/CenterStatusChecker';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import {
+  dashboardApi, type DashboardStats, type ChartData, type TeacherStats,
+  type StudentAttendance, type Activity,
+} from '@/api/dashboard';
+import { readAdmin } from '@/components/shell/useShellData';
 
-interface LayoutProps {
-  children: ReactNode;
+/* Chart palettes per theme: SVG attributes cannot read CSS variables reliably. */
+const PALETTE = {
+  light: {
+    accent: '#0a6cff', accentSoft: '#9cc3ff', ok: '#12a150', bad: '#e5484d',
+    grid: 'rgba(15,23,42,0.07)', axis: '#7b8496',
+    series: ['#0a6cff', '#12a150', '#e8930c', '#8b5cf6', '#e5484d', '#0ea5b7', '#d9468f', '#64748b'],
+  },
+  dark: {
+    accent: '#3b8bff', accentSoft: '#2a4f8a', ok: '#3ccf7b', bad: '#ff6b6f',
+    grid: 'rgba(255,255,255,0.07)', axis: '#8a92a3',
+    series: ['#3b8bff', '#3ccf7b', '#f0b43c', '#a78bfa', '#ff6b6f', '#22c3d6', '#f472b6', '#94a3b8'],
+  },
+};
+
+const nf = new Intl.NumberFormat('uz-UZ');
+const fmt = (n: number | string | undefined | null) => nf.format(Number(n) || 0);
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5) return 'Xayrli tun';
+  if (h < 12) return 'Xayrli tong';
+  if (h < 18) return 'Xayrli kun';
+  return 'Xayrli kech';
 }
 
-const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+export default function DashboardPage() {
+  const { resolvedTheme } = useTheme();
+  const [themeReady, setThemeReady] = useState(false);
+  useEffect(() => setThemeReady(true), []);
+  const P = themeReady && resolvedTheme === 'dark' ? PALETTE.dark : PALETTE.light;
 
-export default function Layout({ children }: LayoutProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isDashboard, setIsDashboard] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [studentGrowth, setStudentGrowth] = useState<ChartData | null>(null);
-  const [groupDistribution, setGroupDistribution] = useState<ChartData | null>(null);
-  const [topTeachersByGroups, setTopTeachersByGroups] = useState<TeacherStats[]>([]);
-  const [topTeachersByStudents, setTopTeachersByStudents] = useState<TeacherStats[]>([]);
+  const [growth, setGrowth] = useState<ChartData | null>(null);
+  const [distribution, setDistribution] = useState<ChartData | null>(null);
+  const [byGroups, setByGroups] = useState<TeacherStats[]>([]);
+  const [byStudents, setByStudents] = useState<TeacherStats[]>([]);
   const [bestAttendance, setBestAttendance] = useState<StudentAttendance[]>([]);
-  const [monthlyAttendance, setMonthlyAttendance] = useState<ChartData | null>(null);
+  const [monthly, setMonthly] = useState<ChartData | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [adminCenter, setAdminCenter] = useState<any>(null);
+  const [admin, setAdmin] = useState<ReturnType<typeof readAdmin>>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
+  useEffect(() => setAdmin(readAdmin()), []);
+
+  const load = useCallback(async () => {
+    setError(null);
+    setLoading(true);
     try {
-      const admin = JSON.parse(localStorage.getItem('admin') || '{}');
-      if (admin?.center) setAdminCenter(admin.center);
-    } catch {}
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  useEffect(() => {
-    const isDash = pathname === '/dashboard' || pathname === '/';
-    setIsDashboard(isDash);
-    if (isDash) loadAllData();
-  }, [pathname]);
-
-  const loadAllData = useCallback(async () => {
-    try {
-      setError(null);
-      setLoading(true);
-      console.log('Dashboard loadAllData started');
-      const results = await Promise.allSettled([
+      const r = await Promise.allSettled([
         dashboardApi.getStats(),
         dashboardApi.getStudentGrowth('month'),
         dashboardApi.getGroupDistribution(),
@@ -79,412 +83,434 @@ export default function Layout({ children }: LayoutProps) {
         dashboardApi.getMonthlyAttendance(),
         dashboardApi.getRecentActivities(10),
       ]);
-      console.log('Dashboard results:', results.map(r => r.status));
-
-      results.forEach((r, i) => {
-        if (r.status === 'rejected') {
-          console.error(`Dashboard API #${i} failed:`, r.reason);
-        }
-      });
-
-      if (results[0].status === 'fulfilled') setStats(results[0].value as DashboardStats);
-      else console.error('getStats rejected:', results[0].reason);
-      if (results[1].status === 'fulfilled') setStudentGrowth(results[1].value as ChartData);
-      if (results[2].status === 'fulfilled') setGroupDistribution(results[2].value as ChartData);
-      if (results[3].status === 'fulfilled') setTopTeachersByGroups(results[3].value as TeacherStats[]);
-      if (results[4].status === 'fulfilled') setTopTeachersByStudents(results[4].value as TeacherStats[]);
-      if (results[5].status === 'fulfilled') setBestAttendance(results[5].value as StudentAttendance[]);
-      if (results[6].status === 'fulfilled') setMonthlyAttendance(results[6].value as ChartData);
-      if (results[7].status === 'fulfilled') setActivities(results[7].value as Activity[]);
-
-      if (results[0].status === 'rejected') {
-        const reason = results[0].reason;
-        setError(reason?.response?.data?.message || reason?.message || 'Serverga ulanishda xatolik');
+      const val = <T,>(i: number) => (r[i].status === 'fulfilled' ? (r[i] as PromiseFulfilledResult<T>).value : null);
+      setStats(val<DashboardStats>(0));
+      setGrowth(val<ChartData>(1));
+      setDistribution(val<ChartData>(2));
+      setByGroups(val<TeacherStats[]>(3) || []);
+      setByStudents(val<TeacherStats[]>(4) || []);
+      setBestAttendance(val<StudentAttendance[]>(5) || []);
+      setMonthly(val<ChartData>(6));
+      setActivities(val<Activity[]>(7) || []);
+      if (r[0].status === 'rejected') {
+        const reason: any = r[0].reason;
+        setError(reason?.response?.data?.message || reason?.message || 'Serverga ulanib boʻlmadi');
       }
     } catch (err: any) {
-      console.error('Dashboard loadAllData crashed:', err);
-      setError("Ma'lumotlarni yuklashda kutilmagan xatolik: " + (err?.message || 'unknown'));
-      toast.error("Ma'lumotlarni yuklashda xatolik");
+      setError("Ma'lumotlarni yuklashda kutilmagan xatolik: " + (err?.message || 'nomaʼlum'));
+      toast.error("Ma'lumotlarni yuklab bo'lmadi");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const today = new Date().toLocaleDateString('uz-UZ', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  });
+  useEffect(() => { load(); }, [load]);
 
-  const renderDashboard = () => {
-    if (loading && !stats) {
-      return (
-        <div className="space-y-6">
-          <Skeleton className="h-28 w-full rounded-xl" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1,2,3,4].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Skeleton className="h-80 rounded-xl lg:col-span-2" />
-            <Skeleton className="h-80 rounded-xl" />
-          </div>
-        </div>
-      );
-    }
-
-    if (!stats) {
-      return (
-        <div className="space-y-6">
-          <Card className="border-0 shadow-lg rounded-xl border-red-200">
-            <CardContent className="p-8 flex flex-col items-center justify-center text-center">
-              <AlertTriangle className="h-12 w-12 text-red-400 mb-3" />
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Ma'lumot yuklanmadi</h2>
-              <p className="text-sm text-gray-500 mb-4">{error || 'Statistika ma\'lumotlari olinmadi'}</p>
-              <Button onClick={loadAllData} variant="outline" className="gap-2">
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Qayta urinish
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-
-    const kpiCards = [
-      { label: "Jami o'quvchilar", value: stats.total_students.toLocaleString(), icon: Users, color: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-600', sub: `+${stats.students_this_month} shu oyda` },
-      { label: "O'qituvchilar", value: stats.total_teachers.toLocaleString(), icon: GraduationCap, color: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-600', sub: `Jami` },
-      { label: 'Guruhlar', value: stats.total_groups.toLocaleString(), icon: BookOpen, color: 'bg-purple-500', bg: 'bg-purple-50', text: 'text-purple-600', sub: `${stats.groups_with_lessons} tasida dars bor` },
-      { label: 'Davomat', value: `${stats.attendance_rate}%`, icon: Clock, color: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-600', sub: `${stats.total_lessons} ta dars` },
-    ];
-
-    return (
-      <div className="space-y-4 md:space-y-6">
-        <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <div className="min-w-0">
-                <h1 className="text-xl md:text-2xl font-bold text-white mb-0.5">Boshqaruv paneli</h1>
-                <p className="text-blue-100 text-sm">Xush kelibsiz! Bugungi platforma holati.</p>
-                {adminCenter && (
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-blue-200 text-xs md:text-sm">
-                    <span className="flex items-center gap-1"><Building className="h-3 w-3" /> {adminCenter.name}</span>
-                    <span className="w-1 h-1 rounded-full bg-blue-300 hidden md:inline-block" />
-                    <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" /> {Number(adminCenter.balance).toLocaleString()} so'm</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                <p className="text-xs md:text-sm text-blue-200 hidden sm:block">{today}</p>
-                <Button onClick={loadAllData} variant="secondary" size="sm" className="bg-white/20 text-white hover:bg-white/30 border-0 h-8 text-xs">
-                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
-                  Yangilash
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          {kpiCards.map((kpi, i) => (
-            <Card key={i} className="border-0 shadow-md rounded-xl">
-              <CardContent className="p-3 md:p-5">
-                <div className="flex items-center justify-between mb-2 md:mb-3">
-                  <p className="text-[10px] md:text-sm text-gray-500 font-medium truncate">{kpi.label}</p>
-                  <div className={`p-1.5 md:p-2.5 rounded-lg ${kpi.bg}`}>
-                    <kpi.icon className={`h-3.5 w-3.5 md:h-5 md:w-5 ${kpi.text}`} />
-                  </div>
-                </div>
-                <p className="text-xl md:text-3xl font-bold text-gray-900">{kpi.value}</p>
-                <p className="text-[9px] md:text-xs text-gray-400 mt-0.5 md:mt-1 truncate">{kpi.sub}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          <Card className="border-0 shadow-md rounded-xl lg:col-span-2">
-            <CardHeader className="pb-2 px-4 md:px-6 pt-4 md:pt-6">
-              <CardTitle className="text-base md:text-lg text-gray-900 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
-                O'quvchilar o'sishi
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 md:px-6">
-              {studentGrowth ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={studentGrowth.labels.map((l, i) => ({
-                    name: l,
-                    yangi: studentGrowth.datasets[0].data[i],
-                    jami: studentGrowth.datasets[1].data[i],
-                  }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="yangi" name="Yangi o'quvchilar" fill="#3b82f6" radius={[4,4,0,0]} />
-                    <Bar dataKey="jami" name="Jami o'quvchilar" fill="#10b981" radius={[4,4,0,0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">Ma'lumot yo'q</div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-md rounded-xl">
-            <CardHeader className="pb-2 px-4 md:px-6 pt-4 md:pt-6">
-              <CardTitle className="text-base md:text-lg text-gray-900 flex items-center gap-2">
-                <School className="h-4 w-4 md:h-5 md:w-5 text-purple-600" />
-                Darajalar bo'yicha
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 md:px-6">
-              {groupDistribution ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie
-                      data={groupDistribution.labels.map((l, i) => ({
-                        name: l,
-                        value: groupDistribution.datasets[0].data[i],
-                      }))}
-                      cx="50%" cy="50%" innerRadius={50} outerRadius={80}
-                      paddingAngle={3} dataKey="value"
-                    >
-                      {groupDistribution.labels.map((_, i) => (
-                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">Ma'lumot yo'q</div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          <Card className="border-0 shadow-md rounded-xl">
-            <CardHeader className="pb-2 px-4 md:px-6 pt-4 md:pt-6">
-              <CardTitle className="text-base md:text-lg text-gray-900 flex items-center gap-2">
-                <Trophy className="h-4 w-4 md:h-5 md:w-5 text-amber-500" />
-                Eng ko'p guruhi bor o'qituvchilar
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 md:px-6">
-              {topTeachersByGroups.length > 0 ? (
-                <div className="overflow-x-auto -mx-2 md:mx-0">
-                  <table className="w-full text-xs md:text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-2 px-1.5 md:px-2 text-gray-500 font-medium">#</th>
-                        <th className="text-left py-2 px-1.5 md:px-2 text-gray-500 font-medium">O'qituvchi</th>
-                        <th className="text-center py-2 px-1.5 md:px-2 text-gray-500 font-medium">Asosiy</th>
-                        <th className="text-center py-2 px-1.5 md:px-2 text-gray-500 font-medium">Yordamchi</th>
-                        <th className="text-center py-2 px-1.5 md:px-2 text-gray-500 font-medium">Jami</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topTeachersByGroups.map((t, i) => (
-                        <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-2 px-1.5 md:px-2 text-gray-400">{i + 1}</td>
-                          <td className="py-2 px-1.5 md:px-2">
-                            <span className="font-medium text-gray-900 text-xs md:text-sm">{t.first_name} {t.last_name}</span>
-                          </td>
-                          <td className="py-2 px-1.5 md:px-2 text-center">{t.main_groups}</td>
-                          <td className="py-2 px-1.5 md:px-2 text-center">{t.support_groups}</td>
-                          <td className="py-2 px-1.5 md:px-2 text-center font-bold text-blue-600">{t.total_groups}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-gray-400 text-center py-6 text-sm">Ma'lumot yo'q</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-md rounded-xl">
-            <CardHeader className="pb-2 px-4 md:px-6 pt-4 md:pt-6">
-              <CardTitle className="text-base md:text-lg text-gray-900 flex items-center gap-2">
-                <Users className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
-                Eng ko'p o'quvchisi bor o'qituvchilar
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 md:px-6">
-              {topTeachersByStudents.length > 0 ? (
-                <div className="overflow-x-auto -mx-2 md:mx-0">
-                  <table className="w-full text-xs md:text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-2 px-1.5 md:px-2 text-gray-500 font-medium">#</th>
-                        <th className="text-left py-2 px-1.5 md:px-2 text-gray-500 font-medium">O'qituvchi</th>
-                        <th className="text-center py-2 px-1.5 md:px-2 text-gray-500 font-medium">Guruhlar</th>
-                        <th className="text-center py-2 px-1.5 md:px-2 text-gray-500 font-medium">O'quvchilar</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topTeachersByStudents.map((t, i) => (
-                        <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-2 px-1.5 md:px-2 text-gray-400">{i + 1}</td>
-                          <td className="py-2 px-1.5 md:px-2">
-                            <span className="font-medium text-gray-900 text-xs md:text-sm">{t.first_name} {t.last_name}</span>
-                          </td>
-                          <td className="py-2 px-1.5 md:px-2 text-center">{t.total_groups}</td>
-                          <td className="py-2 px-1.5 md:px-2 text-center font-bold text-green-600">{t.total_students}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-gray-400 text-center py-6 text-sm">Ma'lumot yo'q</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          <Card className="border-0 shadow-md rounded-xl lg:col-span-2">
-            <CardHeader className="pb-2 px-4 md:px-6 pt-4 md:pt-6">
-              <CardTitle className="text-base md:text-lg text-gray-900 flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 md:h-5 md:w-5 text-emerald-600" />
-                Oylik davomat
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 md:px-6">
-              {monthlyAttendance ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={monthlyAttendance.labels.map((l, i) => ({
-                    name: l,
-                    keldi: monthlyAttendance.datasets[0].data[i],
-                    kelmadi: monthlyAttendance.datasets[1].data[i],
-                  }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="keldi" name="Keldi" fill="#10b981" radius={[4,4,0,0]} />
-                    <Bar dataKey="kelmadi" name="Kelmadi" fill="#ef4444" radius={[4,4,0,0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">Ma'lumot yo'q</div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-md rounded-xl">
-            <CardHeader className="pb-2 px-4 md:px-6 pt-4 md:pt-6">
-              <CardTitle className="text-base md:text-lg text-gray-900 flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 md:h-5 md:w-5 text-emerald-600" />
-                Eng yaxshi davomat
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="max-h-[280px] overflow-y-auto px-4 md:px-6">
-              {bestAttendance.length > 0 ? (
-                <div className="space-y-1.5 md:space-y-2">
-                  {bestAttendance.map((s, i) => (
-                    <div key={s.id} className="flex items-center justify-between p-2 md:p-2.5 bg-gray-50 rounded-lg gap-2">
-                      <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
-                        <span className="text-[10px] md:text-xs text-gray-400 w-4 md:w-5 shrink-0">{i + 1}</span>
-                        <div className="min-w-0">
-                          <p className="text-xs md:text-sm font-medium text-gray-900 truncate max-w-[100px] md:max-w-[150px]">{s.first_name} {s.last_name}</p>
-                          <p className="text-[10px] md:text-xs text-gray-400 truncate max-w-[100px] md:max-w-[150px]">{s.group_name}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-                        <span className="text-[10px] md:text-xs text-green-600 flex items-center gap-0.5">
-                          <CheckCircle className="h-2.5 w-2.5 md:h-3 md:w-3" /> {s.present}
-                        </span>
-                        <span className="text-[10px] md:text-xs text-red-500 flex items-center gap-0.5">
-                          <XCircle className="h-2.5 w-2.5 md:h-3 md:w-3" /> {s.absent}
-                        </span>
-                        <span className={`text-xs md:text-sm font-bold ${s.attendance_rate >= 80 ? 'text-green-600' : s.attendance_rate >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
-                          {s.attendance_rate}%
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-400 text-center py-6 text-sm">Ma'lumot yo'q</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="border-0 shadow-md rounded-xl">
-          <CardHeader className="pb-2 px-4 md:px-6 pt-4 md:pt-6">
-            <CardTitle className="text-base md:text-lg text-gray-900 flex items-center gap-2">
-              <Clock className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
-              So'nggi harakatlar
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 md:px-6">
-            {activities.length > 0 ? (
-              <div className="space-y-1 md:space-y-2">
-                {activities.map((a, i) => (
-                  <div key={i} className="flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className={`p-1.5 md:p-2 rounded-lg shrink-0 ${
-                      a.type === 'student' ? 'bg-blue-50 text-blue-600' :
-                      a.type === 'group' ? 'bg-purple-50 text-purple-600' :
-                      'bg-emerald-50 text-emerald-600'
-                    }`}>
-                      {a.icon === 'user' ? <UserPlus className="h-3 w-3 md:h-4 md:w-4" /> :
-                       a.icon === 'group' ? <Users className="h-3 w-3 md:h-4 md:w-4" /> :
-                       <CheckCircle className="h-3 w-3 md:h-4 md:w-4" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs md:text-sm text-gray-900 truncate">{a.message}</p>
-                      <p className="text-[10px] md:text-xs text-gray-400">
-                        {new Date(a.time).toLocaleDateString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-400 text-center py-4 md:py-6 text-sm">Hali harakatlar mavjud emas</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  };
-
-  if (!mounted) return null;
+  const today = new Date().toLocaleDateString('uz-UZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const firstName = admin?.full_name?.split(' ')[0];
+  const center = admin?.center;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <Layout>
       <CenterStatusChecker />
-      <Sidebar
-        isCollapsed={sidebarCollapsed}
-        onCollapsedChange={setSidebarCollapsed}
-        isMobile={isMobile}
-        onLogout={() => {
-          ['access_token', 'refresh_token', 'admin', 'teacher'].forEach(k => localStorage.removeItem(k));
-          router.push('/login');
-        }}
-      />
-      <Header
-        sidebarCollapsed={sidebarCollapsed}
-        isMobile={isMobile}
-        onMenuClick={() => {}}
-      />
-      <main
-        className="transition-all duration-300 pt-20 pb-6 px-4 sm:px-6"
-        style={{
-          marginLeft: mounted && !isMobile
-            ? (sidebarCollapsed ? '80px' : '240px')
-            : '0px',
-        }}
-      >
-        {isDashboard ? renderDashboard() : children}
-      </main>
+      <div className="mx-auto w-full max-w-[1480px] px-3 pt-2 pb-6 sm:px-4 md:px-1 md:pt-3">
+        {/* Page head */}
+        <div className="mb-5 flex flex-col gap-3 px-1 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.025em] md:text-[30px]">
+              {greeting()}{firstName ? `, ${firstName}` : ''}
+            </h1>
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-[var(--muted-foreground)]">
+              <span className="inline-flex items-center gap-1.5 capitalize"><CalendarDays className="size-4" strokeWidth={1.8} />{today}</span>
+              {center?.balance != null && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Wallet className="size-4" strokeWidth={1.8} />
+                  Balans: <span className="tabular font-semibold text-[var(--foreground)]">{fmt(center.balance)} so&apos;m</span>
+                </span>
+              )}
+            </p>
+          </div>
+          <Button variant="outline" onClick={load} disabled={loading} className="self-start sm:self-auto">
+            <RefreshCw className={cn(loading && 'animate-spin')} />
+            {loading ? 'Yangilanmoqda' : 'Yangilash'}
+          </Button>
+        </div>
+
+        {loading && !stats ? (
+          <DashboardSkeleton />
+        ) : !stats ? (
+          <ErrorState message={error} onRetry={load} loading={loading} />
+        ) : (
+          <div className="space-y-4">
+            <KpiStrip stats={stats} P={P} />
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <Panel className="lg:col-span-2" title="O'quvchilar o'sishi" note="Oylar kesimida yangi qo'shilganlar va jami soni">
+                {growth?.labels?.length ? (
+                  <div className="h-[260px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart
+                        data={growth.labels.map((l, i) => ({ name: l, yangi: growth.datasets[0]?.data[i] ?? 0, jami: growth.datasets[1]?.data[i] ?? 0 }))}
+                        margin={{ top: 8, right: 4, left: -16, bottom: 0 }}
+                      >
+                        <CartesianGrid vertical={false} stroke={P.grid} />
+                        <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 11.5, fill: P.axis }} dy={6} />
+                        <YAxis yAxisId="l" tickLine={false} axisLine={false} tick={{ fontSize: 11.5, fill: P.axis }} allowDecimals={false} />
+                        <YAxis yAxisId="r" orientation="right" tickLine={false} axisLine={false} tick={{ fontSize: 11.5, fill: P.axis }} allowDecimals={false} width={36} />
+                        <Tooltip content={<GlassTooltip />} cursor={{ fill: P.grid }} />
+                        <Bar yAxisId="l" dataKey="yangi" name="Yangi" fill={P.accent} radius={[6, 6, 2, 2]} maxBarSize={30} />
+                        <Line yAxisId="r" dataKey="jami" name="Jami" stroke={P.ok} strokeWidth={2.25} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} type="monotone" />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : <Empty text="O'sish ma'lumoti hali yig'ilmagan" />}
+                <Legend items={[{ label: 'Yangi', color: P.accent, kind: 'bar' }, { label: 'Jami (oʻng oʻq)', color: P.ok, kind: 'line' }]} />
+              </Panel>
+
+              <Panel title="Darajalar bo'yicha" note="Guruhlar taqsimoti">
+                <Distribution data={distribution} P={P} />
+              </Panel>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <Panel className="lg:col-span-2" title="Oylik davomat" note="Kelgan va kelmagan o'quvchilar">
+                {monthly?.labels?.length ? (
+                  <div className="h-[260px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={monthly.labels.map((l, i) => ({ name: l, keldi: monthly.datasets[0]?.data[i] ?? 0, kelmadi: monthly.datasets[1]?.data[i] ?? 0 }))}
+                        margin={{ top: 8, right: 4, left: -16, bottom: 0 }}
+                      >
+                        <CartesianGrid vertical={false} stroke={P.grid} />
+                        <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 11.5, fill: P.axis }} dy={6} />
+                        <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11.5, fill: P.axis }} allowDecimals={false} />
+                        <Tooltip content={<GlassTooltip />} cursor={{ fill: P.grid }} />
+                        <Bar dataKey="keldi" name="Keldi" stackId="a" fill={P.ok} maxBarSize={34} />
+                        <Bar dataKey="kelmadi" name="Kelmadi" stackId="a" fill={P.bad} radius={[6, 6, 0, 0]} maxBarSize={34} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : <Empty text="Davomat hali belgilanmagan" />}
+                <Legend items={[{ label: 'Keldi', color: P.ok, kind: 'bar' }, { label: 'Kelmadi', color: P.bad, kind: 'bar' }]} />
+              </Panel>
+
+              <Panel title="Eng yaxshi davomat" note="Yuqori foizli o'quvchilar" action={<PanelLink href="/attendance">Davomat</PanelLink>}>
+                {bestAttendance.length ? (
+                  <ol className="-mx-2 max-h-[300px] space-y-0.5 overflow-y-auto">
+                    {bestAttendance.map((s, i) => (
+                      <li key={s.id} className="flex items-center gap-3 rounded-[12px] px-2 py-2 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]">
+                        <span className="tabular w-5 shrink-0 text-right text-[12.5px] font-medium text-[var(--faint)]">{i + 1}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13.5px] font-medium">{s.first_name} {s.last_name}</span>
+                          <span className="block truncate text-[12px] text-[var(--muted-foreground)]">
+                            {s.group_name} · <span className="tabular">{s.present}/{s.present + s.absent}</span> dars
+                          </span>
+                        </span>
+                        <RatePill rate={s.attendance_rate} />
+                      </li>
+                    ))}
+                  </ol>
+                ) : <Empty text="Hali davomat ma'lumoti yo'q" />}
+              </Panel>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              <Panel title="Ko'p guruhli o'qituvchilar" note="Asosiy va yordamchi guruhlar" action={<PanelLink href="/teachers">Hammasi</PanelLink>}>
+                <TeacherBars
+                  rows={byGroups.map((t) => ({ id: t.id, name: `${t.first_name} ${t.last_name}`, value: t.total_groups, sub: `${t.main_groups ?? 0} asosiy · ${t.support_groups ?? 0} yordamchi` }))}
+                  unit="guruh"
+                  color={P.accent}
+                />
+              </Panel>
+              <Panel title="Ko'p o'quvchili o'qituvchilar" note="Barcha guruhlari bo'yicha" action={<PanelLink href="/teachers">Hammasi</PanelLink>}>
+                <TeacherBars
+                  rows={byStudents.map((t) => ({ id: t.id, name: `${t.first_name} ${t.last_name}`, value: t.total_students ?? 0, sub: `${t.total_groups} ta guruh` }))}
+                  unit="o'quvchi"
+                  color={P.ok}
+                />
+              </Panel>
+              <Panel className="lg:col-span-2 xl:col-span-1" title="So'nggi harakatlar" note="Markazdagi oxirgi o'zgarishlar">
+                <Activities items={activities} />
+              </Panel>
+            </div>
+          </div>
+        )}
+      </div>
+    </Layout>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+
+function Panel({
+  title, note, action, className, children,
+}: { title: string; note?: string; action?: React.ReactNode; className?: string; children: React.ReactNode }) {
+  return (
+    <section className={cn('lg-surface flex min-w-0 flex-col rounded-[22px] p-4 md:p-5', className)}>
+      <header className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[16px] font-semibold leading-tight tracking-[-0.012em]">{title}</h2>
+          {note && <p className="mt-0.5 text-[12.5px] text-[var(--muted-foreground)]">{note}</p>}
+        </div>
+        {action}
+      </header>
+      <div className="min-w-0 flex-1">{children}</div>
+    </section>
+  );
+}
+
+function PanelLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex shrink-0 items-center gap-0.5 rounded-[9px] px-2 py-1 text-[12.5px] font-medium text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-soft)]"
+    >
+      {children} <ArrowUpRight className="size-3.5" />
+    </Link>
+  );
+}
+
+function KpiStrip({ stats, P }: { stats: DashboardStats; P: typeof PALETTE.light }) {
+  const rate = Math.max(0, Math.min(100, Number(stats.attendance_rate) || 0));
+  const rateTone = rate >= 80 ? P.ok : rate >= 60 ? '#e8930c' : P.bad;
+  const cells = [
+    { label: "Jami o'quvchilar", value: fmt(stats.total_students), sub: <><span className="font-semibold text-[var(--ok)]">+{fmt(stats.students_this_month)}</span> shu oyda</>, href: '/students' },
+    { label: "O'qituvchilar", value: fmt(stats.total_teachers), sub: <>{fmt(stats.total_rooms)} ta xona</>, href: '/teachers' },
+    { label: 'Guruhlar', value: fmt(stats.total_groups), sub: <>{fmt(stats.groups_with_lessons)} tasida dars bor</>, href: '/groups' },
+  ];
+  return (
+    <section className="lg-surface grid grid-cols-2 overflow-hidden rounded-[22px] lg:grid-cols-4">
+      {cells.map((c, i) => (
+        <Link
+          key={c.label}
+          href={c.href}
+          className={cn(
+            'group relative flex flex-col gap-1 p-4 transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_3%,transparent)] md:p-5',
+            i % 2 === 0 && 'border-r border-[var(--border)]',
+            i < 2 && 'border-b border-[var(--border)] lg:border-b-0',
+            i === 1 && 'lg:border-r',
+          )}
+        >
+          <span className="flex items-center justify-between text-[13px] font-medium text-[var(--muted-foreground)]">
+            {c.label}
+            <ArrowUpRight className="size-3.5 opacity-0 transition-opacity group-hover:opacity-70" />
+          </span>
+          <motion.span
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: i * 0.04, ease: [0.2, 0.8, 0.2, 1] }}
+            className="tabular text-[28px] font-semibold leading-none tracking-[-0.03em] md:text-[34px]"
+          >
+            {c.value}
+          </motion.span>
+          <span className="text-[12.5px] text-[var(--muted-foreground)]">{c.sub}</span>
+        </Link>
+      ))}
+      <Link href="/attendance" className="group flex flex-col gap-1 p-4 transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_3%,transparent)] md:p-5">
+        <span className="flex items-center justify-between text-[13px] font-medium text-[var(--muted-foreground)]">
+          Davomat
+          <ArrowUpRight className="size-3.5 opacity-0 transition-opacity group-hover:opacity-70" />
+        </span>
+        <motion.span
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.12, ease: [0.2, 0.8, 0.2, 1] }}
+          className="tabular text-[28px] font-semibold leading-none tracking-[-0.03em] md:text-[34px]"
+        >
+          {rate}<span className="text-[0.6em] font-medium text-[var(--muted-foreground)]">%</span>
+        </motion.span>
+        <span className="mt-1 h-1.5 overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]" role="meter" aria-valuenow={rate} aria-valuemin={0} aria-valuemax={100} aria-label="Davomat foizi">
+          <motion.span
+            className="block h-full rounded-full"
+            style={{ background: rateTone }}
+            initial={{ width: 0 }}
+            animate={{ width: `${rate}%` }}
+            transition={{ duration: 0.7, ease: [0.2, 0.8, 0.2, 1], delay: 0.15 }}
+          />
+        </span>
+        <span className="text-[12.5px] text-[var(--muted-foreground)]">{fmt(stats.total_lessons)} ta dars asosida</span>
+      </Link>
+    </section>
+  );
+}
+
+function Distribution({ data, P }: { data: ChartData | null; P: typeof PALETTE.light }) {
+  const rows = useMemo(
+    () => (data?.labels ?? []).map((l, i) => ({ name: l, value: Number(data?.datasets[0]?.data[i]) || 0 })).filter((r) => r.value > 0),
+    [data],
+  );
+  const total = rows.reduce((a, r) => a + r.value, 0);
+  if (!rows.length) return <Empty text="Darajalar bo'yicha guruh yo'q" />;
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative h-[170px] w-[170px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={rows} dataKey="value" innerRadius={58} outerRadius={82} paddingAngle={2} cornerRadius={5} stroke="none" startAngle={90} endAngle={-270}>
+              {rows.map((_, i) => <Cell key={i} fill={P.series[i % P.series.length]} />)}
+            </Pie>
+            <Tooltip content={<GlassTooltip />} />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+          <div>
+            <p className="tabular text-[26px] font-semibold leading-none tracking-[-0.03em]">{fmt(total)}</p>
+            <p className="mt-1 text-[12px] text-[var(--muted-foreground)]">guruh</p>
+          </div>
+        </div>
+      </div>
+      <ul className="w-full space-y-1.5">
+        {rows.map((r, i) => (
+          <li key={r.name} className="flex items-center gap-2.5 text-[13px]">
+            <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: P.series[i % P.series.length] }} />
+            <span className="min-w-0 flex-1 truncate">{r.name}</span>
+            <span className="tabular font-semibold">{fmt(r.value)}</span>
+            <span className="tabular w-10 text-right text-[var(--muted-foreground)]">{Math.round((r.value / total) * 100)}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function TeacherBars({ rows, unit, color }: { rows: Array<{ id: number; name: string; value: number; sub: string }>; unit: string; color: string }) {
+  if (!rows.length) return <Empty text="O'qituvchilar bo'yicha ma'lumot yo'q" />;
+  const max = Math.max(...rows.map((r) => r.value), 1);
+  return (
+    <ol className="space-y-3">
+      {rows.map((r, i) => (
+        <li key={r.id} className="flex items-center gap-3">
+          <span className={cn(
+            'grid size-7 shrink-0 place-items-center rounded-full text-[12px] font-semibold tabular',
+            i === 0 ? 'bg-[color-mix(in_oklab,#e8930c_18%,transparent)] text-[#b86e00] dark:text-[#f0b43c]' : 'bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)] text-[var(--muted-foreground)]',
+          )}>
+            {i === 0 ? <Trophy className="size-3.5" strokeWidth={2.2} /> : i + 1}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-[13.5px] font-medium">{r.name}</span>
+              <span className="tabular shrink-0 text-[13px] font-semibold">{fmt(r.value)} <span className="font-normal text-[var(--muted-foreground)]">{unit}</span></span>
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--foreground)_7%,transparent)]">
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: color }}
+                initial={{ width: 0 }}
+                animate={{ width: `${(r.value / max) * 100}%` }}
+                transition={{ duration: 0.6, delay: i * 0.05, ease: [0.2, 0.8, 0.2, 1] }}
+              />
+            </div>
+            <p className="mt-1 truncate text-[11.5px] text-[var(--muted-foreground)]">{r.sub}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Activities({ items }: { items: Activity[] }) {
+  if (!items.length) return <Empty text="Hali harakatlar yo'q. Yangi student, guruh yoki davomat shu yerda ko'rinadi." />;
+  const tone = (t: string) =>
+    t === 'student' ? 'text-[var(--accent)] bg-[var(--accent-soft)]'
+      : t === 'group' ? 'text-[#7c4ddb] bg-[color-mix(in_oklab,#8b5cf6_14%,transparent)] dark:text-[#b69cff]'
+        : 'text-[var(--ok)] bg-[color-mix(in_oklab,var(--ok)_14%,transparent)]';
+  return (
+    <ol className="relative max-h-[340px] space-y-1 overflow-y-auto">
+      {items.map((a, i) => (
+        <li key={i} className="flex items-start gap-3 rounded-[12px] px-1 py-1.5">
+          <span className={cn('grid size-8 shrink-0 place-items-center rounded-full', tone(a.type))}>
+            {a.icon === 'user' ? <UserPlus className="size-4" strokeWidth={2} /> : a.icon === 'group' ? <Users className="size-4" strokeWidth={2} /> : <CheckCircle2 className="size-4" strokeWidth={2} />}
+          </span>
+          <span className="min-w-0 flex-1 pt-0.5">
+            <span className="block text-[13.5px] leading-snug">{a.message}</span>
+            <span className="tabular block text-[11.5px] text-[var(--faint)]">
+              {new Date(a.time).toLocaleString('uz-UZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function RatePill({ rate }: { rate: number }) {
+  const tone = rate >= 80 ? 'var(--ok)' : rate >= 60 ? 'var(--warn)' : 'var(--bad)';
+  return (
+    <span
+      className="tabular shrink-0 rounded-full px-2 py-0.5 text-[12.5px] font-semibold"
+      style={{ color: tone, background: `color-mix(in oklab, ${tone} 14%, transparent)` }}
+    >
+      {rate}%
+    </span>
+  );
+}
+
+function Legend({ items }: { items: Array<{ label: string; color: string; kind: 'bar' | 'line' }> }) {
+  return (
+    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[var(--muted-foreground)]">
+      {items.map((it) => (
+        <span key={it.label} className="inline-flex items-center gap-1.5">
+          <span className={it.kind === 'line' ? 'h-[3px] w-3.5 rounded-full' : 'size-2.5 rounded-[3px]'} style={{ background: it.color }} />
+          {it.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function GlassTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="lg-panel min-w-[140px] rounded-[12px] px-3 py-2 text-[12.5px]">
+      {label != null && <p className="mb-1 font-semibold">{label}</p>}
+      {payload.map((p: any) => (
+        <p key={p.dataKey ?? p.name} className="flex items-center gap-2">
+          <span className="size-2 rounded-full" style={{ background: p.color || p.payload?.fill }} />
+          <span className="flex-1 text-[var(--muted-foreground)]">{p.name}</span>
+          <span className="tabular font-semibold">{fmt(p.value)}</span>
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function Empty({ text }: { text: string }) {
+  return (
+    <div className="grid h-full min-h-[160px] place-items-center px-6 text-center text-[13px] text-[var(--muted-foreground)]">
+      {text}
+    </div>
+  );
+}
+
+function ErrorState({ message, onRetry, loading }: { message: string | null; onRetry: () => void; loading: boolean }) {
+  return (
+    <section className="lg-surface mx-auto flex max-w-lg flex-col items-center rounded-[24px] px-6 py-10 text-center">
+      <span className="grid size-12 place-items-center rounded-full bg-[color-mix(in_oklab,var(--bad)_14%,transparent)] text-[var(--bad)]">
+        <AlertTriangle className="size-6" strokeWidth={1.9} />
+      </span>
+      <h2 className="mt-4 text-[18px] font-semibold">Statistika yuklanmadi</h2>
+      <p className="mt-1 text-[13.5px] text-[var(--muted-foreground)]">
+        {message || "Server javob bermadi."} Internet aloqasini tekshirib, qayta urinib ko&apos;ring.
+      </p>
+      <Button onClick={onRetry} disabled={loading} className="mt-5">
+        <RefreshCw className={cn(loading && 'animate-spin')} /> Qayta urinish
+      </Button>
+    </section>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Yuklanmoqda">
+      <Skeleton className="h-[120px] w-full rounded-[22px]" />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Skeleton className="h-[340px] rounded-[22px] lg:col-span-2" />
+        <Skeleton className="h-[340px] rounded-[22px]" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Skeleton className="h-[340px] rounded-[22px] lg:col-span-2" />
+        <Skeleton className="h-[340px] rounded-[22px]" />
+      </div>
     </div>
   );
 }

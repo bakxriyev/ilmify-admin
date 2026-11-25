@@ -1,884 +1,452 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import {
-  Search, Users, Calendar, Loader2,
-  ChevronLeft, ChevronRight, RefreshCw, CheckCircle,
-  Phone, GraduationCap, School, BarChart3,
-  DoorOpen, ChevronDown, Wallet, X, AlertTriangle, Clock,
+  Search, Users, Calendar, ChevronLeft, ChevronRight, RefreshCw, Phone, GraduationCap,
+  DoorOpen, ChevronDown, Wallet, AlertTriangle, Check, X, CalendarDays, School,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 import { groupsApi, type Group } from '@/api/groupsApi';
 import { groupStudentsApi, type GroupStudent } from '@/api/groupStudentApi';
 import { attendanceApi, type MonthlyStats, type AttendanceCell } from '@/api/attendanceApi';
 import { paymentsApi } from '@/api/paymentsApi';
 import toast from 'react-hot-toast';
 
-const monthNames = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+/* -------------------------------------------------------------------------- */
+/* Types, helpers                                                             */
+/* -------------------------------------------------------------------------- */
 
-const getInitials = (firstName: string, lastName: string) =>
-  `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+type TodayStatus = 'marked' | 'partial' | 'unmarked' | 'no_lessons';
+type Cells = Record<number, AttendanceCell>; // lessonId -> cell
+type ByStudent = Record<number, Cells>; // studentId -> cells
+interface LessonMeta { id: number; dateStr: string; day: number; weekday: string; isToday: boolean; isFuture: boolean }
+interface PayInfo { debt: number; status: string }
+
+const MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+const weekdayFmt = new Intl.DateTimeFormat('uz-UZ', { weekday: 'short' });
+const sumFmt = new Intl.NumberFormat('uz-UZ');
+const formatSum = (n: number) => sumFmt.format(Math.floor(Number(n) || 0));
+const initials = (f = '', l = '') => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
+const teacherName = (g: Group) =>
+  g.mainTeacher ? `${g.mainTeacher.first_name} ${g.mainTeacher.last_name}` : g.teacher_id ? `ID: ${g.teacher_id}` : '—';
+const parentPhone = (student: any): string =>
+  student?.parent_links?.[0]?.parent?.phone_number || student?.phone_number || '—';
+
+/** Pivot the API's lesson→student map into student→lesson, so one row owns its cells. */
+function pivot(att: Record<number, Record<number, AttendanceCell>>): ByStudent {
+  const out: ByStudent = {};
+  for (const lid in att) {
+    const row = att[lid];
+    for (const sid in row) (out[sid as any] ||= {})[lid as any] = row[sid];
+  }
+  return out;
+}
+
+function rowStats(cells: Cells | undefined, lessons: LessonMeta[], joinDate?: string) {
+  let present = 0, total = 0, absent = 0, streak = 0, maxStreak = 0;
+  for (const l of lessons) {
+    const c = cells?.[l.id];
+    if (c) { total++; if (c.is_present) present++; else absent++; }
+    if (l.isFuture) continue;
+    if (joinDate && l.dateStr < joinDate) { streak = 0; continue; }
+    if (c?.is_present === false) { streak++; if (streak > maxStreak) maxStreak = streak; } else streak = 0;
+  }
+  return { present, absent, total, maxStreak };
+}
+
+const STATUS_CHIP: Record<Exclude<TodayStatus, 'no_lessons'>, { label: string; cls: string }> = {
+  marked: { label: 'Bugun qilingan', cls: 'bg-[color-mix(in_oklab,var(--ok)_14%,transparent)] text-[var(--ok)]' },
+  partial: { label: 'Qisman', cls: 'bg-[color-mix(in_oklab,var(--warn)_16%,transparent)] text-[var(--warn)]' },
+  unmarked: { label: 'Qilinmagan', cls: 'bg-[color-mix(in_oklab,var(--bad)_13%,transparent)] text-[var(--bad)]' },
+};
+
+/* -------------------------------------------------------------------------- */
+/* Page                                                                       */
+/* -------------------------------------------------------------------------- */
 
 export default function AttendancePage() {
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const now = useMemo(() => new Date(), []);
+
+  // Groups
   const [groups, setGroups] = useState<Group[]>([]);
-  const [filteredGroups, setFilteredGroups] = useState<Group[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
-  const [groupStudents, setGroupStudents] = useState<GroupStudent[]>([]);
-  const [mobileGroupOpen, setMobileGroupOpen] = useState(false);
+  const [todayStatus, setTodayStatus] = useState<Record<string, TodayStatus>>({});
+  const [query, setQuery] = useState('');
+  const deferredQuery = useDeferredValue(query);
+  const [selected, setSelected] = useState<Group | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  const now = new Date();
-  const [gridYear, setGridYear] = useState(now.getFullYear());
-  const [gridMonth, setGridMonth] = useState(now.getMonth());
-  const [gridLessons, setGridLessons] = useState<Array<{ id: number; date: string; start_time: string; end_time?: string }>>([]);
-  const [gridAttendance, setGridAttendance] = useState<Record<number, Record<number, AttendanceCell>>>({});
-  const [studentJoinDates, setStudentJoinDates] = useState<Record<number, string>>({});
+  // Month grid
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth());
+  const [relations, setRelations] = useState<GroupStudent[]>([]);
+  const [lessons, setLessons] = useState<MonthlyGridLesson[]>([]);
+  const [byStudent, setByStudent] = useState<ByStudent>({});
+  const [joinDates, setJoinDates] = useState<Record<number, string>>({});
+  const [payments, setPayments] = useState<Record<number, PayInfo>>({});
+  const [stats, setStats] = useState<MonthlyStats | null>(null);
   const [gridLoading, setGridLoading] = useState(false);
-  const [activeCell, setActiveCell] = useState<{ lessonId: number; studentId: number } | null>(null);
-  const [cellReason, setCellReason] = useState('');
-  const [showReasonInput, setShowReasonInput] = useState(false);
+  const [active, setActive] = useState<{ sid: number; lid: number } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const seq = useRef(0);
+  const statsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-
-  // Payment overview for selected group
-  const [paymentOverview, setPaymentOverview] = useState<Record<number, { debt: number; status: string }>>({});
-
-  // Student modal state
-  const [modalStudent, setModalStudent] = useState<GroupStudent | null>(null);
-  const [studentDebtData, setStudentDebtData] = useState<any>(null);
+  // Student modal
+  const [modalRel, setModalRel] = useState<GroupStudent | null>(null);
+  const [debts, setDebts] = useState<any>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
-  // Today's attendance status per group
-  const [groupTodayStatus, setGroupTodayStatus] = useState<Record<string, 'marked' | 'partial' | 'unmarked' | 'no_lessons'>>({});
-  const [todayStatusLoading, setTodayStatusLoading] = useState(false);
+  /* ---------------- loading ---------------- */
 
-  useEffect(() => {
-    fetchGroups();
+  const loadTodayStatus = useCallback(async () => {
+    try {
+      const map = await attendanceApi.getTodayStatus(todayStr);
+      setTodayStatus(map || {});
+    } catch {
+      setTodayStatus({}); // badges are a convenience; the page works without them
+    }
+  }, [todayStr]);
+
+  const loadGroups = useCallback(async () => {
+    setGroupsLoading(true);
+    // Lessons are not needed for the list any more: today's status comes from one request.
+    const [g] = await Promise.allSettled([
+      groupsApi.getAll({ page: 1, limit: 100, include: 'mainTeacher,supportTeacher,room' }),
+      loadTodayStatus(),
+    ]);
+    setGroups(g.status === 'fulfilled' ? g.value.data || [] : []);
+    if (g.status === 'rejected') toast.error("Guruhlarni yuklab bo'lmadi");
+    setGroupsLoading(false);
+  }, [loadTodayStatus]);
+
+  useEffect(() => { loadGroups(); }, [loadGroups]);
+
+  const loadStats = useCallback(async (groupId: number, y: number, m: number, mySeq: number) => {
+    try {
+      const s = await attendanceApi.getStats(groupId, y, m + 1);
+      if (seq.current === mySeq) setStats(s);
+    } catch {
+      if (seq.current === mySeq) setStats(null);
+    }
   }, []);
 
+  // Everything for the selected group and month, in parallel; stale answers are dropped.
   useEffect(() => {
-    if (!activeCell) return;
-    const handler = (e: MouseEvent) => {
-      if (gridRef.current && !gridRef.current.contains(e.target as Node)) {
-        setActiveCell(null);
-        setShowReasonInput(false);
-        setCellReason('');
+    if (!selected) return;
+    const id = Number(selected.id);
+    const mySeq = ++seq.current;
+    setActive(null);
+    setGridLoading(true);
+    setStats(null);
+
+    Promise.allSettled([
+      groupStudentsApi.getStudentsByGroup(id),
+      attendanceApi.getMonthlyGrid(id, year, month + 1),
+      paymentsApi.findByGroup(id, month + 1, year),
+    ]).then(([rel, grid, pay]) => {
+      if (seq.current !== mySeq) return;
+      setRelations(rel.status === 'fulfilled' ? rel.value : []);
+      if (grid.status === 'fulfilled') {
+        setLessons(grid.value.lessons || []);
+        setByStudent(pivot(grid.value.attendance || {}));
+        setJoinDates(grid.value.student_join_dates || {});
+      } else {
+        setLessons([]); setByStudent({}); setJoinDates({});
+        toast.error("Davomat jadvalini yuklab bo'lmadi");
       }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [activeCell]);
-
-  useEffect(() => {
-    if (selectedGroup) {
-      fetchGroupStudents();
-      fetchMonthlyGrid();
-    }
-  }, [selectedGroup, gridYear, gridMonth]);
-
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredGroups(groups);
-    } else {
-      const q = searchQuery.toLowerCase();
-      setFilteredGroups(groups.filter(g =>
-        g.name.toLowerCase().includes(q) ||
-        g.mainTeacher?.first_name?.toLowerCase().includes(q) ||
-        g.mainTeacher?.last_name?.toLowerCase().includes(q)
-      ));
-    }
-  }, [searchQuery, groups]);
-
-  // Fetch payment overview when group/month changes
-  useEffect(() => {
-    if (selectedGroup) {
-      fetchPaymentOverview();
-    }
-  }, [selectedGroup, gridYear, gridMonth]);
-
-  const fetchTodayStatus = async (groupsList: Group[]) => {
-    try {
-      setTodayStatusLoading(true);
-      const statusMap: Record<string, 'marked' | 'partial' | 'unmarked' | 'no_lessons'> = {};
-      const todayStr = new Date().toISOString().split('T')[0];
-
-      // Find groups that have lessons today
-      const groupsWithLessonsToday = groupsList.filter(g => {
-        if (!g.lessons?.length) return false;
-        return g.lessons.some((l: any) => {
-          const lessonDate = typeof l.date === 'string' ? l.date.split('T')[0] : '';
-          return lessonDate === todayStr;
-        });
-      });
-
-      if (groupsWithLessonsToday.length === 0) {
-        groupsList.forEach(g => { statusMap[String(g.id)] = 'no_lessons'; });
-        setGroupTodayStatus(statusMap);
-        return;
-      }
-
-      // Mark groups without lessons today
-      groupsList.forEach(g => {
-        if (!groupsWithLessonsToday.find(x => x.id === g.id)) {
-          statusMap[String(g.id)] = 'no_lessons';
-        }
-      });
-
-      // Batch check attendance for groups with lessons today (10 at a time)
-      const batchSize = 10;
-      for (let i = 0; i < groupsWithLessonsToday.length; i += batchSize) {
-        const batch = groupsWithLessonsToday.slice(i, i + batchSize);
-        const results = await Promise.allSettled(
-          batch.map(g => attendanceApi.getGroupAttendance(Number(g.id), todayStr))
-        );
-        results.forEach((r, idx) => {
-          const g = batch[idx];
-          if (r.status === 'fulfilled' && Array.isArray(r.value)) {
-            const records = r.value as any[];
-            const totalStudents = g.student_count || 0;
-            if (records.length === 0) {
-              statusMap[String(g.id)] = 'unmarked';
-            } else if (totalStudents > 0 && records.length < totalStudents) {
-              statusMap[String(g.id)] = 'partial';
-            } else {
-              statusMap[String(g.id)] = 'marked';
-            }
-          } else {
-            statusMap[String(g.id)] = 'unmarked';
-          }
-        });
-      }
-      setGroupTodayStatus(statusMap);
-    } catch {
-      setGroupTodayStatus({});
-    } finally {
-      setTodayStatusLoading(false);
-    }
-  };
-
-  const fetchGroups = async () => {
-    try {
-      setGroupsLoading(true);
-      const res = await groupsApi.getAll({ page: 1, limit: 100, include: 'mainTeacher,supportTeacher,lessons,room' });
-      const list = res.data || [];
-      setGroups(list);
-      setFilteredGroups(list);
-      // Fetch today's attendance status for all groups
-      fetchTodayStatus(list);
-    } catch {
-      setGroups([]);
-    } finally {
-      setGroupsLoading(false);
-    }
-  };
-
-  const fetchGroupStudents = async () => {
-    if (!selectedGroup) return;
-    try {
-      const relations = await groupStudentsApi.getStudentsByGroup(Number(selectedGroup.id));
-      setGroupStudents(relations);
-    } catch {
-      setGroupStudents([]);
-    }
-  };
-
-  const fetchPaymentOverview = async () => {
-    if (!selectedGroup) return;
-    try {
-      const data = await paymentsApi.findByGroup(Number(selectedGroup.id), gridMonth + 1, gridYear);
-      const map: Record<number, { debt: number; status: string }> = {};
-      data.forEach((item: any) => {
-        map[item.student.id] = { debt: item.debt || 0, status: item.status };
-      });
-      setPaymentOverview(map);
-    } catch {
-      setPaymentOverview({});
-    }
-  };
-
-  const fetchMonthlyGrid = async () => {
-    if (!selectedGroup) return;
-    try {
-      setGridLoading(true);
-      const data = await attendanceApi.getMonthlyGrid(Number(selectedGroup.id), gridYear, gridMonth + 1);
-      setGridLessons(data.lessons);
-      setGridAttendance(data.attendance);
-      setStudentJoinDates(data.student_join_dates || {});
-      fetchStats();
-    } catch {
-      setGridLessons([]);
-      setGridAttendance({});
-      setStudentJoinDates({});
-    } finally {
+      const map: Record<number, PayInfo> = {};
+      if (pay.status === 'fulfilled') pay.value.forEach((it: any) => { map[it.student.id] = { debt: it.debt || 0, status: it.status }; });
+      setPayments(map);
       setGridLoading(false);
-    }
+    });
+    loadStats(id, year, month, mySeq);
+  }, [selected, year, month, loadStats]);
+
+  useEffect(() => () => {
+    if (statsTimer.current) clearTimeout(statsTimer.current);
+    if (statusTimer.current) clearTimeout(statusTimer.current);
+  }, []);
+
+  /* ---------------- derived ---------------- */
+
+  const filteredGroups = useMemo(() => {
+    const q = deferredQuery.trim().toLowerCase();
+    if (!q) return groups;
+    return groups.filter((g) =>
+      g.name.toLowerCase().includes(q) ||
+      g.mainTeacher?.first_name?.toLowerCase().includes(q) ||
+      g.mainTeacher?.last_name?.toLowerCase().includes(q));
+  }, [groups, deferredQuery]);
+
+  const lessonMeta = useMemo<LessonMeta[]>(
+    () => [...lessons]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((l) => {
+        const dateStr = l.date.split('T')[0];
+        const d = new Date(l.date);
+        return { id: l.id, dateStr, day: d.getDate(), weekday: weekdayFmt.format(d), isToday: dateStr === todayStr, isFuture: dateStr > todayStr };
+      }),
+    [lessons, todayStr],
+  );
+
+  const activeRelations = useMemo(() => relations.filter((r) => !r.left_date && r.student), [relations]);
+  const pastLessons = lessonMeta.filter((l) => !l.isFuture).length;
+
+  /* ---------------- actions ---------------- */
+
+  const selectGroup = useCallback((g: Group) => {
+    setSelected(g);
+    setYear(now.getFullYear());
+    setMonth(now.getMonth());
+    setPickerOpen(false);
+  }, [now]);
+
+  const shiftMonth = (delta: number) => {
+    const d = new Date(year, month + delta, 1);
+    setYear(d.getFullYear());
+    setMonth(d.getMonth());
   };
 
-  const fetchStats = async () => {
-    if (!selectedGroup) return;
+  const mark = useCallback(async (lid: number, sid: number, isPresent: boolean, reason?: string) => {
+    setActive(null);
+    if (!selected) return;
+    const groupId = Number(selected.id);
+    let previous: AttendanceCell | undefined;
+    // Optimistic: the cell flips immediately, only this student's row re-renders.
+    setByStudent((prev) => {
+      previous = prev[sid]?.[lid];
+      return { ...prev, [sid]: { ...prev[sid], [lid]: { is_present: isPresent, reason: reason || undefined } } };
+    });
     try {
-      setStatsLoading(true);
-      const stats = await attendanceApi.getStats(Number(selectedGroup.id), gridYear, gridMonth + 1);
-      setMonthlyStats(stats);
-    } catch {
-      setMonthlyStats(null);
-    } finally {
-      setStatsLoading(false);
-    }
-  };
-
-  const markGridAttendance = async (lessonId: number, studentId: number, isPresent: boolean, reason?: string) => {
-    setActiveCell(null);
-    setShowReasonInput(false);
-    setCellReason('');
-    if (!selectedGroup) return;
-    try {
-      await attendanceApi.markLesson({
-        lesson_id: lessonId,
-        attendance: [{ student_id: studentId, is_present: isPresent, reason }],
-      });
-      setGridAttendance(prev => {
-        const next = { ...prev };
-        if (!next[lessonId]) next[lessonId] = {};
-        next[lessonId] = { ...next[lessonId], [studentId]: { is_present: isPresent, reason: reason || undefined } };
-        return next;
-      });
-      toast.success(isPresent ? 'Davomat belgilandi' : "Kelmagan deb belgilandi");
-      if (reason) toast.success(`Sabab: ${reason}`);
-      fetchStats();
+      await attendanceApi.markLesson({ lesson_id: lid, attendance: [{ student_id: sid, is_present: isPresent, reason }] });
+      const mySeq = seq.current;
+      if (statsTimer.current) clearTimeout(statsTimer.current);
+      statsTimer.current = setTimeout(() => loadStats(groupId, year, month, mySeq), 700);
+      if (statusTimer.current) clearTimeout(statusTimer.current);
+      statusTimer.current = setTimeout(loadTodayStatus, 1200);
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Xatolik yuz berdi';
-      toast.error(msg);
+      setByStudent((prev) => {
+        const row = { ...prev[sid] };
+        if (previous) row[lid] = previous; else delete row[lid];
+        return { ...prev, [sid]: row };
+      });
+      toast.error(err?.response?.data?.message || err?.message || "Saqlanmadi. Qayta urinib ko'ring.");
     }
-  };
+  }, [selected, year, month, loadStats, loadTodayStatus]);
 
-  const openStudentModal = async (relation: GroupStudent) => {
-    setModalStudent(relation);
-    setStudentDebtData(null);
+  const openCell = useCallback((sid: number, lid: number) => setActive({ sid, lid }), []);
+  const closeCell = useCallback(() => setActive(null), []);
+
+  const openStudent = useCallback(async (rel: GroupStudent) => {
+    setModalRel(rel);
+    setDebts(null);
     setModalLoading(true);
     try {
-      const data = await paymentsApi.getStudentDebts(relation.student!.id);
-      setStudentDebtData(data);
+      setDebts(await paymentsApi.getStudentDebts(rel.student!.id));
     } catch {
-      setStudentDebtData(null);
+      setDebts(null);
     } finally {
       setModalLoading(false);
     }
-  };
+  }, []);
 
-  const activeRelations = groupStudents.filter(r => !r.left_date && r.student);
+  /* ---------------- render ---------------- */
 
-  // Calculate 3+ consecutive absences per student
-  const studentConsecutiveAbsences = useMemo(() => {
-    const result: Record<number, number> = {};
-    if (gridLessons.length === 0) return result;
-
-    const sortedLessons = [...gridLessons].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    activeRelations.forEach(relation => {
-      const sid = relation.student!.id;
-      let maxStreak = 0;
-      let currentStreak = 0;
-
-      sortedLessons.forEach(lesson => {
-        const lessonDateStr = lesson.date.split('T')[0];
-        if (lessonDateStr > todayStr) return; // skip future lessons
-
-        const joinDate = studentJoinDates[sid];
-        if (joinDate && lessonDateStr < joinDate) {
-          currentStreak = 0;
-          return;
-        }
-
-        const att = gridAttendance[lesson.id]?.[sid];
-        const isAbsent = att?.is_present === false;
-
-        if (isAbsent) {
-          currentStreak++;
-          if (currentStreak > maxStreak) maxStreak = currentStreak;
-        } else {
-          currentStreak = 0;
-        }
-      });
-
-      if (maxStreak >= 3) result[sid] = maxStreak;
-    });
-
-    return result;
-  }, [gridLessons, gridAttendance, studentJoinDates, groupStudents]);
-
-  const getParentPhone = (student: any): string => {
-    const link = student?.parent_links?.[0]?.parent;
-    return link?.phone_number || student?.phone_number || '-';
-  };
-
-  const getTeacherName = (group: Group) => {
-    if (group.mainTeacher) {
-      return `${group.mainTeacher.first_name} ${group.mainTeacher.last_name}`;
-    }
-    return group.teacher_id ? `ID: ${group.teacher_id}` : '-';
-  };
-
-  const formatSum = (n: number) => Math.floor(n).toLocaleString();
+  const groupList = (
+    <GroupList
+      groups={filteredGroups}
+      loading={groupsLoading}
+      selectedId={selected?.id}
+      status={todayStatus}
+      onSelect={selectGroup}
+    />
+  );
 
   return (
     <Layout>
-      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-        <div className="bg-gradient-to-r from-emerald-700 to-teal-700 rounded-2xl p-4 md:p-6 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2 md:gap-3">
-                <CheckCircle className="h-5 w-5 md:h-7 md:w-7" />
-                Davomat
-              </h1>
-              <p className="text-emerald-100 text-xs md:text-sm mt-1">
-                Guruhlarda davomatni kuzatish va boshqarish
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                onClick={fetchGroups}
-                className="bg-white/20 text-white hover:bg-white/30 border border-white/20 h-8 text-xs"
-              >
-                <RefreshCw className="h-3 w-3 mr-1" /> Yangilash
-              </Button>
-            </div>
+      <div className="mx-auto w-full max-w-[1480px] px-3 pt-2 pb-6 sm:px-4 md:px-1 md:pt-3">
+        {/* Page head */}
+        <div className="mb-4 flex items-end justify-between gap-3 px-1">
+          <div className="min-w-0">
+            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.025em] md:text-[30px]">Davomat</h1>
+            <p className="mt-1 text-[14px] text-[var(--muted-foreground)]">Guruhni tanlang, katakni bosib belgilang.</p>
           </div>
+          <Button variant="outline" onClick={loadGroups} disabled={groupsLoading}>
+            <RefreshCw className={cn(groupsLoading && 'animate-spin')} />
+            <span className="hidden sm:inline">Yangilash</span>
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
-          {/* Mobile group selector button */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+          {/* Group picker: phone */}
           <div className="lg:hidden">
             <button
-              onClick={() => setMobileGroupOpen(!mobileGroupOpen)}
-              className="w-full flex items-center justify-between bg-white rounded-xl shadow-lg px-4 py-3 border border-gray-100"
+              type="button"
+              onClick={() => setPickerOpen((v) => !v)}
+              aria-expanded={pickerOpen}
+              className="lg-surface flex w-full items-center gap-3 rounded-[18px] px-4 py-3 text-left"
             >
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-emerald-600" />
-                <span className="font-medium text-sm text-gray-800">
-                  {selectedGroup ? selectedGroup.name : 'Guruh tanlang'}
-                </span>
-              </div>
-              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${mobileGroupOpen ? 'rotate-180' : ''}`} />
+              <Users className="size-[18px] text-[var(--accent)]" />
+              <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{selected ? selected.name : 'Guruh tanlang'}</span>
+              <ChevronDown className={cn('size-4 text-[var(--faint)] transition-transform', pickerOpen && 'rotate-180')} />
             </button>
-            {mobileGroupOpen && (
-              <Card className="border-0 rounded-xl shadow-lg bg-white overflow-hidden mt-2">
-                <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-white flex items-center gap-2 text-sm">
-                      <Users className="h-4 w-4" /> Guruhlar
-                    </h3>
-                    <Badge className="bg-white/20 text-white border-none text-xs">
-                      {filteredGroups.length}
-                    </Badge>
-                  </div>
-                  <div className="mt-2 relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-emerald-200" />
-                    <Input
-                      placeholder="Guruh qidirish..."
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      className="pl-8 h-8 text-xs bg-white/15 border-white/20 text-white placeholder:text-emerald-200 rounded-lg"
-                    />
-                  </div>
-                </div>
-                <div className="max-h-[50vh] overflow-y-auto">
-                  {groupsLoading ? (
-                    <div className="p-4 space-y-2">
-                      {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}
-                    </div>
-                  ) : filteredGroups.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400 text-sm">
-                      <School className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                      Guruh topilmadi
-                    </div>
-                  ) : (
-                    filteredGroups.map(group => {
-                      const isSelected = selectedGroup?.id === group.id;
-                      return (
-                        <button
-                          key={group.id}
-                          onClick={() => {
-                            setSelectedGroup(group);
-                            setGridYear(now.getFullYear());
-                            setGridMonth(now.getMonth());
-                            setMobileGroupOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-all hover:bg-emerald-50 ${
-                            isSelected ? 'bg-emerald-50 border-l-4 border-l-emerald-500' : ''
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className={`font-medium text-sm truncate ${isSelected ? 'text-emerald-800' : 'text-gray-800'}`}>
-                              {group.name}
-                            </span>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {groupTodayStatus[String(group.id)] === 'marked' && (
-                                <span className="text-[7px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">Bugun davomat qilingan</span>
-                              )}
-                              {groupTodayStatus[String(group.id)] === 'partial' && (
-                                <span className="text-[7px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">Qisman</span>
-                              )}
-                              {groupTodayStatus[String(group.id)] === 'unmarked' && (
-                                <span className="text-[7px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">Davomat qilinmagan</span>
-                              )}
-                              <Badge className={`text-[10px] px-1.5 py-0 h-4 ${
-                                isSelected
-                                  ? 'bg-emerald-500 text-white'
-                                  : 'bg-gray-100 text-gray-600'
-                              }`}>
-                                {group.student_count || 0}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <GraduationCap className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-500 truncate">{getTeacherName(group)}</span>
-                          </div>
-                          {group.room && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <DoorOpen className="h-2.5 w-2.5 text-gray-400" />
-                              <span className="text-[10px] text-gray-400">{group.room.name}</span>
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </Card>
+            {pickerOpen && (
+              <div className="lg-surface mt-2 overflow-hidden rounded-[20px]">
+                <SearchBox value={query} onChange={setQuery} count={filteredGroups.length} />
+                <div className="max-h-[55vh] overflow-y-auto">{groupList}</div>
+              </div>
             )}
           </div>
 
-          {/* Desktop left panel */}
-          <div className="hidden lg:block lg:col-span-3">
-            <Card className="border-0 rounded-xl shadow-lg bg-white overflow-hidden lg:sticky lg:top-24">
-              <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-white flex items-center gap-2 text-sm">
-                    <Users className="h-4 w-4" /> Guruhlar
-                  </h3>
-                  <Badge className="bg-white/20 text-white border-none text-xs">
-                    {filteredGroups.length}
-                  </Badge>
-                </div>
-                <div className="mt-2 relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-emerald-200" />
-                  <Input
-                    placeholder="Guruh qidirish..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="pl-8 h-8 text-xs bg-white/15 border-white/20 text-white placeholder:text-emerald-200 rounded-lg"
-                  />
-                </div>
-              </div>
-              <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
-                {groupsLoading ? (
-                  <div className="p-4 space-y-2">
-                    {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}
-                  </div>
-                ) : filteredGroups.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400 text-sm">
-                    <School className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                    Guruh topilmadi
-                  </div>
-                ) : (
-                  filteredGroups.map(group => {
-                    const isSelected = selectedGroup?.id === group.id;
-                    return (
-                      <button
-                        key={group.id}
-                        onClick={() => {
-                          setSelectedGroup(group);
-                          setGridYear(now.getFullYear());
-                          setGridMonth(now.getMonth());
-                        }}
-                        className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-all hover:bg-emerald-50 ${
-                          isSelected ? 'bg-emerald-50 border-l-4 border-l-emerald-500' : ''
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={`font-medium text-sm truncate ${isSelected ? 'text-emerald-800' : 'text-gray-800'}`}>
-                            {group.name}
-                          </span>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {groupTodayStatus[String(group.id)] === 'marked' && (
-                              <span className="text-[7px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">Bugun davomat qilingan</span>
-                            )}
-                            {groupTodayStatus[String(group.id)] === 'partial' && (
-                              <span className="text-[7px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">Qisman</span>
-                            )}
-                            {groupTodayStatus[String(group.id)] === 'unmarked' && (
-                              <span className="text-[7px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">Davomat qilinmagan</span>
-                            )}
-                            <Badge className={`text-[10px] px-1.5 py-0 h-4 ${
-                              isSelected
-                                ? 'bg-emerald-500 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              {group.student_count || 0}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <GraduationCap className="h-3 w-3 text-gray-400" />
-                          <span className="text-xs text-gray-500 truncate">{getTeacherName(group)}</span>
-                        </div>
-                        {group.room && (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <DoorOpen className="h-2.5 w-2.5 text-gray-400" />
-                            <span className="text-[10px] text-gray-400">{group.room.name}</span>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </Card>
-          </div>
+          {/* Group picker: desktop */}
+          <aside className="hidden lg:block">
+            <div className="lg-surface sticky top-[84px] overflow-hidden rounded-[22px]">
+              <SearchBox value={query} onChange={setQuery} count={filteredGroups.length} />
+              <div className="max-h-[calc(100dvh-190px)] overflow-y-auto">{groupList}</div>
+            </div>
+          </aside>
 
-          <div className="lg:col-span-9 space-y-4 md:space-y-6">
-            {!selectedGroup ? (
-              <div className="flex flex-col items-center justify-center py-16 md:py-20 bg-white rounded-xl shadow-lg">
-                <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-emerald-50 flex items-center justify-center mb-4 md:mb-6">
-                  <CheckCircle className="h-8 w-8 md:h-12 md:w-12 text-emerald-400" />
-                </div>
-                <h3 className="text-lg md:text-xl font-semibold text-gray-700 mb-2">Guruhni tanlang</h3>
-                <p className="text-gray-500 text-sm">Chapdagi ro'yxatdan guruh tanlang</p>
+          {/* Work area */}
+          <div className="min-w-0 space-y-4">
+            {!selected ? (
+              <div className="lg-surface flex flex-col items-center justify-center rounded-[22px] px-6 py-20 text-center">
+                <span className="grid size-14 place-items-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
+                  <CalendarDays className="size-7" strokeWidth={1.7} />
+                </span>
+                <h2 className="mt-4 text-[18px] font-semibold">Guruhni tanlang</h2>
+                <p className="mt-1 max-w-sm text-[13.5px] text-[var(--muted-foreground)]">
+                  Ro&apos;yxatdagi rangli belgi bugungi holatni ko&apos;rsatadi: qilinmagan, qisman yoki qilingan.
+                </p>
               </div>
             ) : (
               <>
-                <Card className="border-0 rounded-xl shadow-lg bg-white overflow-hidden">
-                  <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-4 md:px-6 py-3 md:py-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                      <div>
-                        <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
-                          <School className="h-4 w-4 md:h-5 md:w-5" /> {selectedGroup.name}
-                        </h3>
-                        <div className="flex items-center gap-3 md:gap-4 mt-1 text-emerald-100 text-[10px] md:text-xs">
-                          <span className="flex items-center gap-1">
-                            <GraduationCap className="h-2.5 w-2.5 md:h-3 md:w-3" /> {getTeacherName(selectedGroup)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Users className="h-2.5 w-2.5 md:h-3 md:w-3" /> {activeRelations.length} ta student
-                          </span>
-                          {selectedGroup.room && (
-                            <span className="flex items-center gap-1">
-                              <DoorOpen className="h-2.5 w-2.5 md:h-3 md:w-3" /> {selectedGroup.room.name}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 md:gap-2 self-end sm:self-auto">
-                        <Button variant="ghost" size="sm" onClick={() => {
-                          setGridYear(prev => gridMonth === 0 ? prev - 1 : prev);
-                          setGridMonth(prev => prev === 0 ? 11 : prev - 1);
-                        }} className="text-white/80 hover:text-white hover:bg-white/10 h-7 md:h-8 px-1 md:px-2">
-                          <ChevronLeft className="h-3 w-3 md:h-4 md:w-4" />
-                        </Button>
-                        <span className="text-white font-medium text-xs md:text-sm min-w-[90px] md:min-w-[120px] text-center">
-                          {monthNames[gridMonth]} {gridYear}
-                        </span>
-                        <Button variant="ghost" size="sm" onClick={() => {
-                          setGridYear(prev => gridMonth === 11 ? prev + 1 : prev);
-                          setGridMonth(prev => prev === 11 ? 0 : prev + 1);
-                        }} className="text-white/80 hover:text-white hover:bg-white/10 h-7 md:h-8 px-1 md:px-2">
-                          <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
-                        </Button>
-                        <span className="w-px h-4 md:h-6 bg-white/30 mx-0.5 md:mx-1" />
-                        <Button size="sm" onClick={() => {
-                          const d = new Date();
-                          setGridYear(d.getFullYear());
-                          setGridMonth(d.getMonth());
-                        }} className="bg-white text-emerald-700 hover:bg-emerald-50 text-[10px] md:text-xs h-7 md:h-8">
-                          <RefreshCw className="h-2.5 w-2.5 md:h-3 md:w-3 mr-0.5 md:mr-1" /> Bugun
-                        </Button>
-                      </div>
-                    </div>
+                {/* Group head + month switcher */}
+                <section className="lg-surface flex flex-col gap-3 rounded-[22px] p-4 sm:flex-row sm:items-center sm:justify-between md:px-5">
+                  <div className="min-w-0">
+                    <h2 className="truncate text-[18px] font-semibold tracking-[-0.015em]">{selected.name}</h2>
+                    <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[var(--muted-foreground)]">
+                      <span className="inline-flex items-center gap-1.5"><GraduationCap className="size-3.5" />{teacherName(selected)}</span>
+                      <span className="inline-flex items-center gap-1.5"><Users className="size-3.5" /><span className="tabular">{activeRelations.length}</span> ta student</span>
+                      {selected.room && <span className="inline-flex items-center gap-1.5"><DoorOpen className="size-3.5" />{selected.room.name}</span>}
+                    </p>
                   </div>
-                </Card>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Button variant="outline" size="icon" className="size-9" onClick={() => shiftMonth(-1)} aria-label="Oldingi oy"><ChevronLeft /></Button>
+                    <span className="tabular min-w-[124px] text-center text-[14px] font-semibold">{MONTHS[month]} {year}</span>
+                    <Button variant="outline" size="icon" className="size-9" onClick={() => shiftMonth(1)} aria-label="Keyingi oy"><ChevronRight /></Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="ml-1"
+                      disabled={year === now.getFullYear() && month === now.getMonth()}
+                      onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()); }}
+                    >
+                      Bu oy
+                    </Button>
+                  </div>
+                </section>
 
-                <Card className="border-0 rounded-xl shadow-lg bg-white overflow-hidden">
-                  <CardContent className="p-0">
-                    {activeRelations.length === 0 ? (
-                      <div className="text-center py-10 text-gray-500">
-                        <Users className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                        Bu guruhda studentlar mavjud emas
-                      </div>
-                    ) : gridLoading ? (
-                      <div className="flex items-center justify-center py-10">
-                        <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
-                        <span className="ml-2 text-gray-500">Yuklanmoqda...</span>
-                      </div>
-                    ) : gridLessons.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Calendar className="h-14 w-14 mx-auto text-gray-300 mb-3" />
-                        <p className="text-gray-500 font-medium">Bu oyda darslar mavjud emas</p>
-                        <p className="text-sm text-gray-400 mt-1">Boshqa oyni tanlang yoki guruhga dars qo'shing</p>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto" ref={gridRef}>
-                        <Table>
-                          <TableHeader className="bg-gray-50">
-                            <TableRow>
-                              <TableHead className="text-gray-700 sticky left-0 bg-gray-50 z-10 min-w-[180px] md:min-w-[200px]">Student</TableHead>
-                              {gridLessons.map(lesson => {
-                                const d = new Date(lesson.date);
-                                const dayNum = d.getDate();
-                                const dayName = d.toLocaleDateString('uz-UZ', { weekday: 'short' });
-                                const isToday = lesson.date.split('T')[0] === todayStr;
-                                return (
-                                  <TableHead key={lesson.id} className={`text-center text-[10px] md:text-xs p-1 min-w-[30px] md:min-w-[36px] ${isToday ? 'bg-emerald-100 text-emerald-800' : 'text-gray-600'}`}>
-                                    <div>{dayNum}</div>
-                                    <div className="text-[8px] md:text-[10px] font-normal">{dayName}</div>
-                                  </TableHead>
-                                );
-                              })}
-                              <TableHead className="text-center text-gray-600 min-w-[50px] md:min-w-[60px]">%</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {activeRelations.map(relation => {
-                              const student = relation.student!;
-                              const has3Absences = studentConsecutiveAbsences[student.id] !== undefined;
-                              const payInfo = paymentOverview[student.id];
-                              let presentCount = 0;
-                              let totalCount = 0;
-
-                              return (
-                                <TableRow
-                                  key={student.id}
-                                  className={`border-b border-gray-100 transition-colors ${
-                                    has3Absences
-                                      ? 'bg-red-50 hover:bg-red-100'
-                                      : 'hover:bg-gray-50'
-                                  } cursor-pointer`}
-                                  onClick={() => openStudentModal(relation)}
-                                >
-                                  <TableCell className="sticky left-0 bg-white z-10 font-medium text-gray-900 text-sm border-r border-gray-100"
-                                    style={has3Absences ? { background: '#fef2f2' } : undefined}>
-                                    <div className="flex items-center gap-2">
-                                      <Avatar className="h-7 w-7 md:h-8 md:w-8 border border-gray-200 shrink-0">
-                                        <AvatarImage src={student.photo || ''} />
-                                        <AvatarFallback className="bg-gradient-to-br from-emerald-400 to-teal-500 text-white text-[10px] md:text-xs">
-                                          {getInitials(student.first_name, student.last_name)}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div className="min-w-0">
-                                        <div className="flex items-center gap-1 flex-wrap">
-                                          <span className="font-medium text-gray-900 text-xs md:text-sm block truncate max-w-[100px] md:max-w-[130px]">
-                                            {student.first_name} {student.last_name}
-                                          </span>
-                                          {has3Absences && (
-                                            <span title={`${studentConsecutiveAbsences[student.id]} marta ketma-ket kelmagan`}>
-                                              <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
-                                            </span>
-                                          )}
-                                        </div>
-                                        {payInfo && payInfo.debt > 0 ? (
-                                          <span className="text-[9px] md:text-[10px] text-red-600 font-medium flex items-center gap-0.5">
-                                            <Wallet className="h-2.5 w-2.5" />
-                                            Qarzdorlik: {formatSum(payInfo.debt)} so'm
-                                          </span>
-                                        ) : (
-                                          <span className="text-[9px] md:text-[10px] text-green-600 font-medium">
-                                            To'lov qilgan
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </TableCell>
-                                  {gridLessons.map(lesson => {
-                                    const lessonDateStr = lesson.date.split('T')[0];
-                                    const isFuture = lessonDateStr > todayStr;
-                                    const joinDate = studentJoinDates[student.id];
-                                    const beforeJoin = joinDate ? lessonDateStr < joinDate : false;
-                                    const lessonAtt = gridAttendance[lesson.id];
-                                    const cell = lessonAtt ? lessonAtt[student.id] : undefined;
-                                    const isPresent = cell?.is_present === true;
-                                    const isAbsent = cell?.is_present === false;
-                                    const reasonText = cell?.reason;
-                                    if (cell !== undefined) totalCount++;
-                                    if (isPresent) presentCount++;
-                                    const isActive = activeCell?.lessonId === lesson.id && activeCell?.studentId === student.id;
-                                    const cellKey = `${lesson.id}-${student.id}`;
-                                    return (
-                                      <TableCell key={cellKey} className="text-center p-0.5 relative"
-                                        onClick={e => e.stopPropagation()}>
-                                        {beforeJoin ? (
-                                          <span className="text-gray-200 text-xs mx-auto block w-7 h-7 md:w-8 md:h-8 flex items-center justify-center">—</span>
-                                        ) : isActive ? (
-                                          <div className="flex flex-col items-center gap-0.5">
-                                            <div className="flex items-center gap-0.5">
-                                              <button
-                                                onClick={() => markGridAttendance(lesson.id, student.id, true)}
-                                                className="w-6 h-6 md:w-7 md:h-7 rounded bg-green-500 text-white text-[10px] md:text-xs font-bold hover:bg-green-600 transition-colors"
-                                                title="Bor"
-                                              >B</button>
-                                              <button
-                                                onClick={() => { setShowReasonInput(true); }}
-                                                className="w-6 h-6 md:w-7 md:h-7 rounded bg-red-500 text-white text-[10px] md:text-xs font-bold hover:bg-red-600 transition-colors"
-                                                title="Yo'q"
-                                              >Y</button>
-                                            </div>
-                                            {showReasonInput && (
-                                              <div className="flex gap-0.5 mt-0.5">
-                                                <input
-                                                  type="text"
-                                                  value={cellReason}
-                                                  onChange={e => setCellReason(e.target.value)}
-                                                  placeholder="Sabab..."
-                                                  className="w-16 md:w-20 h-5 md:h-6 text-[9px] md:text-[10px] px-1 border border-gray-300 rounded"
-                                                  autoFocus
-                                                  onKeyDown={e => {
-                                                    if (e.key === 'Enter') markGridAttendance(lesson.id, student.id, false, cellReason || undefined);
-                                                    if (e.key === 'Escape') { setShowReasonInput(false); setCellReason(''); }
-                                                  }}
-                                                />
-                                                <button
-                                                  onClick={() => markGridAttendance(lesson.id, student.id, false, cellReason || undefined)}
-                                                  className="h-5 md:h-6 px-1 text-[9px] md:text-[10px] bg-blue-500 text-white rounded hover:bg-blue-600"
-                                                >OK</button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <button
-                                            onClick={() => {
-                                              if (isFuture) return;
-                                              setActiveCell({ lessonId: lesson.id, studentId: student.id });
-                                              setShowReasonInput(false);
-                                              setCellReason('');
-                                            }}
-                                            disabled={isFuture}
-                                            title={reasonText ? `Sabab: ${reasonText}` : (isFuture ? 'Kun hali kelmagan' : '')}
-                                            className={`w-7 h-7 md:w-8 md:h-8 rounded-md flex items-center justify-center transition-all text-[10px] md:text-sm mx-auto
-                                              ${isFuture ? 'cursor-not-allowed opacity-30' : 'cursor-pointer hover:ring-2 hover:ring-emerald-400'}
-                                              ${isPresent ? 'bg-green-100 text-green-700' : isAbsent ? 'bg-red-100 text-red-600' : isFuture ? 'bg-gray-50 text-gray-300' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                                          >
-                                            {isFuture ? '∼' : isPresent ? '✓' : isAbsent ? '✗' : '-'}
-                                          </button>
-                                        )}
-                                      </TableCell>
-                                    );
-                                  })}
-                                  <TableCell className="text-center">
-                                    <span className={`text-xs md:text-sm font-semibold ${totalCount > 0 ? (presentCount / totalCount >= 0.7 ? 'text-green-600' : presentCount / totalCount >= 0.4 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}`}>
-                                      {totalCount > 0 ? `${Math.round(presentCount / totalCount * 100)}%` : '-'}
-                                    </span>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                  <Card className="border-0 rounded-xl shadow-lg bg-white overflow-hidden lg:col-span-2">
-                    <div className="bg-gradient-to-r from-violet-600 to-violet-700 px-4 md:px-6 py-3 md:py-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
-                          <BarChart3 className="h-4 w-4 md:h-5 md:w-5" /> Oylik statistika
-                        </h3>
-                        <Button size="sm" onClick={fetchStats} className="bg-white text-violet-700 hover:bg-violet-50 text-xs h-7 md:h-8">
-                          <RefreshCw className="h-3 w-3 mr-1" /> Yangilash
-                        </Button>
-                      </div>
+                {/* Grid */}
+                <section className="lg-surface overflow-hidden rounded-[22px]">
+                  {gridLoading ? (
+                    <GridSkeleton />
+                  ) : activeRelations.length === 0 ? (
+                    <EmptyBlock icon={Users} title="Bu guruhda faol student yo'q" text="Guruhga student qo'shilgach, davomat shu yerda belgilanadi." />
+                  ) : lessonMeta.length === 0 ? (
+                    <EmptyBlock icon={Calendar} title="Bu oyda dars yo'q" text="Boshqa oyni tanlang yoki guruhga dars jadvalini qo'shing." />
+                  ) : (
+                    <div ref={gridRef} className="overflow-x-auto overscroll-x-contain">
+                      <table className="w-full border-separate border-spacing-0 text-sm">
+                        <thead>
+                          <tr>
+                            <th className="sticky left-0 z-20 min-w-[200px] border-b border-[var(--border)] bg-[var(--card)] px-4 py-2.5 text-left text-[12.5px] font-semibold text-[var(--muted-foreground)]">
+                              Student
+                            </th>
+                            {lessonMeta.map((l) => (
+                              <th
+                                key={l.id}
+                                className={cn(
+                                  'min-w-[40px] border-b border-[var(--border)] px-0.5 py-2 text-center font-normal',
+                                  l.isToday ? 'text-[var(--accent-ink)]' : 'text-[var(--muted-foreground)]',
+                                )}
+                              >
+                                <span className={cn('tabular mx-auto grid size-7 place-items-center rounded-full text-[12.5px] font-semibold', l.isToday && 'bg-[var(--accent)] text-white')}>
+                                  {l.day}
+                                </span>
+                                <span className="mt-0.5 block text-[10.5px] capitalize">{l.weekday}</span>
+                              </th>
+                            ))}
+                            <th className="min-w-[56px] border-b border-[var(--border)] px-2 text-center text-[12.5px] font-semibold text-[var(--muted-foreground)]">%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activeRelations.map((rel) => {
+                            const sid = rel.student!.id;
+                            return (
+                              <StudentRow
+                                key={sid}
+                                rel={rel}
+                                cells={byStudent[sid]}
+                                lessons={lessonMeta}
+                                joinDate={joinDates[sid]}
+                                pay={payments[sid]}
+                                activeLessonId={active?.sid === sid ? active.lid : null}
+                                onOpenCell={openCell}
+                                onCloseCell={closeCell}
+                                onMark={mark}
+                                onOpenStudent={openStudent}
+                              />
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                    <CardContent className="p-4 md:p-6">
-                      {statsLoading ? (
-                        <div className="space-y-3">
-                          <Skeleton className="h-10 w-full" />
-                          <Skeleton className="h-10 w-full" />
-                        </div>
-                      ) : monthlyStats ? (
-                        <div className="space-y-4 md:space-y-5">
-                          <div className="text-center p-4 md:p-5 bg-violet-50 rounded-xl">
-                            <p className="text-3xl md:text-4xl font-bold text-violet-700">{monthlyStats.presentPercent}%</p>
-                            <p className="text-xs md:text-sm text-violet-600 font-medium mt-1">Davomat foizi</p>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 md:gap-3">
-                            <div className="p-3 md:p-4 bg-green-50 rounded-xl text-center">
-                              <p className="text-xl md:text-2xl font-bold text-green-700">{monthlyStats.present}</p>
-                              <p className="text-[10px] md:text-xs text-green-600 mt-0.5">Keldi</p>
-                            </div>
-                            <div className="p-3 md:p-4 bg-red-50 rounded-xl text-center">
-                              <p className="text-xl md:text-2xl font-bold text-red-700">{monthlyStats.absent}</p>
-                              <p className="text-[10px] md:text-xs text-red-600 mt-0.5">Kelmadi</p>
-                            </div>
-                            <div className="p-3 md:p-4 bg-gray-50 rounded-xl text-center">
-                              <p className="text-xl md:text-2xl font-bold text-gray-900">{monthlyStats.lessons}</p>
-                              <p className="text-[10px] md:text-xs text-gray-500 mt-0.5">Darslar</p>
-                            </div>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 md:h-3 overflow-hidden">
+                  )}
+                </section>
+
+                {/* Stats */}
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  <section className="lg-surface rounded-[22px] p-4 md:p-5 lg:col-span-2">
+                    <h3 className="text-[16px] font-semibold">Oylik statistika</h3>
+                    {stats ? (
+                      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        <Metric label="Davomat" value={`${stats.presentPercent}%`} tone={Number(stats.presentPercent) >= 80 ? 'ok' : Number(stats.presentPercent) >= 60 ? 'warn' : 'bad'} />
+                        <Metric label="Keldi" value={stats.present} tone="ok" />
+                        <Metric label="Kelmadi" value={stats.absent} tone="bad" />
+                        <Metric label="Darslar" value={stats.lessons} />
+                        <div className="col-span-2 sm:col-span-4">
+                          <div className="h-2 overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                             <div
-                              className="h-2 md:h-3 rounded-full transition-all duration-500 bg-gradient-to-r from-red-500 via-amber-500 to-green-500"
-                              style={{ width: `${Math.min(Number(monthlyStats.presentPercent), 100)}%` }}
+                              className="h-full rounded-full bg-[var(--ok)] transition-[width] duration-500 ease-out"
+                              style={{ width: `${Math.min(Number(stats.presentPercent) || 0, 100)}%` }}
                             />
                           </div>
                         </div>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <BarChart3 className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                          <p className="text-sm">Statistika mavjud emas</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-0 rounded-xl shadow-lg bg-white overflow-hidden">
-                    <div className="bg-gradient-to-r from-rose-600 to-rose-700 px-4 md:px-6 py-3 md:py-4">
-                      <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
-                        <Users className="h-4 w-4 md:h-5 md:w-5" /> Ma'lumot
-                      </h3>
-                    </div>
-                    <CardContent className="p-4 md:p-6 space-y-2 md:space-y-3">
-                      <div className="flex justify-between items-center p-2 md:p-3 bg-gray-50 rounded-lg">
-                        <span className="text-xs md:text-sm text-gray-600">Faol studentlar</span>
-                        <span className="font-bold text-gray-900 text-sm md:text-base">{activeRelations.length}</span>
                       </div>
-                      <div className="flex justify-between items-center p-2 md:p-3 bg-gray-50 rounded-lg">
-                        <span className="text-xs md:text-sm text-gray-600">Bu oydagi darslar</span>
-                        <span className="font-bold text-gray-900 text-sm md:text-base">{gridLessons.length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-2 md:p-3 bg-gray-50 rounded-lg">
-                        <span className="text-xs md:text-sm text-gray-600">O'tgan darslar</span>
-                        <span className="font-bold text-gray-900 text-sm md:text-base">{gridLessons.filter(l => l.date.split('T')[0] <= todayStr).length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-2 md:p-3 bg-gray-50 rounded-lg">
-                        <span className="text-xs md:text-sm text-gray-600">Kelgusi darslar</span>
-                        <span className="font-bold text-gray-900 text-sm md:text-base">{gridLessons.filter(l => l.date.split('T')[0] > todayStr).length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-2 md:p-3 bg-gray-50 rounded-lg">
-                        <span className="text-xs md:text-sm text-gray-600">O'qituvchi</span>
-                        <span className="font-bold text-gray-900 text-sm md:text-base truncate max-w-[100px] md:max-w-[130px]">{getTeacherName(selectedGroup)}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
+                    ) : gridLoading ? (
+                      <Skeleton className="mt-4 h-20 w-full" />
+                    ) : (
+                      <p className="mt-3 text-[13.5px] text-[var(--muted-foreground)]">Bu oy uchun statistika hali yo&apos;q.</p>
+                    )}
+                  </section>
+                  <section className="lg-surface rounded-[22px] p-4 md:p-5">
+                    <h3 className="text-[16px] font-semibold">Ma&apos;lumot</h3>
+                    <dl className="mt-3 divide-y divide-[var(--border)] text-[13.5px]">
+                      <InfoRow label="Faol studentlar" value={activeRelations.length} />
+                      <InfoRow label="Bu oydagi darslar" value={lessonMeta.length} />
+                      <InfoRow label="O'tgan darslar" value={pastLessons} />
+                      <InfoRow label="Kelgusi darslar" value={lessonMeta.length - pastLessons} />
+                      <InfoRow label="O'qituvchi" value={teacherName(selected)} />
+                    </dl>
+                  </section>
                 </div>
               </>
             )}
@@ -886,169 +454,402 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Student Detail Modal */}
-      <Dialog open={!!modalStudent} onOpenChange={(open) => { if (!open) { setModalStudent(null); setStudentDebtData(null); } }}>
-        <DialogContent className="bg-white max-w-lg max-h-[90vh] overflow-y-auto">
-          {modalStudent && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10 border-2 border-emerald-200">
-                    <AvatarImage src={modalStudent.student?.photo || ''} />
-                    <AvatarFallback className="bg-gradient-to-br from-emerald-400 to-teal-500 text-white text-sm">
-                      {getInitials(modalStudent.student?.first_name || '', modalStudent.student?.last_name || '')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <Link href={`/students/${modalStudent.student?.id}`} className="text-lg font-semibold text-emerald-700 hover:text-emerald-800 hover:underline truncate block">
-                      {modalStudent.student?.first_name} {modalStudent.student?.last_name}
-                    </Link>
-                    <p className="text-xs text-gray-500 font-normal flex items-center gap-1 mt-0.5">
-                      <Phone className="h-3 w-3 shrink-0" />
-                      Shaxsiy: {modalStudent.student?.phone_number || '-'}
-                    </p>
-                    <p className="text-xs text-gray-500 font-normal flex items-center gap-1">
-                      <Phone className="h-3 w-3 shrink-0" />
-                      Ota-ona: {getParentPhone(modalStudent.student)}
-                    </p>
-                  </div>
-                </DialogTitle>
-              </DialogHeader>
-
-              {modalLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
-                  <span className="ml-2 text-gray-500">Yuklanmoqda...</span>
-                </div>
-              ) : studentDebtData ? (
-                <div className="space-y-4">
-                  {/* Payment Summary */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                      <p className="text-xs text-red-600">Jami qarzdorlik</p>
-                      <p className="text-xl font-bold text-red-700">{formatSum(studentDebtData.total_debt)} so'm</p>
-                    </div>
-                    <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                      <p className="text-xs text-green-600">To'lagan summa</p>
-                      <p className="text-xl font-bold text-green-700">{formatSum(studentDebtData.paid_total)} so'm</p>
-                    </div>
-                  </div>
-
-                  {/* Attendance Stats for Current Month */}
-                  {monthlyStats && (
-                    <div className="bg-violet-50 p-3 rounded-lg border border-violet-200">
-                      <p className="text-xs text-violet-600 font-medium mb-2">Bu oydagi davomat</p>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div>
-                          <p className="text-lg font-bold text-green-700">{(() => {
-                            const sid = modalStudent.student!.id;
-                            let p = 0;
-                            let t = 0;
-                            gridLessons.forEach(lesson => {
-                              const att = gridAttendance[lesson.id]?.[sid];
-                              if (att !== undefined) {
-                                t++;
-                                if (att.is_present) p++;
-                              }
-                            });
-                            return t > 0 ? `${Math.round(p/t*100)}%` : '-';
-                          })()}</p>
-                          <p className="text-[10px] text-gray-500">Kelgan</p>
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold text-red-700">{(() => {
-                            const sid = modalStudent.student!.id;
-                            let a = 0;
-                            gridLessons.forEach(lesson => {
-                              const att = gridAttendance[lesson.id]?.[sid];
-                              if (att?.is_present === false) a++;
-                            });
-                            return a;
-                          })()}</p>
-                          <p className="text-[10px] text-gray-500">Kelmagan</p>
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold text-gray-700">{(() => {
-                            const sid = modalStudent.student!.id;
-                            let t = 0;
-                            gridLessons.forEach(lesson => {
-                              const att = gridAttendance[lesson.id]?.[sid];
-                              if (att !== undefined) t++;
-                            });
-                            return t;
-                          })()}</p>
-                          <p className="text-[10px] text-gray-500">Jami</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Payment History */}
-                  <div>
-                    <h4 className="font-medium text-gray-900 text-sm mb-2">To'lov tarixi</h4>
-                    <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
-                      {studentDebtData.debts && studentDebtData.debts.length > 0 ? (
-                        studentDebtData.debts.map((debt: any, i: number) => (
-                          <div key={i} className="p-3 flex justify-between items-center">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{debt.month_name} {debt.year}</p>
-                              <p className="text-xs text-gray-500">{debt.group_name}</p>
-                            </div>
-                            <span className="text-sm font-bold text-red-600">{formatSum(debt.amount)} so'm</span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-4 text-center text-gray-400 text-sm">Qarzdorlik mavjud emas</div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Paid History */}
-                  {studentDebtData.paid_payments && studentDebtData.paid_payments.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-gray-900 text-sm mb-2">To'langan oylar</h4>
-                      <div className="max-h-36 overflow-y-auto border rounded-lg divide-y bg-green-50">
-                        {studentDebtData.paid_payments.map((p: any) => (
-                          <div key={p.id} className="p-3 flex justify-between items-center">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{p.month_name} {p.year}</p>
-                              <p className="text-xs text-gray-500">{p.group_name}</p>
-                            </div>
-                            <span className="text-sm font-bold text-green-600">{formatSum(p.amount)} so'm</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {studentConsecutiveAbsences[modalStudent.student!.id] && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-red-700">
-                          {studentConsecutiveAbsences[modalStudent.student!.id]} marta ketma-ket kelmagan
-                        </p>
-                        <p className="text-xs text-red-500">Diqqat talab qiladi</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <X className="h-10 w-10 mx-auto text-gray-300 mb-2" />
-                  <p className="text-sm">Ma'lumot yuklanmadi</p>
-                </div>
-              )}
-
-              <div className="flex justify-end mt-2">
-                <Button variant="outline" onClick={() => { setModalStudent(null); setStudentDebtData(null); }}>
-                  Yopish
-                </Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <StudentDialog
+        rel={modalRel}
+        loading={modalLoading}
+        debts={debts}
+        cells={modalRel ? byStudent[modalRel.student!.id] : undefined}
+        lessons={lessonMeta}
+        joinDate={modalRel ? joinDates[modalRel.student!.id] : undefined}
+        onClose={() => { setModalRel(null); setDebts(null); }}
+      />
     </Layout>
+  );
+}
+
+type MonthlyGridLesson = { id: number; date: string; start_time: string; end_time?: string };
+
+/* -------------------------------------------------------------------------- */
+/* Pieces                                                                     */
+/* -------------------------------------------------------------------------- */
+
+function SearchBox({ value, onChange, count }: { value: string; onChange: (v: string) => void; count: number }) {
+  return (
+    <div className="border-b border-[var(--border)] p-3">
+      <div className="mb-2 flex items-center justify-between px-1">
+        <span className="text-[13px] font-semibold">Guruhlar</span>
+        <span className="tabular text-[12px] text-[var(--muted-foreground)]">{count}</span>
+      </div>
+      <label className="relative block">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--faint)]" />
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Guruh yoki o'qituvchi"
+          aria-label="Guruh qidirish"
+          className="h-9 w-full rounded-[11px] border border-[var(--border-strong)] bg-[color-mix(in_oklab,var(--card)_85%,transparent)] pl-9 pr-3 text-[13.5px] outline-none transition-[border-color,box-shadow] placeholder:text-[var(--faint)] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+        />
+      </label>
+    </div>
+  );
+}
+
+const GroupList = memo(function GroupList({
+  groups, loading, selectedId, status, onSelect,
+}: {
+  groups: Group[];
+  loading: boolean;
+  selectedId?: string;
+  status: Record<string, TodayStatus>;
+  onSelect: (g: Group) => void;
+}) {
+  if (loading) {
+    return <div className="space-y-2 p-3">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>;
+  }
+  if (!groups.length) {
+    return (
+      <div className="px-6 py-10 text-center text-[13px] text-[var(--muted-foreground)]">
+        <School className="mx-auto mb-2 size-8 opacity-40" />
+        Guruh topilmadi
+      </div>
+    );
+  }
+  return (
+    <ul className="p-1.5">
+      {groups.map((g) => {
+        const on = selectedId === g.id;
+        const st = status[String(g.id)];
+        const chip = st && st !== 'no_lessons' ? STATUS_CHIP[st] : null;
+        return (
+          <li key={g.id}>
+            <button
+              type="button"
+              onClick={() => onSelect(g)}
+              aria-current={on ? 'true' : undefined}
+              className={cn(
+                'w-full rounded-[14px] border border-transparent px-3 py-2.5 text-left transition-colors',
+                on ? 'lg-lens' : 'hover:bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)]',
+              )}
+            >
+              <span className="flex items-center gap-2">
+                <span className={cn('min-w-0 flex-1 truncate text-[14px]', on ? 'font-semibold' : 'font-medium')}>{g.name}</span>
+                <span className="tabular shrink-0 rounded-full bg-[color-mix(in_oklab,var(--foreground)_7%,transparent)] px-1.5 py-px text-[11.5px] font-semibold text-[var(--muted-foreground)]">
+                  {(g as any).student_count || 0}
+                </span>
+              </span>
+              <span className="mt-1 flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate text-[12px] text-[var(--muted-foreground)]">
+                  {teacherName(g)}{g.room ? ` · ${g.room.name}` : ''}
+                </span>
+                {chip && <span className={cn('shrink-0 rounded-full px-1.5 py-px text-[10.5px] font-semibold', chip.cls)}>{chip.label}</span>}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+});
+
+const StudentRow = memo(function StudentRow({
+  rel, cells, lessons, joinDate, pay, activeLessonId, onOpenCell, onCloseCell, onMark, onOpenStudent,
+}: {
+  rel: GroupStudent;
+  cells?: Cells;
+  lessons: LessonMeta[];
+  joinDate?: string;
+  pay?: PayInfo;
+  activeLessonId: number | null;
+  onOpenCell: (sid: number, lid: number) => void;
+  onCloseCell: () => void;
+  onMark: (lid: number, sid: number, present: boolean, reason?: string) => void;
+  onOpenStudent: (rel: GroupStudent) => void;
+}) {
+  const s = rel.student!;
+  const { present, total, maxStreak } = rowStats(cells, lessons, joinDate);
+  const warn = maxStreak >= 3;
+  const pct = total ? Math.round((present / total) * 100) : null;
+  const rowBg = warn ? 'bg-[color-mix(in_oklab,var(--bad)_7%,var(--card))]' : 'bg-[var(--card)]';
+
+  return (
+    <tr className="group/row">
+      <td className={cn('sticky left-0 z-10 border-b border-[var(--border)] p-0', rowBg)}>
+        <button
+          type="button"
+          onClick={() => onOpenStudent(rel)}
+          className="flex w-full items-center gap-2.5 px-4 py-2 text-left transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]"
+        >
+          <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-[linear-gradient(160deg,#4f9bff,#0a6cff)] text-[11.5px] font-semibold text-white">
+            {s.photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={s.photo} alt="" loading="lazy" className="size-full object-cover" />
+            ) : initials(s.first_name, s.last_name)}
+          </span>
+          <span className="min-w-0">
+            <span className="flex items-center gap-1">
+              <span className="block max-w-[150px] truncate text-[13.5px] font-medium">{s.first_name} {s.last_name}</span>
+              {warn && (
+                <span title={`${maxStreak} marta ketma-ket kelmagan`}>
+                  <AlertTriangle className="size-3.5 shrink-0 text-[var(--bad)]" />
+                </span>
+              )}
+            </span>
+            {pay && pay.debt > 0 ? (
+              <span className="flex items-center gap-1 text-[11px] font-medium text-[var(--bad)]">
+                <Wallet className="size-3" /> <span className="tabular">{formatSum(pay.debt)}</span> so&apos;m qarz
+              </span>
+            ) : (
+              <span className="text-[11px] font-medium text-[var(--ok)]">To&apos;lov qilgan</span>
+            )}
+          </span>
+        </button>
+      </td>
+      {lessons.map((l) => {
+        const c = cells?.[l.id];
+        const beforeJoin = joinDate ? l.dateStr < joinDate : false;
+        return (
+          <td key={l.id} className={cn('relative border-b border-[var(--border)] p-1 text-center', l.isToday && 'bg-[color-mix(in_oklab,var(--accent)_5%,transparent)]')}>
+            {beforeJoin ? (
+              <span className="mx-auto grid size-8 place-items-center text-[var(--faint)] opacity-50">—</span>
+            ) : (
+              <CellEditor
+                open={activeLessonId === l.id}
+                onPresent={() => onMark(l.id, s.id, true)}
+                onAbsent={(reason) => onMark(l.id, s.id, false, reason)}
+                onClose={onCloseCell}
+              >
+              <button
+                type="button"
+                disabled={l.isFuture}
+                onClick={() => onOpenCell(s.id, l.id)}
+                title={c?.reason ? `Sabab: ${c.reason}` : l.isFuture ? 'Kun hali kelmagan' : 'Belgilash'}
+                aria-label={`${s.first_name} ${s.last_name}, ${l.day}-sana: ${c ? (c.is_present ? 'keldi' : 'kelmadi') : 'belgilanmagan'}`}
+                className={cn(
+                  'mx-auto grid size-8 place-items-center rounded-[9px] text-[13px] font-semibold transition-[background-color,box-shadow,transform] duration-100 active:scale-90',
+                  l.isFuture && 'cursor-not-allowed opacity-30',
+                  !l.isFuture && 'hover:ring-2 hover:ring-[var(--accent)]',
+                  c?.is_present === true && 'bg-[color-mix(in_oklab,var(--ok)_16%,transparent)] text-[var(--ok)]',
+                  c?.is_present === false && 'bg-[color-mix(in_oklab,var(--bad)_14%,transparent)] text-[var(--bad)]',
+                  !c && 'bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)] text-[var(--faint)]',
+                )}
+              >
+                {c?.is_present === true ? <Check className="size-4" strokeWidth={2.6} /> : c?.is_present === false ? <X className="size-4" strokeWidth={2.6} /> : l.isFuture ? '·' : '–'}
+              </button>
+              </CellEditor>
+            )}
+          </td>
+        );
+      })}
+      <td className="border-b border-[var(--border)] px-2 text-center">
+        <span
+          className={cn(
+            'tabular text-[13px] font-semibold',
+            pct == null ? 'text-[var(--faint)]' : pct >= 70 ? 'text-[var(--ok)]' : pct >= 40 ? 'text-[var(--warn)]' : 'text-[var(--bad)]',
+          )}
+        >
+          {pct == null ? '—' : `${pct}%`}
+        </span>
+      </td>
+    </tr>
+  );
+});
+
+/**
+ * Present / absent picker in a portal popover (never clipped by the scrolling grid).
+ * Only the open cell mounts a popover; the reason text lives here so typing never re-renders the grid.
+ */
+function CellEditor({
+  open, children, onPresent, onAbsent, onClose,
+}: {
+  open: boolean;
+  children: React.ReactElement;
+  onPresent: () => void;
+  onAbsent: (reason?: string) => void;
+  onClose: () => void;
+}) {
+  if (!open) return children;
+  return (
+    <PopoverPrimitive.Root open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <PopoverPrimitive.Anchor asChild>{children}</PopoverPrimitive.Anchor>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content
+          side="top"
+          sideOffset={6}
+          collisionPadding={12}
+          className="lg-panel z-50 rounded-[14px] p-1.5 outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.96] duration-150"
+        >
+          <EditorBody onPresent={onPresent} onAbsent={onAbsent} onClose={onClose} />
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
+  );
+}
+
+function EditorBody({ onPresent, onAbsent, onClose }: { onPresent: () => void; onAbsent: (reason?: string) => void; onClose: () => void }) {
+  const [askReason, setAskReason] = useState(false);
+  const [reason, setReason] = useState('');
+  return (
+    <div>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          autoFocus
+          onClick={onPresent}
+          className="flex h-8 items-center gap-1 rounded-[10px] bg-[var(--ok)] px-2.5 text-[12.5px] font-semibold text-white active:scale-95"
+        >
+          <Check className="size-3.5" strokeWidth={2.6} /> Keldi
+        </button>
+        <button
+          type="button"
+          onClick={() => setAskReason(true)}
+          className="flex h-8 items-center gap-1 rounded-[10px] bg-[var(--bad)] px-2.5 text-[12.5px] font-semibold text-white active:scale-95"
+        >
+          <X className="size-3.5" strokeWidth={2.6} /> Kelmadi
+        </button>
+        <button type="button" onClick={onClose} aria-label="Yopish" className="grid size-8 place-items-center rounded-[10px] text-[var(--muted-foreground)] hover:bg-[color-mix(in_oklab,var(--foreground)_7%,transparent)]">
+          <X className="size-4" />
+        </button>
+      </div>
+      {askReason && (
+        <form
+          className="mt-1.5 flex gap-1"
+          onSubmit={(e) => { e.preventDefault(); onAbsent(reason.trim() || undefined); }}
+        >
+          <input
+            autoFocus
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Sabab (ixtiyoriy)"
+            className="h-8 w-36 rounded-[9px] border border-[var(--border-strong)] bg-[var(--card)] px-2 text-[12.5px] outline-none focus:border-[var(--accent)]"
+          />
+          <button type="submit" className="h-8 rounded-[9px] bg-[var(--accent)] px-2.5 text-[12.5px] font-semibold text-white">Saqlash</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function StudentDialog({
+  rel, loading, debts, cells, lessons, joinDate, onClose,
+}: {
+  rel: GroupStudent | null;
+  loading: boolean;
+  debts: any;
+  cells?: Cells;
+  lessons: LessonMeta[];
+  joinDate?: string;
+  onClose: () => void;
+}) {
+  const s = rel?.student;
+  const st = rowStats(cells, lessons, joinDate);
+  return (
+    <Dialog open={!!rel} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        {s && (
+          <>
+            <DialogHeader>
+              <DialogTitle>
+                <Link href={`/students/${s.id}`} className="hover:text-[var(--accent-ink)] hover:underline underline-offset-4">
+                  {s.first_name} {s.last_name}
+                </Link>
+              </DialogTitle>
+              <DialogDescription asChild>
+                <div className="space-y-0.5">
+                  <p className="flex items-center gap-1.5"><Phone className="size-3.5" /> Shaxsiy: <span className="tabular">{s.phone_number || '—'}</span></p>
+                  <p className="flex items-center gap-1.5"><Phone className="size-3.5" /> Ota-ona: <span className="tabular">{parentPhone(s)}</span></p>
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-3 gap-2">
+              <Metric label="Kelgan" value={st.total ? `${Math.round((st.present / st.total) * 100)}%` : '—'} tone="ok" small />
+              <Metric label="Kelmagan" value={st.absent} tone="bad" small />
+              <Metric label="Belgilangan" value={st.total} small />
+            </div>
+
+            {st.maxStreak >= 3 && (
+              <div className="flex items-center gap-2.5 rounded-[14px] bg-[color-mix(in_oklab,var(--bad)_10%,transparent)] p-3 text-[13px] text-[var(--bad)]">
+                <AlertTriangle className="size-5 shrink-0" />
+                <span><b className="font-semibold">{st.maxStreak} marta ketma-ket kelmagan.</b> Ota-onasi bilan bog&apos;laning.</span>
+              </div>
+            )}
+
+            {loading ? (
+              <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-24 w-full" /></div>
+            ) : debts ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <Metric label="Jami qarzdorlik" value={`${formatSum(debts.total_debt)} so'm`} tone={debts.total_debt > 0 ? 'bad' : undefined} small />
+                  <Metric label="To'lagan summa" value={`${formatSum(debts.paid_total)} so'm`} tone="ok" small />
+                </div>
+                <MoneyList title="Qarzdor oylar" rows={debts.debts} tone="bad" empty="Qarzdorlik yo'q" />
+                {debts.paid_payments?.length > 0 && <MoneyList title="To'langan oylar" rows={debts.paid_payments} tone="ok" />}
+              </div>
+            ) : (
+              <p className="py-4 text-center text-[13.5px] text-[var(--muted-foreground)]">To&apos;lov ma&apos;lumoti yuklanmadi.</p>
+            )}
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MoneyList({ title, rows, tone, empty }: { title: string; rows?: any[]; tone: 'ok' | 'bad'; empty?: string }) {
+  return (
+    <div>
+      <h4 className="mb-1.5 text-[13px] font-semibold">{title}</h4>
+      <div className="max-h-44 overflow-y-auto rounded-[14px] border border-[var(--border)]">
+        {rows?.length ? rows.map((r: any, i: number) => (
+          <div key={r.id ?? i} className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2.5 last:border-0">
+            <div className="min-w-0">
+              <p className="text-[13.5px] font-medium">{r.month_name} {r.year}</p>
+              <p className="truncate text-[12px] text-[var(--muted-foreground)]">{r.group_name}</p>
+            </div>
+            <span className={cn('tabular shrink-0 text-[13.5px] font-semibold', tone === 'ok' ? 'text-[var(--ok)]' : 'text-[var(--bad)]')}>
+              {formatSum(r.amount)} so&apos;m
+            </span>
+          </div>
+        )) : <p className="px-3 py-4 text-center text-[13px] text-[var(--muted-foreground)]">{empty}</p>}
+      </div>
+    </div>
+  );
+}
+
+function Metric({ label, value, tone, small }: { label: string; value: React.ReactNode; tone?: 'ok' | 'warn' | 'bad'; small?: boolean }) {
+  const color = tone === 'ok' ? 'text-[var(--ok)]' : tone === 'warn' ? 'text-[var(--warn)]' : tone === 'bad' ? 'text-[var(--bad)]' : 'text-[var(--foreground)]';
+  return (
+    <div className={cn('rounded-[14px] bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]', small ? 'p-3' : 'p-3.5')}>
+      <p className="text-[12px] font-medium text-[var(--muted-foreground)]">{label}</p>
+      <p className={cn('tabular mt-0.5 font-semibold tracking-[-0.02em]', small ? 'text-[17px]' : 'text-[24px]', color)}>{value}</p>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2.5">
+      <dt className="text-[var(--muted-foreground)]">{label}</dt>
+      <dd className="tabular max-w-[60%] truncate font-semibold">{value}</dd>
+    </div>
+  );
+}
+
+function EmptyBlock({ icon: Icon, title, text }: { icon: typeof Users; title: string; text: string }) {
+  return (
+    <div className="flex flex-col items-center px-6 py-14 text-center">
+      <Icon className="size-10 text-[var(--faint)] opacity-60" strokeWidth={1.6} />
+      <p className="mt-3 text-[15px] font-semibold">{title}</p>
+      <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">{text}</p>
+    </div>
+  );
+}
+
+function GridSkeleton() {
+  return (
+    <div className="space-y-2 p-4" aria-busy="true" aria-label="Yuklanmoqda">
+      <Skeleton className="h-10 w-full" />
+      {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
+    </div>
   );
 }

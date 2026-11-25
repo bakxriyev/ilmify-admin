@@ -64,9 +64,12 @@ export default function LocationPickerMap({
     mapRef.current = map;
     markerRef.current = marker;
 
-    setTimeout(() => map.invalidateSize(), 300);
+    const timer = setTimeout(() => {
+      if (mapRef.current === map) map.invalidateSize();
+    }, 300);
 
     return () => {
+      clearTimeout(timer);
       map.remove();
       mapRef.current = null;
       markerRef.current = null;

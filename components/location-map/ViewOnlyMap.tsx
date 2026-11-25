@@ -52,9 +52,14 @@ export default function ViewOnlyMap({ latitude, longitude, height = '300px' }: V
     L.marker([latitude, longitude]).addTo(map);
 
     mapRef.current = map;
-    setTimeout(() => map.invalidateSize(), 300);
+    // Re-measure once the container has its final size. The timer is cleared on
+    // unmount: calling invalidateSize on a removed map throws "_leaflet_pos".
+    const timer = setTimeout(() => {
+      if (mapRef.current === map) map.invalidateSize();
+    }, 300);
 
     return () => {
+      clearTimeout(timer);
       map.remove();
       mapRef.current = null;
     };

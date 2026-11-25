@@ -53,6 +53,10 @@ export const attendanceApi = {
   markLesson: (dto: MarkAttendanceDto) =>
     api.post<any>('/attendances/lesson', dto).then(r => r.data),
 
+  /** One request for every group: only groups with a lesson on `date` are present. */
+  getTodayStatus: (date: string) =>
+    api.get<Record<string, 'marked' | 'partial' | 'unmarked'>>('/attendances/today-status', { params: { date } }).then(r => r.data),
+
   getGroupAttendance: (groupId: number, date: string) =>
     api.get<GroupAttendanceRecord[]>('/attendances/group', { params: { group_id: groupId, date } }).then(r => r.data),
 
